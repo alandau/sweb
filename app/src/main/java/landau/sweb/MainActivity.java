@@ -277,7 +277,7 @@ public class MainActivity extends Activity {
             public void onClick(View v) {
                 String[] items = new String[tabs.size()];
                 for (int i = 0; i < tabs.size(); i++) {
-                    items[i] = "" + (i+1);
+                    items[i] = tabs.get(i).webview.getTitle();
                 }
                 new AlertDialog.Builder(MainActivity.this).setTitle("Tabs").setItems(items, new DialogInterface.OnClickListener() {
                     @Override
