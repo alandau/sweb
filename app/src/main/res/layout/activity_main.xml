@@ -1,4 +1,5 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
@@ -140,7 +141,8 @@
                 android:background="#00000000"
                 android:gravity="center"
                 android:textColor="#61615f"
-                android:textSize="16sp" />
+                android:textSize="16dp"
+                tools:ignore="SpUsage" />
         </RelativeLayout>
     </LinearLayout>
 
