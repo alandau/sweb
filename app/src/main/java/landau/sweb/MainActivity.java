@@ -39,8 +39,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import static android.view.View.GONE;
-
 public class MainActivity extends Activity {
 
     private static class Tab {
@@ -84,16 +82,11 @@ public class MainActivity extends Activity {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 super.onProgressChanged(view, newProgress);
-                System.out.println("progress=" + newProgress + ", url=" + view.getUrl());
-                injectCSS();
+                injectCSS(view);
                 if (newProgress == 100) {
-                    progressBar.setVisibility(GONE);
+                    progressBar.setVisibility(View.GONE);
                 } else {
                     progressBar.setProgress(newProgress);
-                }
-                if (newProgress >= 20) {
-                    System.out.println("setting to VISIBLE");
-                    view.setVisibility(View.VISIBLE);
                 }
             }
         });
@@ -101,27 +94,21 @@ public class MainActivity extends Activity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
-                //view.setVisibility(View.VISIBLE);
-                //view.setBackgroundColor(Color.BLACK);
                 progressBar.setProgress(0);
                 progressBar.setVisibility(View.VISIBLE);
-                et.setText(url);
-                injectCSS();
+                if (view == getCurrentWebView()) {
+                    et.setText(url);
+                }
+                injectCSS(view);
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                //wv.loadUrl(JAVASCRIPT_INVERT_PAGE);
-                //view.setBackgroundColor(Color.BLACK);
-                et.setText(url);
-                injectCSS();
-            }
-
-            @Override
-            public void onLoadResource(WebView view, String url) {
-                //injectCSS();
-                super.onLoadResource(view, url);
+                if (view == getCurrentWebView()) {
+                    et.setText(url);
+                }
+                injectCSS(view);
             }
 
             final Set<String> adHosts = new HashSet<>(Arrays.asList(
@@ -157,7 +144,7 @@ public class MainActivity extends Activity {
                         switch (which) {
                             case 0:
                                 et.setText(url);
-                                handleLoadUrl();
+                                loadUrl(url, getCurrentWebView());
                                 break;
                             case 1:
                                 newTab(url);
@@ -174,13 +161,11 @@ public class MainActivity extends Activity {
     private void newTab(String url) {
         WebView webview = createWebView();
         webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        webviews.addView(webview);
+        webview.setVisibility(View.GONE);
         tabs.add(new Tab(webview));
-        getCurrentWebView().setVisibility(GONE);
-        currentTabIndex = tabs.size() - 1;
-        et.setText(url);
-        ((TextView)findViewById(R.id.btnTabsCount)).setText(""+tabs.size());
-        handleLoadUrl();
+        webviews.addView(webview);
+        ((TextView)findViewById(R.id.btnTabsCount)).setText("" + tabs.size());
+        loadUrl(url, webview);
     }
 
     @Override
@@ -190,14 +175,9 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         isNightMode = true;
 
-        WebView webview = createWebView();
-        webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webviews = findViewById(R.id.webviews);
-        webviews.addView(webview);
-        tabs.add(new Tab(webview));
         currentTabIndex = 0;
 
-        onNightModeChange();
         newActivityBtn = findViewById(R.id.new_activity);
         et = findViewById(R.id.et);
 
@@ -208,7 +188,7 @@ public class MainActivity extends Activity {
         } else if (Intent.ACTION_WEB_SEARCH.equals(getIntent().getAction()) && getIntent().getStringExtra("query") != null) {
             et.setText(getIntent().getStringExtra("query"));
         } else {
-            et.setText("about:blank");
+            et.setText("");
         }
 
         ImageView btnBack = findViewById(R.id.btnBack);
@@ -273,16 +253,16 @@ public class MainActivity extends Activity {
         final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
             @Override
             boolean onFlingUp() {
-                if (tabs.size() == 1) {
-                    et.setText("about:blank");
-                    handleLoadUrl();
-                    return true;
-                }
                 ((FrameLayout)findViewById(R.id.webviews)).removeView(getCurrentWebView());
                 getCurrentWebView().destroy();
                 tabs.remove(currentTabIndex);
                 if (currentTabIndex >= tabs.size()) {
                     currentTabIndex = tabs.size() - 1;
+                }
+                if (currentTabIndex == -1) {
+                    // We just closed the last tab
+                    newTab("");
+                    currentTabIndex = 0;
                 }
                 getCurrentWebView().setVisibility(View.VISIBLE);
                 et.setText(getCurrentWebView().getUrl());
@@ -302,7 +282,7 @@ public class MainActivity extends Activity {
                 new AlertDialog.Builder(MainActivity.this).setTitle("Tabs").setItems(items, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        getCurrentWebView().setVisibility(GONE);
+                        getCurrentWebView().setVisibility(View.GONE);
                         currentTabIndex = which;
                         getCurrentWebView().setVisibility(View.VISIBLE);
                         et.setText(getCurrentWebView().getUrl());
@@ -313,7 +293,7 @@ public class MainActivity extends Activity {
         btnTabs.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                newTab("about:blank");
+                newTab("");
                 return true;
             }
         });
@@ -350,8 +330,9 @@ public class MainActivity extends Activity {
                     public boolean onMenuItemClick(MenuItem item) {
                         int index = item.getItemId();
                         if (index >= 0 && index < menuItems.length / 2) {
-                            et.setText(menuItems[index * 2 + 1]);
-                            handleLoadUrl();
+                            String url = menuItems[index * 2 + 1];
+                            et.setText(url);
+                            loadUrl(url, getCurrentWebView());
                             return true;
                         }
                         return false;
@@ -386,7 +367,7 @@ public class MainActivity extends Activity {
             @Override
             public boolean onKey(View v, int keyCode, KeyEvent event) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
-                    handleLoadUrl();
+                    loadUrl(et.getText().toString(), getCurrentWebView());
                     return true;
                 } else {
                     return false;
@@ -394,7 +375,10 @@ public class MainActivity extends Activity {
             }
         });
 
-        handleLoadUrl();
+        newTab(et.getText().toString());
+        getCurrentWebView().setVisibility(View.VISIBLE);
+        getCurrentWebView().requestFocus();
+        onNightModeChange();
     }
 
     private void onNightModeChange() {
@@ -403,20 +387,20 @@ public class MainActivity extends Activity {
         } else {
             getCurrentWebView().setBackgroundColor(Color.WHITE);
         }
-        injectCSS();
+        injectCSS(getCurrentWebView());
     }
 
-    private void handleLoadUrl() {
-        String url = et.getText().toString().trim();
+    private void loadUrl(String url, WebView webview) {
+        url = url.trim();
         if (url.isEmpty()) {
-            return;
+            url = "about:blank";
         }
         if (url.indexOf(' ') == -1 && (url.startsWith("about:") || url.startsWith("javascript:") || Patterns.WEB_URL.matcher(url).matches())) {
             url = URLUtil.guessUrl(url);
         } else {
             url = URLUtil.composeSearchUrl(url, searchUrl, "%s");
         }
-        getCurrentWebView().loadUrl(url);
+        webview.loadUrl(url);
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         assert imm != null;
         imm.hideSoftInputFromWindow(et.getWindowToken(), 0);
@@ -431,7 +415,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void injectCSS() {
+    private void injectCSS(WebView webview) {
         try {
             String css = "*, :after, :before {background-color: #161a1e !important; color: #61615f !important; border-color: #212a32 !important; background-image:none !important; outline-color: #161a1e !important; z-index: 1 !important} " +
                     "svg, img {filter: grayscale(100%) brightness(50%) !important; -webkit-filter: grayscale(100%) brightness(50%) !important} " +
@@ -490,7 +474,7 @@ public class MainActivity extends Activity {
                         "   fr.contentDocument.head.removeChild(style);" +
                         "}";
             }
-            getCurrentWebView().evaluateJavascript("javascript:(function() {" + js + "})()", null);
+            webview.evaluateJavascript("javascript:(function() {" + js + "})()", null);
         } catch (Exception e) {
             e.printStackTrace();
         }
