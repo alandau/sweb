@@ -6,9 +6,11 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.util.Patterns;
 import android.view.GestureDetector;
 import android.view.KeyEvent;
@@ -53,6 +55,7 @@ public class MainActivity extends Activity {
     private ImageButton newActivityBtn;
     private EditText et;
     private boolean isNightMode;
+    private SharedPreferences prefs;
 
     private Tab getCurrentTab() {
         return tabs.get(currentTabIndex);
@@ -180,8 +183,10 @@ public class MainActivity extends Activity {
     @SuppressLint("SetTextI18n")
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        prefs = PreferenceManager.getDefaultSharedPreferences(this);
         setContentView(R.layout.activity_main);
-        isNightMode = true;
+
+        isNightMode = prefs.getBoolean("night_mode", false);
 
         webviews = findViewById(R.id.webviews);
         currentTabIndex = 0;
@@ -253,6 +258,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 isNightMode = !isNightMode;
+                prefs.edit().putBoolean("night_mode", isNightMode).apply();
                 onNightModeChange();
             }
         });
