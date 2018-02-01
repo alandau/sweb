@@ -167,7 +167,7 @@ public class MainActivity extends Activity {
         webview.setVisibility(View.GONE);
         tabs.add(new Tab(webview));
         webviews.addView(webview);
-        ((TextView)findViewById(R.id.btnTabsCount)).setText("" + tabs.size());
+        ((TextView)findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
         loadUrl(url, webview);
     }
 
@@ -180,7 +180,7 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    @SuppressLint("SetTextI18n")
+    @SuppressLint({"SetTextI18n","ClickableViewAccessibility"})
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -280,7 +280,7 @@ public class MainActivity extends Activity {
                 }
                 getCurrentWebView().setVisibility(View.VISIBLE);
                 et.setText(getCurrentWebView().getUrl());
-                ((TextView)findViewById(R.id.btnTabsCount)).setText("" + tabs.size());
+                ((TextView)findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
                 getCurrentWebView().requestFocus();
                 return true;
             }
@@ -310,6 +310,7 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
+        //noinspection AndroidLintClickableViewAccessibility
         btnTabs.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -355,6 +356,7 @@ public class MainActivity extends Activity {
             }
         });
 
+        //noinspection AndroidLintClickableViewAccessibility
         newActivityBtn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
