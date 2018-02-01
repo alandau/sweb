@@ -168,6 +168,14 @@ public class MainActivity extends Activity {
         loadUrl(url, webview);
     }
 
+    private void switchToTab(int tab) {
+        getCurrentWebView().setVisibility(View.GONE);
+        currentTabIndex = tab;
+        getCurrentWebView().setVisibility(View.VISIBLE);
+        et.setText(getCurrentWebView().getUrl());
+        getCurrentWebView().requestFocus();
+    }
+
     @Override
     @SuppressLint("SetTextI18n")
     public void onCreate(Bundle savedInstanceState) {
@@ -267,6 +275,7 @@ public class MainActivity extends Activity {
                 getCurrentWebView().setVisibility(View.VISIBLE);
                 et.setText(getCurrentWebView().getUrl());
                 ((TextView)findViewById(R.id.btnTabsCount)).setText("" + tabs.size());
+                getCurrentWebView().requestFocus();
                 return true;
             }
         });
@@ -282,10 +291,7 @@ public class MainActivity extends Activity {
                 new AlertDialog.Builder(MainActivity.this).setTitle("Tabs").setItems(items, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        getCurrentWebView().setVisibility(View.GONE);
-                        currentTabIndex = which;
-                        getCurrentWebView().setVisibility(View.VISIBLE);
-                        et.setText(getCurrentWebView().getUrl());
+                        switchToTab(which);
                     }
                 }).show();
             }
@@ -294,6 +300,7 @@ public class MainActivity extends Activity {
             @Override
             public boolean onLongClick(View v) {
                 newTab("");
+                switchToTab(tabs.size() - 1);
                 return true;
             }
         });
