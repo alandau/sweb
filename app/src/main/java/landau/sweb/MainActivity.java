@@ -10,6 +10,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Patterns;
+import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -24,140 +25,53 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+import static android.view.View.GONE;
+
 public class MainActivity extends Activity {
 
+    private static class Tab {
+        Tab(WebView w) {this.webview = w;}
+        WebView webview;
+    }
+
     final String searchUrl = "https://www.google.com/search?q=%s";
-    private WebView wv;
+    private ArrayList<Tab> tabs = new ArrayList<>();
+    private int currentTabIndex;
+    private FrameLayout webviews;
     private ImageButton newActivityBtn;
     private EditText et;
     private boolean isNightMode;
 
-    @Override
+    private Tab getCurrentTab() {
+        return tabs.get(currentTabIndex);
+    }
+
+    private WebView getCurrentWebView() {
+        return getCurrentTab().webview;
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        isNightMode = true;
-        wv = findViewById(R.id.wv);
-        onNightModeChange();
-        newActivityBtn = findViewById(R.id.new_activity);
-        et = findViewById(R.id.et);
+    private WebView createWebView() {
+        final ProgressBar progressBar = findViewById(R.id.progress1);
 
-        // setup edit text
-        et.setSelected(false);
-        if (getIntent().getStringExtra("url") != null) {
-            et.setText(getIntent().getStringExtra("url"));
-        } else {
-            et.setText("about:blank");
-        }
-
-        ImageView btnBack = findViewById(R.id.btnBack);
-        btnBack.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (wv.canGoBack()) {
-                    wv.goBack();
-                }
-            }
-        });
-        btnBack.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                wv.pageUp(true);
-                return true;
-            }
-        });
-
-        ImageView btnForward = findViewById(R.id.btnForward);
-        btnForward.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (wv.canGoForward()) {
-                    wv.goForward();
-                }
-            }
-        });
-        btnForward.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                wv.pageDown(true);
-                return true;
-            }
-        });
-
-        ImageView btnReload = findViewById(R.id.btnReload);
-        btnReload.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                wv.reload();
-            }
-        });
-        btnReload.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                wv.stopLoading();
-                return true;
-            }
-        });
-
-        ImageView btnNightMode = findViewById(R.id.btnNightMode);
-        btnNightMode.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                isNightMode = !isNightMode;
-                onNightModeChange();
-            }
-        });
-
-        final String[] menuItems = {
-                // Title, then url
-                "Landley", "http://landley.net/notes.html",
-                "LWN.net", "https://lwn.net/Articles/?offset=0",
-                "OSNews", "http://mobile.osnews.com",
-                "Eli Bendersky", "https://eli.thegreenplace.net",
-                "OldNewThing", "https://blogs.msdn.microsoft.com/oldnewthing/",
-                "Anekdotov.net", "http://pda.anekdotov.net/",
-                "anekdot.ru", "https://www.anekdot.ru/last/anekdot/",
-                "Grooming", "http://www.kongsbergers.org/GroomingReport.html",
-        };
-        ImageView btnBookmakrs = findViewById(R.id.btnBookmarks);
-        btnBookmakrs.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                PopupMenu popup = new PopupMenu(MainActivity.this, v);
-                Menu menu = popup.getMenu();
-                for (int i = 0; i < menuItems.length; i += 2) {
-                    menu.add(0, i / 2, 0, menuItems[i]);
-                }
-                popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-                    @Override
-                    public boolean onMenuItemClick(MenuItem item) {
-                        int index = item.getItemId();
-                        if (index >= 0 && index < menuItems.length / 2) {
-                            et.setText(menuItems[index * 2 + 1]);
-                            handleLoadUrl();
-                            return true;
-                        }
-                        return false;
-                    }
-                });
-                popup.show();
-            }
-        });
-
-        wv.setWebChromeClient(new WebChromeClient());
-        WebSettings settings = wv.getSettings();
+        WebView webview = new WebView(this);
+        webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
+        webview.setWebChromeClient(new WebChromeClient());
+        WebSettings settings = webview.getSettings();
         settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
         settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setJavaScriptEnabled(true);
@@ -166,15 +80,14 @@ public class MainActivity extends Activity {
         settings.setDomStorageEnabled(true);
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
-        final ProgressBar progressBar = findViewById(R.id.progress1);
-        wv.setWebChromeClient(new WebChromeClient() {
+        webview.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 super.onProgressChanged(view, newProgress);
                 System.out.println("progress=" + newProgress + ", url=" + view.getUrl());
                 injectCSS();
                 if (newProgress == 100) {
-                    progressBar.setVisibility(View.GONE);
+                    progressBar.setVisibility(GONE);
                 } else {
                     progressBar.setProgress(newProgress);
                 }
@@ -184,7 +97,7 @@ public class MainActivity extends Activity {
                 }
             }
         });
-        wv.setWebViewClient(new WebViewClient() {
+        webview.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
@@ -230,7 +143,7 @@ public class MainActivity extends Activity {
                 return super.shouldInterceptRequest(view, request);
             }
         });
-        wv.setOnLongClickListener(new View.OnLongClickListener() {
+        webview.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
                 WebView.HitTestResult r = ((WebView)v).getHitTestResult();
@@ -246,15 +159,208 @@ public class MainActivity extends Activity {
                                 et.setText(url);
                                 handleLoadUrl();
                                 break;
+                            case 1:
+                                newTab(url);
+                                break;
                         }
                     }
                 }).show();
                 return true;
             }
         });
-        handleLoadUrl();
+        return webview;
+    }
 
-        // setup events
+    private void newTab(String url) {
+        WebView webview = createWebView();
+        webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        webviews.addView(webview);
+        tabs.add(new Tab(webview));
+        getCurrentWebView().setVisibility(GONE);
+        currentTabIndex = tabs.size() - 1;
+        et.setText(url);
+        ((TextView)findViewById(R.id.btnTabsCount)).setText(""+tabs.size());
+        handleLoadUrl();
+    }
+
+    @Override
+    @SuppressLint("SetTextI18n")
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        isNightMode = true;
+
+        WebView webview = createWebView();
+        webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        webviews = findViewById(R.id.webviews);
+        webviews.addView(webview);
+        tabs.add(new Tab(webview));
+        currentTabIndex = 0;
+
+        onNightModeChange();
+        newActivityBtn = findViewById(R.id.new_activity);
+        et = findViewById(R.id.et);
+
+        // setup edit text
+        et.setSelected(false);
+        if (Intent.ACTION_VIEW.equals(getIntent().getAction()) && getIntent().getData() != null) {
+            et.setText(getIntent().getDataString());
+        } else if (Intent.ACTION_WEB_SEARCH.equals(getIntent().getAction()) && getIntent().getStringExtra("query") != null) {
+            et.setText(getIntent().getStringExtra("query"));
+        } else {
+            et.setText("about:blank");
+        }
+
+        ImageView btnBack = findViewById(R.id.btnBack);
+        btnBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (getCurrentWebView().canGoBack()) {
+                    getCurrentWebView().goBack();
+                }
+            }
+        });
+        btnBack.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                getCurrentWebView().pageUp(true);
+                return true;
+            }
+        });
+
+        ImageView btnForward = findViewById(R.id.btnForward);
+        btnForward.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (getCurrentWebView().canGoForward()) {
+                    getCurrentWebView().goForward();
+                }
+            }
+        });
+        btnForward.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                getCurrentWebView().pageDown(true);
+                return true;
+            }
+        });
+
+        ImageView btnReload = findViewById(R.id.btnReload);
+        btnReload.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                getCurrentWebView().reload();
+            }
+        });
+        btnReload.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                getCurrentWebView().stopLoading();
+                return true;
+            }
+        });
+
+        ImageView btnNightMode = findViewById(R.id.btnNightMode);
+        btnNightMode.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                isNightMode = !isNightMode;
+                onNightModeChange();
+            }
+        });
+
+
+        final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
+            @Override
+            boolean onFlingUp() {
+                if (tabs.size() == 1) {
+                    et.setText("about:blank");
+                    handleLoadUrl();
+                    return true;
+                }
+                ((FrameLayout)findViewById(R.id.webviews)).removeView(getCurrentWebView());
+                getCurrentWebView().destroy();
+                tabs.remove(currentTabIndex);
+                if (currentTabIndex >= tabs.size()) {
+                    currentTabIndex = tabs.size() - 1;
+                }
+                getCurrentWebView().setVisibility(View.VISIBLE);
+                et.setText(getCurrentWebView().getUrl());
+                ((TextView)findViewById(R.id.btnTabsCount)).setText("" + tabs.size());
+                return true;
+            }
+        });
+
+        ImageView btnTabs = findViewById(R.id.btnTabs);
+        btnTabs.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String[] items = new String[tabs.size()];
+                for (int i = 0; i < tabs.size(); i++) {
+                    items[i] = "" + (i+1);
+                }
+                new AlertDialog.Builder(MainActivity.this).setTitle("Tabs").setItems(items, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        getCurrentWebView().setVisibility(GONE);
+                        currentTabIndex = which;
+                        getCurrentWebView().setVisibility(View.VISIBLE);
+                        et.setText(getCurrentWebView().getUrl());
+                    }
+                }).show();
+            }
+        });
+        btnTabs.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                newTab("about:blank");
+                return true;
+            }
+        });
+        btnTabs.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                return gestureDetector.onTouchEvent(event);
+            }
+        });
+        ((TextView)findViewById(R.id.btnTabsCount)).setText("1");
+
+        final String[] menuItems = {
+                // Title, then url
+                "Landley", "http://landley.net/notes.html",
+                "LWN.net", "https://lwn.net/Articles/?offset=0",
+                "OSNews", "http://mobile.osnews.com",
+                "Eli Bendersky", "https://eli.thegreenplace.net",
+                "OldNewThing", "https://blogs.msdn.microsoft.com/oldnewthing/",
+                "Anekdotov.net", "http://pda.anekdotov.net/",
+                "anekdot.ru", "https://www.anekdot.ru/last/anekdot/",
+                "Grooming", "http://www.kongsbergers.org/GroomingReport.html",
+        };
+        ImageView btnBookmakrs = findViewById(R.id.btnBookmarks);
+        btnBookmakrs.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                PopupMenu popup = new PopupMenu(MainActivity.this, v);
+                Menu menu = popup.getMenu();
+                for (int i = 0; i < menuItems.length; i += 2) {
+                    menu.add(0, i / 2, 0, menuItems[i]);
+                }
+                popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                    @Override
+                    public boolean onMenuItemClick(MenuItem item) {
+                        int index = item.getItemId();
+                        if (index >= 0 && index < menuItems.length / 2) {
+                            et.setText(menuItems[index * 2 + 1]);
+                            handleLoadUrl();
+                            return true;
+                        }
+                        return false;
+                    }
+                });
+                popup.show();
+            }
+        });
+
         newActivityBtn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -287,13 +393,15 @@ public class MainActivity extends Activity {
                 }
             }
         });
+
+        handleLoadUrl();
     }
 
     private void onNightModeChange() {
         if (isNightMode) {
-            wv.setBackgroundColor(Color.BLACK);
+            getCurrentWebView().setBackgroundColor(Color.BLACK);
         } else {
-            wv.setBackgroundColor(Color.WHITE);
+            getCurrentWebView().setBackgroundColor(Color.WHITE);
         }
         injectCSS();
     }
@@ -308,7 +416,7 @@ public class MainActivity extends Activity {
         } else {
             url = URLUtil.composeSearchUrl(url, searchUrl, "%s");
         }
-        wv.loadUrl(url);
+        getCurrentWebView().loadUrl(url);
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         assert imm != null;
         imm.hideSoftInputFromWindow(et.getWindowToken(), 0);
@@ -316,10 +424,8 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (wv.canGoBack()) {
-            System.out.println("setting to INVISIBLE 2");
-            //wv.setVisibility(View.INVISIBLE);
-            wv.goBack();
+        if (getCurrentWebView().canGoBack()) {
+            getCurrentWebView().goBack();
         } else {
             super.onBackPressed();
         }
@@ -384,9 +490,77 @@ public class MainActivity extends Activity {
                         "   fr.contentDocument.head.removeChild(style);" +
                         "}";
             }
-            wv.evaluateJavascript("javascript:(function() {" + js + "})()", null);
+            getCurrentWebView().evaluateJavascript("javascript:(function() {" + js + "})()", null);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+    private class MyGestureDetector extends GestureDetector.SimpleOnGestureListener {
+        private static final double FORBIDDEN_ZONE_MIN = Math.PI / 4 - Math.PI / 12;
+        private static final double FORBIDDEN_ZONE_MAX = Math.PI / 4 + Math.PI / 12;
+        private static final int MIN_VELOCITY_DP = 80;  // 0.5 inch/sec
+        private static final int MIN_DISTANCE_DP = 80;  // 0.5 inch
+        private final float MIN_VELOCITY_PX;
+        private final float MIN_DISTANCE_PX;
+
+        MyGestureDetector(Context context) {
+            float density = context.getResources().getDisplayMetrics().density;
+            MIN_VELOCITY_PX = MIN_VELOCITY_DP * density;
+            MIN_DISTANCE_PX = MIN_DISTANCE_DP * density;
+        }
+
+        @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            float velocitySquared = velocityX*velocityX + velocityY*velocityY;
+            if (velocitySquared < MIN_VELOCITY_PX * MIN_VELOCITY_PX) {
+                // too slow
+                return false;
+            }
+
+            float deltaX = e2.getX() - e1.getX();
+            float deltaY = e2.getY() - e1.getY();
+
+            if (Math.abs(deltaX) < MIN_DISTANCE_PX && Math.abs(deltaY) < MIN_DISTANCE_PX) {
+                // small movement
+                return false;
+            }
+
+            double angle = Math.atan2(Math.abs(deltaY), Math.abs(deltaX));
+            if (angle > FORBIDDEN_ZONE_MIN && angle < FORBIDDEN_ZONE_MAX) {
+                return false;
+            }
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (deltaX > 0) {
+                    return onFlingRight();
+                } else {
+                    return onFlingLeft();
+                }
+            } else {
+                if (deltaY > 0) {
+                    return onFlingDown();
+                } else {
+                    return onFlingUp();
+                }
+            }
+        }
+
+        boolean onFlingRight() {
+            return true;
+        }
+
+        boolean onFlingLeft() {
+            return true;
+        }
+
+        boolean onFlingUp() {
+            return true;
+        }
+
+        boolean onFlingDown() {
+            return false;
+        }
+    }
+
 }

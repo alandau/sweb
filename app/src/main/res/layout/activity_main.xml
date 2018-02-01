@@ -2,115 +2,146 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
-  <LinearLayout
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:orientation="horizontal">
-    <EditText
-        android:id="@+id/et"
+
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_alignParentLeft="true"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/et"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentTop="true"
+            android:background="#222"
+            android:imeActionLabel="Go"
+            android:imeOptions="actionGo"
+            android:paddingRight="50dp"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:textColor="#61615f" />
+
+        <ImageButton
+            android:id="@+id/new_activity"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_alignParentRight="true"
+            android:background="@android:color/background_light"
+            android:padding="34px"
+            android:scaleType="centerInside"
+            android:src="@drawable/plus" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/webviews"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/toolbar"
+        android:layout_marginTop="50dp"
+        android:background="#00000000">
+
+    </FrameLayout>
+
+    <ProgressBar
+        android:id="@+id/progress1"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_alignTop="@id/webviews"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:max="100"
+        android:progressTint="#006600"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
-        android:layout_alignParentTop="true"
-        android:paddingRight="50dp"
-        android:singleLine="true"
-        android:background="#222"
-        android:selectAllOnFocus="true"
-        android:textColor="#61615f"
-        android:imeOptions="actionGo"
-        android:imeActionLabel="Go" />
-
-    <ImageButton
-        android:id="@+id/new_activity"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:src="@drawable/plus"
-        android:background="@android:color/background_light"
-        android:scaleType="centerInside"
-        android:padding="34px"
-        android:layout_alignParentRight="true"/>
-  </LinearLayout>
-
-  <WebView
-    android:id="@+id/wv"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:layout_above="@id/toolbar"
-    android:layout_marginTop="50dp"
-    android:background="#00000000" />
-
-  <ProgressBar
-      android:id="@+id/progress1"
-      android:layout_centerHorizontal="true"
-      android:layout_centerVertical="true"
-      android:max="100"
-      android:visibility="gone"
-      style="@android:style/Widget.ProgressBar.Horizontal"
-      android:progressTint="#006600"
-      android:layout_alignTop="@id/wv"
-      android:layout_width="match_parent"
-      android:layout_height="1dp" />
-
-  <LinearLayout
-      android:id="@+id/toolbar"
-      android:layout_width="match_parent"
-      android:layout_height="40dp"
-      android:orientation="horizontal"
-      android:background="#00000000"
-      android:gravity="center"
-      android:layout_alignParentBottom="true"
-      android:layout_alignParentRight="true">
-    <ImageButton
-        android:id="@+id/btnBack"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp"
+        android:layout_marginBottom="4dp"
+        android:layout_marginTop="4dp"
         android:background="#00000000"
-        android:tint="#61615f"
-        android:scaleType="fitXY"
-        android:src="@drawable/back"/>
-    <ImageButton
-        android:id="@+id/btnForward"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp"
-        android:background="#00000000"
-        android:tint="#61615f"
-        android:scaleType="fitXY"
-        android:src="@drawable/forward"/>
-    <ImageButton
-        android:id="@+id/btnReload"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp"
-        android:background="#00000000"
-        android:tint="#61615f"
-        android:scaleType="fitXY"
-        android:src="@drawable/reload"/>
-      <ImageButton
-          android:id="@+id/btnBookmarks"
-          android:layout_width="32dp"
-          android:layout_height="32dp"
-          android:layout_marginLeft="16dp"
-          android:layout_marginRight="16dp"
-          android:background="#00000000"
-          android:tint="#61615f"
-          android:scaleType="fitXY"
-          android:src="@drawable/bookmarks"/>
-    <ImageButton
-        android:id="@+id/btnNightMode"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp"
-        android:background="#00000000"
-        android:tint="#61615f"
-        android:scaleType="fitXY"
-        android:src="@drawable/night"/>
-  </LinearLayout>
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#00000000"
+            android:scaleType="centerInside"
+            android:src="@drawable/back"
+            android:tint="#61615f" />
+
+        <ImageButton
+            android:id="@+id/btnForward"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#00000000"
+            android:scaleType="centerInside"
+            android:src="@drawable/forward"
+            android:tint="#61615f" />
+
+        <ImageButton
+            android:id="@+id/btnReload"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#00000000"
+            android:scaleType="centerInside"
+            android:src="@drawable/reload"
+            android:tint="#61615f" />
+
+        <ImageButton
+            android:id="@+id/btnBookmarks"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#00000000"
+            android:scaleType="centerInside"
+            android:src="@drawable/bookmarks"
+            android:tint="#61615f" />
+
+        <ImageButton
+            android:id="@+id/btnNightMode"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#00000000"
+            android:scaleType="centerInside"
+            android:src="@drawable/night"
+            android:tint="#61615f" />
+
+        <RelativeLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/btnTabs"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#00000000"
+                android:scaleType="centerInside"
+                android:src="@drawable/tabs"
+                android:tint="#61615f" />
+
+            <TextView
+                android:id="@+id/btnTabsCount"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#00000000"
+                android:gravity="center"
+                android:textColor="#61615f"
+                android:textSize="16sp" />
+        </RelativeLayout>
+    </LinearLayout>
 
 </RelativeLayout>
