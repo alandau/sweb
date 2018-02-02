@@ -11,6 +11,8 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Patterns;
 import android.util.TypedValue;
 import android.view.GestureDetector;
@@ -47,7 +49,10 @@ import java.util.Set;
 public class MainActivity extends Activity {
 
     private static class Tab {
-        Tab(WebView w) {this.webview = w;}
+        Tab(WebView w) {
+            this.webview = w;
+        }
+
         WebView webview;
     }
 
@@ -127,6 +132,7 @@ public class MainActivity extends Activity {
                     "jsc.marketgid.com"
             ));
             final InputStream emptyInputStream = new ByteArrayInputStream(new byte[0]);
+
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String host = request.getUrl().getHost();
@@ -139,7 +145,7 @@ public class MainActivity extends Activity {
         webview.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                WebView.HitTestResult r = ((WebView)v).getHitTestResult();
+                WebView.HitTestResult r = ((WebView) v).getHitTestResult();
                 if (r.getType() != WebView.HitTestResult.SRC_ANCHOR_TYPE && r.getType() != WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE) {
                     return false;
                 }
@@ -170,7 +176,7 @@ public class MainActivity extends Activity {
         webview.setVisibility(View.GONE);
         tabs.add(new Tab(webview));
         webviews.addView(webview);
-        ((TextView)findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
+        ((TextView) findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
         loadUrl(url, webview);
     }
 
@@ -183,7 +189,7 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    @SuppressLint({"SetTextI18n","ClickableViewAccessibility"})
+    @SuppressLint("SetTextI18n")
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -270,7 +276,7 @@ public class MainActivity extends Activity {
         final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
             @Override
             boolean onFlingUp() {
-                ((FrameLayout)findViewById(R.id.webviews)).removeView(getCurrentWebView());
+                ((FrameLayout) findViewById(R.id.webviews)).removeView(getCurrentWebView());
                 getCurrentWebView().destroy();
                 tabs.remove(currentTabIndex);
                 if (currentTabIndex >= tabs.size()) {
@@ -283,7 +289,7 @@ public class MainActivity extends Activity {
                 }
                 getCurrentWebView().setVisibility(View.VISIBLE);
                 et.setText(getCurrentWebView().getUrl());
-                ((TextView)findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
+                ((TextView) findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
                 getCurrentWebView().requestFocus();
                 return true;
             }
@@ -298,8 +304,9 @@ public class MainActivity extends Activity {
                     items[i] = tabs.get(i).webview.getTitle();
                 }
                 ArrayAdapter<String> adapter = new ArrayAdapter<String>(MainActivity.this, android.R.layout.select_dialog_item, items) {
+                    @NonNull
                     @Override
-                    public View getView(int position, View convertView, ViewGroup parent) {
+                    public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
                         View view = super.getView(position, convertView, parent);
                         TextView textView = view.findViewById(android.R.id.text1);
                         textView.setCompoundDrawablesRelativeWithIntrinsicBounds(
@@ -332,7 +339,7 @@ public class MainActivity extends Activity {
                 return gestureDetector.onTouchEvent(event);
             }
         });
-        ((TextView)findViewById(R.id.btnTabsCount)).setText("1");
+        ((TextView) findViewById(R.id.btnTabsCount)).setText("1");
 
         final String[] menuItems = {
                 // Title, then url
@@ -526,7 +533,7 @@ public class MainActivity extends Activity {
 
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            float velocitySquared = velocityX*velocityX + velocityY*velocityY;
+            float velocitySquared = velocityX * velocityX + velocityY * velocityY;
             if (velocitySquared < MIN_VELOCITY_PX * MIN_VELOCITY_PX) {
                 // too slow
                 return false;
