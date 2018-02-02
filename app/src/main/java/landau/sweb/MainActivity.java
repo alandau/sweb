@@ -12,12 +12,14 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Patterns;
+import android.util.TypedValue;
 import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
@@ -26,6 +28,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
@@ -294,7 +297,19 @@ public class MainActivity extends Activity {
                 for (int i = 0; i < tabs.size(); i++) {
                     items[i] = tabs.get(i).webview.getTitle();
                 }
-                new AlertDialog.Builder(MainActivity.this).setTitle("Tabs").setItems(items, new DialogInterface.OnClickListener() {
+                ArrayAdapter<String> adapter = new ArrayAdapter<String>(MainActivity.this, android.R.layout.select_dialog_item, items) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        View view = super.getView(position, convertView, parent);
+                        TextView textView = view.findViewById(android.R.id.text1);
+                        textView.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                                position == currentTabIndex ? android.R.drawable.ic_menu_mylocation : 0, 0, 0, 0);
+                        textView.setCompoundDrawablePadding(
+                                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getContext().getResources().getDisplayMetrics()));
+                        return view;
+                    }
+                };
+                new AlertDialog.Builder(MainActivity.this).setTitle("Tabs").setAdapter(adapter, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         switchToTab(which);
