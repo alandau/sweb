@@ -65,6 +65,13 @@ public class MainActivity extends Activity {
     private boolean isNightMode;
     private SharedPreferences prefs;
 
+    static class TitleAndUrl {
+        String title;
+        String url;
+    }
+
+    private ArrayList<TitleAndUrl> closedTabs = new ArrayList<>();
+
     private Tab getCurrentTab() {
         return tabs.get(currentTabIndex);
     }
@@ -276,6 +283,12 @@ public class MainActivity extends Activity {
         final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
             @Override
             boolean onFlingUp() {
+                if (!getCurrentWebView().getUrl().equals("about:blank")) {
+                    TitleAndUrl titleAndUrl = new TitleAndUrl();
+                    titleAndUrl.title = getCurrentWebView().getTitle();
+                    titleAndUrl.url = getCurrentWebView().getUrl();
+                    closedTabs.add(0, titleAndUrl);
+                }
                 ((FrameLayout) findViewById(R.id.webviews)).removeView(getCurrentWebView());
                 getCurrentWebView().destroy();
                 tabs.remove(currentTabIndex);
@@ -316,12 +329,38 @@ public class MainActivity extends Activity {
                         return view;
                     }
                 };
-                new AlertDialog.Builder(MainActivity.this).setTitle("Tabs").setAdapter(adapter, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        switchToTab(which);
-                    }
-                }).show();
+                AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Tabs")
+                        .setAdapter(adapter, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                switchToTab(which);
+                            }
+                        });
+                if (!closedTabs.isEmpty()) {
+                    tabsDialog.setNeutralButton("Undo closed tabs", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            String[] items = new String[closedTabs.size()];
+                            for (int i = 0; i < closedTabs.size(); i++) {
+                                items[i] = closedTabs.get(i).title;
+                            }
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("Undo closed tabs")
+                                    .setItems(items, new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            String url = closedTabs.get(which).url;
+                                            closedTabs.remove(which);
+                                            newTab(url);
+                                            switchToTab(tabs.size() - 1);
+                                        }
+                                    })
+                                    .show();
+                        }
+                    });
+                }
+                tabsDialog.show();
             }
         });
         btnTabs.setOnLongClickListener(new View.OnLongClickListener() {
