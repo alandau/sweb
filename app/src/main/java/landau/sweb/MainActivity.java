@@ -269,6 +269,20 @@ public class MainActivity extends Activity {
             }
         });
 
+        final GestureDetector nightModeGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
+            @Override
+            boolean onFlingUp() {
+                boolean fullscreen = (getWindow().getDecorView().getSystemUiVisibility() & View.SYSTEM_UI_FLAG_FULLSCREEN) != 0;
+                int flags = !fullscreen ?
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                                | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        : 0;
+                getWindow().getDecorView().setSystemUiVisibility(flags);
+                return true;
+            }
+        });
+
         ImageView btnNightMode = findViewById(R.id.btnNightMode);
         btnNightMode.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -276,6 +290,13 @@ public class MainActivity extends Activity {
                 isNightMode = !isNightMode;
                 prefs.edit().putBoolean("night_mode", isNightMode).apply();
                 onNightModeChange();
+            }
+        });
+        //noinspection AndroidLintClickableViewAccessibility
+        btnNightMode.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                return nightModeGestureDetector.onTouchEvent(event);
             }
         });
 
