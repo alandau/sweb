@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
     private ImageButton newActivityBtn;
     private EditText et;
     private boolean isNightMode;
+    private boolean isFullscreen;
     private SharedPreferences prefs;
 
     static class TitleAndUrl {
@@ -196,13 +197,30 @@ public class MainActivity extends Activity {
         getCurrentWebView().requestFocus();
     }
 
+    private void updateFullScreen() {
+        final int flags = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        boolean fullscreenNow = (getWindow().getDecorView().getSystemUiVisibility() & flags) == flags;
+        if (fullscreenNow != isFullscreen) {
+            getWindow().getDecorView().setSystemUiVisibility(isFullscreen ? flags : 0);
+        }
+    }
+
     @Override
     @SuppressLint("SetTextI18n")
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         setContentView(R.layout.activity_main);
+        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
+            @Override
+            public void onSystemUiVisibilityChange(int visibility) {
+                updateFullScreen();
+            }
+        });
 
+        isFullscreen = false;
         isNightMode = prefs.getBoolean("night_mode", false);
 
         webviews = findViewById(R.id.webviews);
@@ -307,13 +325,8 @@ public class MainActivity extends Activity {
         final GestureDetector nightModeGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
             @Override
             boolean onFlingUp() {
-                boolean fullscreen = (getWindow().getDecorView().getSystemUiVisibility() & View.SYSTEM_UI_FLAG_FULLSCREEN) != 0;
-                int flags = !fullscreen ?
-                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
-                                | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
-                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        : 0;
-                getWindow().getDecorView().setSystemUiVisibility(flags);
+                isFullscreen = !isFullscreen;
+                updateFullScreen();
                 return true;
             }
         });
