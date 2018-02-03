@@ -24,6 +24,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.URLUtil;
+import android.webkit.WebBackForwardList;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -220,6 +221,33 @@ public class MainActivity extends Activity {
             et.setText("");
         }
 
+        final GestureDetector backGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
+            @Override
+            boolean onFlingUp() {
+                WebBackForwardList list = getCurrentWebView().copyBackForwardList();
+                final int idx = list.getCurrentIndex();
+                String[] items = new String[list.getSize()];
+                for (int i = 0; i < list.getSize(); i++) {
+                    items[i] = list.getItemAtIndex(i).getTitle();
+                }
+                ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
+                        MainActivity.this,
+                        android.R.layout.select_dialog_item,
+                        items,
+                        idx);
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Navigation History")
+                        .setAdapter(adapter, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                getCurrentWebView().goBackOrForward(which - idx);
+                            }
+                        })
+                        .show();
+                return true;
+            }
+        });
+
         ImageView btnBack = findViewById(R.id.btnBack);
         btnBack.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -234,6 +262,13 @@ public class MainActivity extends Activity {
             public boolean onLongClick(View v) {
                 getCurrentWebView().pageUp(true);
                 return true;
+            }
+        });
+        //noinspection AndroidLintClickableViewAccessibility
+        btnBack.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                return backGestureDetector.onTouchEvent(event);
             }
         });
 
@@ -337,19 +372,11 @@ public class MainActivity extends Activity {
                 for (int i = 0; i < tabs.size(); i++) {
                     items[i] = tabs.get(i).webview.getTitle();
                 }
-                ArrayAdapter<String> adapter = new ArrayAdapter<String>(MainActivity.this, android.R.layout.select_dialog_item, items) {
-                    @NonNull
-                    @Override
-                    public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-                        View view = super.getView(position, convertView, parent);
-                        TextView textView = view.findViewById(android.R.id.text1);
-                        textView.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                                position == currentTabIndex ? android.R.drawable.ic_menu_mylocation : 0, 0, 0, 0);
-                        textView.setCompoundDrawablePadding(
-                                (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getContext().getResources().getDisplayMetrics()));
-                        return view;
-                    }
-                };
+                ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
+                        MainActivity.this,
+                        android.R.layout.select_dialog_item,
+                        items,
+                        currentTabIndex);
                 AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Tabs")
                         .setAdapter(adapter, new DialogInterface.OnClickListener() {
@@ -641,6 +668,27 @@ public class MainActivity extends Activity {
 
         boolean onFlingDown() {
             return false;
+        }
+    }
+
+    static class ArrayAdapterWithCurrentItem<T> extends ArrayAdapter<T> {
+        int currentIndex;
+
+        ArrayAdapterWithCurrentItem(@NonNull Context context, int resource, @NonNull T[] objects, int currentIndex) {
+            super(context, resource, objects);
+            this.currentIndex = currentIndex;
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            View view = super.getView(position, convertView, parent);
+            TextView textView = view.findViewById(android.R.id.text1);
+            textView.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                    position == currentIndex ? android.R.drawable.ic_menu_mylocation : 0, 0, 0, 0);
+            textView.setCompoundDrawablePadding(
+                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getContext().getResources().getDisplayMetrics()));
+            return view;
         }
     }
 
