@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <EditText
+    <AutoCompleteTextView
         android:id="@+id/et"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -15,7 +15,8 @@
         android:singleLine="true"
         android:textColor="#61615f"
         android:paddingTop="10dp"
-        android:paddingBottom="10dp" />
+        android:paddingBottom="10dp"
+        android:completionThreshold="1" />
 
     <FrameLayout
         android:id="@+id/webviews"

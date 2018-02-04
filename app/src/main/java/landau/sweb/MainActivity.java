@@ -17,6 +17,7 @@ import android.util.Patterns;
 import android.util.TypedValue;
 import android.view.GestureDetector;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -31,19 +32,32 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.EditText;
+import android.widget.AutoCompleteTextView;
+import android.widget.BaseAdapter;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class MainActivity extends Activity {
@@ -56,11 +70,13 @@ public class MainActivity extends Activity {
         WebView webview;
     }
 
-    final String searchUrl = "https://www.google.com/search?q=%s";
+    static final String searchUrl = "https://www.google.com/search?q=%s";
+    static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
+
     private ArrayList<Tab> tabs = new ArrayList<>();
     private int currentTabIndex;
     private FrameLayout webviews;
-    private EditText et;
+    private AutoCompleteTextView et;
     private boolean isNightMode;
     private boolean isFullscreen;
     private SharedPreferences prefs;
@@ -235,6 +251,14 @@ public class MainActivity extends Activity {
         } else {
             et.setText("");
         }
+        et.setAdapter(new SearchAutocompleteAdapter(this));
+        et.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                getCurrentWebView().requestFocus();
+                loadUrl(et.getText().toString(), getCurrentWebView());
+            }
+        });
 
         final GestureDetector backGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
             @Override
@@ -480,6 +504,7 @@ public class MainActivity extends Activity {
             public boolean onKey(View v, int keyCode, KeyEvent event) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
                     loadUrl(et.getText().toString(), getCurrentWebView());
+                    getCurrentWebView().requestFocus();
                     return true;
                 } else {
                     return false;
@@ -689,4 +714,118 @@ public class MainActivity extends Activity {
         }
     }
 
+    static class SearchAutocompleteAdapter extends BaseAdapter implements Filterable {
+
+        private final Context mContext;
+        private List<String> completions = new ArrayList<>();
+
+        SearchAutocompleteAdapter(Context context) {
+            mContext = context;
+        }
+
+        @Override
+        public int getCount() {
+            return completions.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return completions.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            if (convertView == null) {
+                LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                convertView = inflater.inflate(android.R.layout.simple_dropdown_item_1line, parent, false);
+            }
+            ((TextView)convertView.findViewById(android.R.id.text1)).setText(completions.get(position));
+            return convertView;
+        }
+
+        @Override
+        public Filter getFilter() {
+            Filter filter = new Filter() {
+                @Override
+                protected FilterResults performFiltering(CharSequence constraint) {
+                    // Invoked on a worker thread
+                    FilterResults filterResults = new FilterResults();
+                    if (constraint != null) {
+                        List<String> results = getCompletions(constraint.toString());
+                        filterResults.values = results;
+                        filterResults.count = results.size();
+                    }
+                    return filterResults;
+                }
+
+                @Override
+                protected void publishResults(CharSequence constraint, FilterResults results) {
+                    if (results != null && results.count > 0) {
+                        completions = (List<String>) results.values;
+                        notifyDataSetChanged();
+                    } else {
+                        notifyDataSetInvalidated();
+                    }
+                }
+            };
+            return filter;
+        }
+
+        // Runs on a worker thread
+        private List<String> getCompletions(String text) {
+            int total = 0;
+            byte[] data = new byte[16384];
+            try {
+                URL url = new URL(URLUtil.composeSearchUrl(text, searchCompleteUrl, "%s"));
+                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+                try {
+                    InputStream in = new BufferedInputStream(urlConnection.getInputStream());
+                    while (total <= data.length) {
+                        int count = in.read(data, total, data.length - total);
+                        if (count == -1) {
+                            break;
+                        }
+                        total += count;
+                    }
+                    if (total == data.length) {
+                        // overflow
+                        return new ArrayList<>();
+                    }
+                } finally {
+                    urlConnection.disconnect();
+                }
+            } catch (IOException e) {
+                // Swallow exception and return empty list
+                return new ArrayList<>();
+            }
+
+            // Result looks like:
+            // [ "original query", ["completion1", "completion2", ...], ...]
+
+            JSONArray jsonArray;
+            try {
+                jsonArray = new JSONArray(new String(data, StandardCharsets.UTF_8));
+            } catch (JSONException e) {
+                return new ArrayList<>();
+            }
+            jsonArray = jsonArray.optJSONArray(1);
+            if (jsonArray == null) {
+                return new ArrayList<>();
+            }
+            final int MAX_RESULTS = 10;
+            List<String> result = new ArrayList<>(Math.min(jsonArray.length(), MAX_RESULTS));
+            for (int i = 0; i < jsonArray.length() && result.size() < MAX_RESULTS; i++) {
+                String s = jsonArray.optString(i);
+                if (s != null && !s.isEmpty()) {
+                    result.add(s);
+                }
+            }
+            return result;
+        }
+    }
 }
