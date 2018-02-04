@@ -508,11 +508,20 @@ public class MainActivity extends Activity {
             url = "about:blank";
         }
         if (url.indexOf(' ') == -1 && (url.startsWith("about:") || url.startsWith("javascript:") || Patterns.WEB_URL.matcher(url).matches())) {
-            url = URLUtil.guessUrl(url);
+            int indexOfHash = url.indexOf('#');
+            String guess = URLUtil.guessUrl(url);
+            if (indexOfHash != -1 && guess.indexOf('#') == -1) {
+                // Hash exists in original URL but no hash in guessed URL
+                url = guess + url.substring(indexOfHash);
+            } else {
+                url = guess;
+            }
         } else {
             url = URLUtil.composeSearchUrl(url, searchUrl, "%s");
         }
+
         webview.loadUrl(url);
+
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         assert imm != null;
         imm.hideSoftInputFromWindow(et.getWindowToken(), 0);
