@@ -34,7 +34,6 @@ import android.webkit.WebViewClient;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
@@ -61,7 +60,6 @@ public class MainActivity extends Activity {
     private ArrayList<Tab> tabs = new ArrayList<>();
     private int currentTabIndex;
     private FrameLayout webviews;
-    private ImageButton newActivityBtn;
     private EditText et;
     private boolean isNightMode;
     private boolean isFullscreen;
@@ -226,7 +224,6 @@ public class MainActivity extends Activity {
         webviews = findViewById(R.id.webviews);
         currentTabIndex = 0;
 
-        newActivityBtn = findViewById(R.id.new_activity);
         et = findViewById(R.id.et);
 
         // setup edit text
@@ -478,28 +475,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        //noinspection AndroidLintClickableViewAccessibility
-        newActivityBtn.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    newActivityBtn.setColorFilter(getResources().getColor(android.R.color.holo_blue_dark));
-                    return false;
-                } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    newActivityBtn.setColorFilter(null);
-                    return false;
-                }
-                return false;
-            }
-        });
-        newActivityBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, MainActivity.class);
-                intent.putExtra("url", et.getText().toString());
-                startActivity(intent);
-            }
-        });
         et.setOnKeyListener(new View.OnKeyListener() {
             @Override
             public boolean onKey(View v, int keyCode, KeyEvent event) {

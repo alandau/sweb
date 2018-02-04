@@ -4,46 +4,26 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <LinearLayout
+    <EditText
+        android:id="@+id/et"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <EditText
-            android:id="@+id/et"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentTop="true"
-            android:background="#222"
-            android:imeActionLabel="Go"
-            android:imeOptions="actionGo"
-            android:paddingRight="50dp"
-            android:selectAllOnFocus="true"
-            android:singleLine="true"
-            android:textColor="#61615f" />
-
-        <ImageButton
-            android:id="@+id/new_activity"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:layout_alignParentRight="true"
-            android:background="@android:color/background_light"
-            android:padding="34px"
-            android:scaleType="centerInside"
-            android:src="@drawable/plus" />
-    </LinearLayout>
+        android:background="#222"
+        android:imeActionLabel="Go"
+        android:imeOptions="actionGo"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:textColor="#61615f"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
 
     <FrameLayout
         android:id="@+id/webviews"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/toolbar"
-        android:layout_marginTop="50dp"
-        android:background="#00000000">
-
-    </FrameLayout>
+        android:layout_below="@id/et"
+        android:background="#00000000" />
 
     <ProgressBar
         android:id="@+id/progress1"
@@ -62,7 +42,6 @@
         android:layout_width="match_parent"
         android:layout_height="32dp"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"
         android:layout_marginBottom="4dp"
         android:layout_marginTop="4dp"
         android:background="#00000000"
