@@ -13,7 +13,8 @@
         android:theme="@android:style/Theme.Holo.NoActionBar">
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden">
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

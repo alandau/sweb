@@ -244,13 +244,7 @@ public class MainActivity extends Activity {
 
         // setup edit text
         et.setSelected(false);
-        if (Intent.ACTION_VIEW.equals(getIntent().getAction()) && getIntent().getData() != null) {
-            et.setText(getIntent().getDataString());
-        } else if (Intent.ACTION_WEB_SEARCH.equals(getIntent().getAction()) && getIntent().getStringExtra("query") != null) {
-            et.setText(getIntent().getStringExtra("query"));
-        } else {
-            et.setText("");
-        }
+        et.setText(getUrlFromIntent(getIntent()));
         et.setAdapter(new SearchAutocompleteAdapter(this));
         et.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -373,27 +367,7 @@ public class MainActivity extends Activity {
         final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
             @Override
             boolean onFlingUp() {
-                if (!getCurrentWebView().getUrl().equals("about:blank")) {
-                    TitleAndUrl titleAndUrl = new TitleAndUrl();
-                    titleAndUrl.title = getCurrentWebView().getTitle();
-                    titleAndUrl.url = getCurrentWebView().getUrl();
-                    closedTabs.add(0, titleAndUrl);
-                }
-                ((FrameLayout) findViewById(R.id.webviews)).removeView(getCurrentWebView());
-                getCurrentWebView().destroy();
-                tabs.remove(currentTabIndex);
-                if (currentTabIndex >= tabs.size()) {
-                    currentTabIndex = tabs.size() - 1;
-                }
-                if (currentTabIndex == -1) {
-                    // We just closed the last tab
-                    newTab("");
-                    currentTabIndex = 0;
-                }
-                getCurrentWebView().setVisibility(View.VISIBLE);
-                et.setText(getCurrentWebView().getUrl());
-                ((TextView) findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
-                getCurrentWebView().requestFocus();
+                closeCurrentTab();
                 return true;
             }
         });
@@ -518,6 +492,49 @@ public class MainActivity extends Activity {
         onNightModeChange();
     }
 
+    private void closeCurrentTab() {
+        if (!getCurrentWebView().getUrl().equals("about:blank")) {
+            TitleAndUrl titleAndUrl = new TitleAndUrl();
+            titleAndUrl.title = getCurrentWebView().getTitle();
+            titleAndUrl.url = getCurrentWebView().getUrl();
+            closedTabs.add(0, titleAndUrl);
+        }
+        ((FrameLayout) findViewById(R.id.webviews)).removeView(getCurrentWebView());
+        getCurrentWebView().destroy();
+        tabs.remove(currentTabIndex);
+        if (currentTabIndex >= tabs.size()) {
+            currentTabIndex = tabs.size() - 1;
+        }
+        if (currentTabIndex == -1) {
+            // We just closed the last tab
+            newTab("");
+            currentTabIndex = 0;
+        }
+        getCurrentWebView().setVisibility(View.VISIBLE);
+        et.setText(getCurrentWebView().getUrl());
+        ((TextView) findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
+        getCurrentWebView().requestFocus();
+    }
+
+    private String getUrlFromIntent(Intent intent) {
+        if (Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
+            return intent.getDataString();
+        } else if (Intent.ACTION_WEB_SEARCH.equals(intent.getAction()) && intent.getStringExtra("query") != null) {
+            return intent.getStringExtra("query");
+        } else {
+            return "";
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        String url = getUrlFromIntent(intent);
+        if (!url.isEmpty()) {
+            newTab(url);
+            switchToTab(tabs.size() - 1);
+        }
+    }
+
     private void onNightModeChange() {
         if (isNightMode) {
             getCurrentWebView().setBackgroundColor(Color.BLACK);
@@ -556,6 +573,8 @@ public class MainActivity extends Activity {
     public void onBackPressed() {
         if (getCurrentWebView().canGoBack()) {
             getCurrentWebView().goBack();
+        } else if (tabs.size() > 1) {
+            closeCurrentTab();
         } else {
             super.onBackPressed();
         }
