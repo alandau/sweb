@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -99,7 +100,7 @@ public class MainActivity extends Activity {
 
     @SuppressLint("SetJavaScriptEnabled")
     private WebView createWebView() {
-        final ProgressBar progressBar = findViewById(R.id.progress1);
+        final ProgressBar progressBar = findViewById(R.id.progressbar);
 
         WebView webview = new WebView(this);
         webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
@@ -544,11 +545,22 @@ public class MainActivity extends Activity {
 
     private void onNightModeChange() {
         if (isNightMode) {
-            getCurrentWebView().setBackgroundColor(Color.BLACK);
+            et.setTextColor(Color.rgb(0x61, 0x61, 0x5f));
+            et.setBackgroundColor(Color.rgb(0x22, 0x22, 0x22));
+            findViewById(R.id.main_layout).setBackgroundColor(Color.BLACK);
+            findViewById(R.id.toolbar).setBackgroundColor(Color.BLACK);
+            ((ProgressBar)findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x66, 0)));
         } else {
-            getCurrentWebView().setBackgroundColor(Color.WHITE);
+            et.setTextColor(Color.BLACK);
+            et.setBackgroundColor(Color.rgb(0xe0, 0xe0, 0xe0));
+            findViewById(R.id.main_layout).setBackgroundColor(Color.WHITE);
+            findViewById(R.id.toolbar).setBackgroundColor(Color.rgb(0xe0, 0xe0, 0xe0));
+            ((ProgressBar)findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0xcc, 0)));
         }
-        injectCSS(getCurrentWebView());
+        for (int i = 0; i < tabs.size(); i++) {
+            tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
+            injectCSS(tabs.get(i).webview);
+        }
     }
 
     private void loadUrl(String url, WebView webview) {
