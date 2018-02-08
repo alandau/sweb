@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
@@ -245,7 +246,13 @@ public class MainActivity extends Activity {
         // setup edit text
         et.setSelected(false);
         et.setText(getUrlFromIntent(getIntent()));
-        et.setAdapter(new SearchAutocompleteAdapter(this));
+        et.setAdapter(new SearchAutocompleteAdapter(this, new SearchAutocompleteAdapter.OnSearchCommitListener() {
+            @Override
+            public void onSearchCommit(String text) {
+                et.setText(text);
+                et.setSelection(text.length());
+            }
+        }));
         et.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -735,11 +742,17 @@ public class MainActivity extends Activity {
 
     static class SearchAutocompleteAdapter extends BaseAdapter implements Filterable {
 
+        interface OnSearchCommitListener {
+            void onSearchCommit(String text);
+        }
+
         private final Context mContext;
+        private final OnSearchCommitListener commitListener;
         private List<String> completions = new ArrayList<>();
 
-        SearchAutocompleteAdapter(Context context) {
+        SearchAutocompleteAdapter(Context context, OnSearchCommitListener commitListener) {
             mContext = context;
+            this.commitListener = commitListener;
         }
 
         @Override
@@ -758,18 +771,39 @@ public class MainActivity extends Activity {
         }
 
         @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
+        @SuppressWarnings("ConstantConditions")
+        public View getView(final int position, View convertView, ViewGroup parent) {
             if (convertView == null) {
                 LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
                 convertView = inflater.inflate(android.R.layout.simple_dropdown_item_1line, parent, false);
             }
-            ((TextView)convertView.findViewById(android.R.id.text1)).setText(completions.get(position));
+            TextView v = convertView.findViewById(android.R.id.text1);
+            v.setText(completions.get(position));
+            Drawable d = mContext.getResources().getDrawable(R.drawable.commit_search, null);
+            int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32, mContext.getResources().getDisplayMetrics());
+            d.setBounds(0, 0, size, size);
+            v.setCompoundDrawables(null, null, d, null);
+            //noinspection AndroidLintClickableViewAccessibility
+            v.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (event.getAction() != MotionEvent.ACTION_DOWN) {
+                        return false;
+                    }
+                    TextView t = (TextView) v;
+                    if (event.getX() > t.getWidth() - t.getCompoundPaddingRight()) {
+                        commitListener.onSearchCommit(getItem(position).toString());
+                        return true;
+                    }
+                    return false;
+                }
+            });
             return convertView;
         }
 
         @Override
         public Filter getFilter() {
-            Filter filter = new Filter() {
+            return new Filter() {
                 @Override
                 protected FilterResults performFiltering(CharSequence constraint) {
                     // Invoked on a worker thread
@@ -783,6 +817,7 @@ public class MainActivity extends Activity {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 protected void publishResults(CharSequence constraint, FilterResults results) {
                     if (results != null && results.count > 0) {
                         completions = (List<String>) results.values;
@@ -792,7 +827,6 @@ public class MainActivity extends Activity {
                     }
                 }
             };
-            return filter;
         }
 
         // Runs on a worker thread
