@@ -85,6 +85,7 @@ public class MainActivity extends Activity {
     private boolean isNightMode;
     private boolean isFullscreen;
     private SharedPreferences prefs;
+    private AdBlocker adBlocker;
 
     static class TitleAndUrl {
         String title;
@@ -538,6 +539,7 @@ public class MainActivity extends Activity {
         getCurrentWebView().setVisibility(View.VISIBLE);
         getCurrentWebView().requestFocus();
         onNightModeChange();
+        adBlocker = new AdBlocker();
     }
 
     private void closeCurrentTab() {
