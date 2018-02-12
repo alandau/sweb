@@ -187,7 +187,7 @@ public class MainActivity extends Activity {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String host = request.getUrl().getHost();
-                if (adHosts.contains(host)) {
+                if (adHosts.contains(host) || adBlocker.shouldBlock(request.getUrl().toString(), null)) {
                     return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
                 }
                 return super.shouldInterceptRequest(view, request);
