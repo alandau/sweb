@@ -330,6 +330,14 @@ public class MainActivity extends Activity {
             }
         });
 
+        final GestureDetector addressBarGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
+            @Override
+            boolean onFlingUp() {
+                et.setVisibility(et.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+                return true;
+            }
+        });
+
         ImageView btnReload = findViewById(R.id.btnReload);
         btnReload.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -342,6 +350,13 @@ public class MainActivity extends Activity {
             public boolean onLongClick(View v) {
                 getCurrentWebView().stopLoading();
                 return true;
+            }
+        });
+        //noinspection AndroidLintClickableViewAccessibility
+        btnReload.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                return addressBarGestureDetector.onTouchEvent(event);
             }
         });
 
