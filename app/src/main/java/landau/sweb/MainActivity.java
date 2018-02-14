@@ -1,5 +1,6 @@
 package landau.sweb;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -8,10 +9,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
@@ -48,6 +51,7 @@ import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -60,10 +64,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class MainActivity extends Activity {
 
@@ -173,22 +174,20 @@ public class MainActivity extends Activity {
                         }).show();
             }
 
-            final Set<String> adHosts = new HashSet<>(Arrays.asList(
-                    "mc.yandex.ru",
-                    "mobtop.ru",
-                    "counter.yadro.ru",
-                    "top.list.ru",
-                    "an.yandex.ru",
-                    "pagead2.googlesyndication.com",
-                    "jsc.marketgid.com"
-            ));
             final InputStream emptyInputStream = new ByteArrayInputStream(new byte[0]);
+
+            String lastMainPage = "";
 
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                String host = request.getUrl().getHost();
-                if (adHosts.contains(host) || adBlocker.shouldBlock(request.getUrl().toString(), null)) {
-                    return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+                if (adBlocker != null) {
+                    if (request.isForMainFrame()) {
+                        lastMainPage = request.getUrl().toString();
+                    }
+                    String host = request.getUrl().getHost();
+                    if (adBlocker.shouldBlock(request.getUrl(), lastMainPage)) {
+                        return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+                    }
                 }
                 return super.shouldInterceptRequest(view, request);
             }
@@ -339,6 +338,20 @@ public class MainActivity extends Activity {
             }
         });
 
+        final GestureDetector adBlockGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
+            @Override
+            boolean onFlingUp() {
+                if (adBlocker != null) {
+                    adBlocker = null;
+                } else {
+                   adBlocker =  hasStoragePermission() ? new AdBlocker() : null;
+                }
+                Toast.makeText(MainActivity.this, "Ad Blocker " + (adBlocker != null ? "enabled" : "disabled"), Toast.LENGTH_SHORT).show();
+                prefs.edit().putBoolean("adblocker", adBlocker != null).apply();
+                return true;
+            }
+        });
+
         ImageView btnForward = findViewById(R.id.btnForward);
         btnForward.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -353,6 +366,13 @@ public class MainActivity extends Activity {
             public boolean onLongClick(View v) {
                 getCurrentWebView().pageDown(true);
                 return true;
+            }
+        });
+        //noinspection AndroidLintClickableViewAccessibility
+        btnForward.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                return adBlockGestureDetector.onTouchEvent(event);
             }
         });
 
@@ -535,11 +555,12 @@ public class MainActivity extends Activity {
             }
         });
 
+        adBlocker = prefs.getBoolean("adblocker", true) && hasStoragePermission() ? new AdBlocker() : null;
+
         newTab(et.getText().toString());
         getCurrentWebView().setVisibility(View.VISIBLE);
         getCurrentWebView().requestFocus();
         onNightModeChange();
-        adBlocker = new AdBlocker();
     }
 
     private void closeCurrentTab() {
@@ -705,6 +726,11 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    boolean hasStoragePermission() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     }
 
     private class MyGestureDetector extends GestureDetector.SimpleOnGestureListener {
