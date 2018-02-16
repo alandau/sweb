@@ -152,7 +152,10 @@ public class MainActivity extends Activity {
 
             @Override
             public void onReceivedHttpAuthRequest(WebView view, final HttpAuthHandler handler, String host, String realm) {
-                new AlertDialog.Builder(MainActivity.this).setTitle(host).setView(R.layout.login_password)
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle(host)
+                        .setView(R.layout.login_password)
+                        .setCancelable(false)
                         .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
