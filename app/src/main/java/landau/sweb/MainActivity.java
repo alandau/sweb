@@ -674,6 +674,7 @@ public class MainActivity extends Activity {
                         "}";
             }
             webview.evaluateJavascript("javascript:(function() {" + js + "})()", null);
+            webview.evaluateJavascript("javascript:document.querySelector('meta[name=viewport]').content='width=device-width;initial-scale=1.0;maximum-scale=3.0;user-scalable=1;';", null);
         } catch (Exception e) {
             e.printStackTrace();
         }
