@@ -3,6 +3,7 @@ package landau.sweb;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -26,6 +27,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
+import android.webkit.HttpAuthHandler;
 import android.webkit.URLUtil;
 import android.webkit.WebBackForwardList;
 import android.webkit.WebChromeClient;
@@ -38,6 +40,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.BaseAdapter;
+import android.widget.EditText;
 import android.widget.Filter;
 import android.widget.Filterable;
 import android.widget.FrameLayout;
@@ -145,6 +148,25 @@ public class MainActivity extends Activity {
                     et.setText(url);
                 }
                 injectCSS(view);
+            }
+
+            @Override
+            public void onReceivedHttpAuthRequest(WebView view, final HttpAuthHandler handler, String host, String realm) {
+                new AlertDialog.Builder(MainActivity.this).setTitle(host).setView(R.layout.login_password)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                String username = ((EditText)((Dialog)dialog).findViewById(R.id.username)).getText().toString();
+                                String password = ((EditText)((Dialog)dialog).findViewById(R.id.password)).getText().toString();
+                                handler.proceed(username, password);
+                            }
+                        })
+                        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                handler.cancel();
+                            }
+                        }).show();
             }
 
             final Set<String> adHosts = new HashSet<>(Arrays.asList(
