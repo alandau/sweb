@@ -19,7 +19,6 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.util.Pair;
 import android.util.Patterns;
 import android.util.TypedValue;
 import android.view.GestureDetector;
@@ -390,12 +389,30 @@ public class MainActivity extends Activity {
             }
         });
 
+        class MenuAction {
+            MenuAction(String title, Runnable action) {
+                this(title, action, null);
+            }
+            MenuAction(String title, Runnable action, MyBooleanSupplier getState) {
+                this.title = title;
+                this.action = action;
+                this.getState = getState;
+            }
+            String title;
+            Runnable action;
+            MyBooleanSupplier getState;
+        }
         @SuppressWarnings("unchecked")
-        final Pair<String, Runnable>[] menuActions = new Pair[] {
-                Pair.create("Toggle Desktop UA", new Runnable() {
+        final MenuAction[] menuActions = new MenuAction[] {
+                new MenuAction("Toggle Desktop UA", new Runnable() {
                     @Override
                     public void run() {
                         toggleDesktopUA();
+                    }
+                }, new MyBooleanSupplier() {
+                    @Override
+                    public boolean getAsBoolean() {
+                        return getCurrentTab().isDesktopUA;
                     }
                 })
         };
@@ -406,7 +423,11 @@ public class MainActivity extends Activity {
                 PopupMenu popup = new PopupMenu(MainActivity.this, v);
                 Menu menu = popup.getMenu();
                 for (int i = 0; i < menuActions.length; i++) {
-                    menu.add(0, i, 0, menuActions[i].first);
+                    String title = menuActions[i].title;
+                    if (menuActions[i].getState != null) {
+                        title += menuActions[i].getState.getAsBoolean() ? " - ON" : " - OFF";
+                    }
+                    menu.add(0, i, 0, title);
                 }
                 popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
                     @Override
@@ -415,8 +436,7 @@ public class MainActivity extends Activity {
                         if (index < 0 || index >= menuActions.length) {
                             return false;
                         }
-                        Runnable r = menuActions[index].second;
-                        r.run();
+                        menuActions[index].action.run();
                         return true;
                     }
                 });
@@ -770,6 +790,10 @@ public class MainActivity extends Activity {
     boolean hasStoragePermission() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    interface MyBooleanSupplier {
+        boolean getAsBoolean();
     }
 
     private class MyGestureDetector extends GestureDetector.SimpleOnGestureListener {
