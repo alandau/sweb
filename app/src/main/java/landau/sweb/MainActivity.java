@@ -6,7 +6,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -25,7 +24,6 @@ import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -39,7 +37,6 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.BaseAdapter;
@@ -160,20 +157,12 @@ public class MainActivity extends Activity {
                         .setTitle(host)
                         .setView(R.layout.login_password)
                         .setCancelable(false)
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                String username = ((EditText)((Dialog)dialog).findViewById(R.id.username)).getText().toString();
-                                String password = ((EditText)((Dialog)dialog).findViewById(R.id.password)).getText().toString();
-                                handler.proceed(username, password);
-                            }
+                        .setPositiveButton("OK", (dialog, which) -> {
+                            String username = ((EditText) ((Dialog) dialog).findViewById(R.id.username)).getText().toString();
+                            String password = ((EditText) ((Dialog) dialog).findViewById(R.id.password)).getText().toString();
+                            handler.proceed(username, password);
                         })
-                        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                handler.cancel();
-                            }
-                        }).show();
+                        .setNegativeButton("Cancel", (dialog, which) -> handler.cancel()).show();
             }
 
             final InputStream emptyInputStream = new ByteArrayInputStream(new byte[0]);
@@ -193,30 +182,24 @@ public class MainActivity extends Activity {
                 return super.shouldInterceptRequest(view, request);
             }
         });
-        webview.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                WebView.HitTestResult r = ((WebView) v).getHitTestResult();
-                if (r.getType() != WebView.HitTestResult.SRC_ANCHOR_TYPE && r.getType() != WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE) {
-                    return false;
-                }
-                final String url = r.getExtra();
-                new AlertDialog.Builder(MainActivity.this).setTitle(url).setItems(new String[]{"Open", "Open in new tab"}, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        switch (which) {
-                            case 0:
-                                et.setText(url);
-                                loadUrl(url, getCurrentWebView());
-                                break;
-                            case 1:
-                                newTab(url);
-                                break;
-                        }
-                    }
-                }).show();
-                return true;
+        webview.setOnLongClickListener(v -> {
+            WebView.HitTestResult r = ((WebView) v).getHitTestResult();
+            if (r.getType() != WebView.HitTestResult.SRC_ANCHOR_TYPE && r.getType() != WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE) {
+                return false;
             }
+            final String url = r.getExtra();
+            new AlertDialog.Builder(MainActivity.this).setTitle(url).setItems(new String[]{"Open", "Open in new tab"}, (dialog, which) -> {
+                switch (which) {
+                    case 0:
+                        et.setText(url);
+                        loadUrl(url, getCurrentWebView());
+                        break;
+                    case 1:
+                        newTab(url);
+                        break;
+                }
+            }).show();
+            return true;
         });
         return webview;
     }
@@ -259,12 +242,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         setContentView(R.layout.activity_main);
-        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
-            @Override
-            public void onSystemUiVisibilityChange(int visibility) {
-                updateFullScreen();
-            }
-        });
+        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> updateFullScreen());
 
         isFullscreen = false;
         isNightMode = prefs.getBoolean("night_mode", false);
@@ -277,19 +255,13 @@ public class MainActivity extends Activity {
         // setup edit text
         et.setSelected(false);
         et.setText(getUrlFromIntent(getIntent()));
-        et.setAdapter(new SearchAutocompleteAdapter(this, new SearchAutocompleteAdapter.OnSearchCommitListener() {
-            @Override
-            public void onSearchCommit(String text) {
-                et.setText(text);
-                et.setSelection(text.length());
-            }
+        et.setAdapter(new SearchAutocompleteAdapter(this, text -> {
+            et.setText(text);
+            et.setSelection(text.length());
         }));
-        et.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                getCurrentWebView().requestFocus();
-                loadUrl(et.getText().toString(), getCurrentWebView());
-            }
+        et.setOnItemClickListener((parent, view, position, id) -> {
+            getCurrentWebView().requestFocus();
+            loadUrl(et.getText().toString(), getCurrentWebView());
         });
 
         final GestureDetector backGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
@@ -308,40 +280,24 @@ public class MainActivity extends Activity {
                         idx);
                 new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Navigation History")
-                        .setAdapter(adapter, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                getCurrentWebView().goBackOrForward(which - idx);
-                            }
-                        })
+                        .setAdapter(adapter, (dialog, which) -> getCurrentWebView().goBackOrForward(which - idx))
                         .show();
                 return true;
             }
         });
 
         ImageView btnBack = findViewById(R.id.btnBack);
-        btnBack.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (getCurrentWebView().canGoBack()) {
-                    getCurrentWebView().goBack();
-                }
+        btnBack.setOnClickListener(v -> {
+            if (getCurrentWebView().canGoBack()) {
+                getCurrentWebView().goBack();
             }
         });
-        btnBack.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                getCurrentWebView().pageUp(true);
-                return true;
-            }
+        btnBack.setOnLongClickListener(v -> {
+            getCurrentWebView().pageUp(true);
+            return true;
         });
         //noinspection AndroidLintClickableViewAccessibility
-        btnBack.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                return backGestureDetector.onTouchEvent(event);
-            }
-        });
+        btnBack.setOnTouchListener((v, event) -> backGestureDetector.onTouchEvent(event));
 
         final GestureDetector adBlockGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
             @Override
@@ -349,7 +305,7 @@ public class MainActivity extends Activity {
                 if (adBlocker != null) {
                     adBlocker = null;
                 } else {
-                   adBlocker =  hasStoragePermission() ? new AdBlocker() : null;
+                    adBlocker = hasStoragePermission() ? new AdBlocker() : null;
                 }
                 Toast.makeText(MainActivity.this, "Ad Blocker " + (adBlocker != null ? "enabled" : "disabled"), Toast.LENGTH_SHORT).show();
                 prefs.edit().putBoolean("adblocker", adBlocker != null).apply();
@@ -358,28 +314,17 @@ public class MainActivity extends Activity {
         });
 
         ImageView btnForward = findViewById(R.id.btnForward);
-        btnForward.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (getCurrentWebView().canGoForward()) {
-                    getCurrentWebView().goForward();
-                }
+        btnForward.setOnClickListener(v -> {
+            if (getCurrentWebView().canGoForward()) {
+                getCurrentWebView().goForward();
             }
         });
-        btnForward.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                getCurrentWebView().pageDown(true);
-                return true;
-            }
+        btnForward.setOnLongClickListener(v -> {
+            getCurrentWebView().pageDown(true);
+            return true;
         });
         //noinspection AndroidLintClickableViewAccessibility
-        btnForward.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                return adBlockGestureDetector.onTouchEvent(event);
-            }
-        });
+        btnForward.setOnTouchListener((v, event) -> adBlockGestureDetector.onTouchEvent(event));
 
         final GestureDetector addressBarGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
             @Override
@@ -390,73 +335,50 @@ public class MainActivity extends Activity {
         });
 
         class MenuAction {
-            MenuAction(String title, Runnable action) {
+            private MenuAction(String title, Runnable action) {
                 this(title, action, null);
             }
-            MenuAction(String title, Runnable action, MyBooleanSupplier getState) {
+
+            private MenuAction(String title, Runnable action, MyBooleanSupplier getState) {
                 this.title = title;
                 this.action = action;
                 this.getState = getState;
             }
-            String title;
-            Runnable action;
-            MyBooleanSupplier getState;
+
+            private String title;
+            private Runnable action;
+            private MyBooleanSupplier getState;
         }
-        @SuppressWarnings("unchecked")
-        final MenuAction[] menuActions = new MenuAction[] {
-                new MenuAction("Toggle Desktop UA", new Runnable() {
-                    @Override
-                    public void run() {
-                        toggleDesktopUA();
-                    }
-                }, new MyBooleanSupplier() {
-                    @Override
-                    public boolean getAsBoolean() {
-                        return getCurrentTab().isDesktopUA;
-                    }
-                })
+        @SuppressWarnings("unchecked") final MenuAction[] menuActions = new MenuAction[]{
+                new MenuAction("Toggle Desktop UA", this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA)
         };
         ImageView btnMenu = findViewById(R.id.btnMenu);
-        btnMenu.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                PopupMenu popup = new PopupMenu(MainActivity.this, v);
-                Menu menu = popup.getMenu();
-                for (int i = 0; i < menuActions.length; i++) {
-                    String title = menuActions[i].title;
-                    if (menuActions[i].getState != null) {
-                        title += menuActions[i].getState.getAsBoolean() ? " - ON" : " - OFF";
-                    }
-                    menu.add(0, i, 0, title);
+        btnMenu.setOnClickListener(v -> {
+            PopupMenu popup = new PopupMenu(MainActivity.this, v);
+            Menu menu = popup.getMenu();
+            for (int i = 0; i < menuActions.length; i++) {
+                String title = menuActions[i].title;
+                if (menuActions[i].getState != null) {
+                    title += menuActions[i].getState.getAsBoolean() ? " - ON" : " - OFF";
                 }
-                popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-                    @Override
-                    public boolean onMenuItemClick(MenuItem item) {
-                        int index = item.getItemId();
-                        if (index < 0 || index >= menuActions.length) {
-                            return false;
-                        }
-                        menuActions[index].action.run();
-                        return true;
-                    }
-                });
-                popup.show();
+                menu.add(0, i, 0, title);
             }
-        });
-        btnMenu.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                getCurrentWebView().reload();
+            popup.setOnMenuItemClickListener(item -> {
+                int index = item.getItemId();
+                if (index < 0 || index >= menuActions.length) {
+                    return false;
+                }
+                menuActions[index].action.run();
                 return true;
-            }
+            });
+            popup.show();
+        });
+        btnMenu.setOnLongClickListener(v -> {
+            getCurrentWebView().reload();
+            return true;
         });
         //noinspection AndroidLintClickableViewAccessibility
-        btnMenu.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                return addressBarGestureDetector.onTouchEvent(event);
-            }
-        });
+        btnMenu.setOnTouchListener((v, event) -> addressBarGestureDetector.onTouchEvent(event));
 
         final GestureDetector nightModeGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
             @Override
@@ -468,21 +390,13 @@ public class MainActivity extends Activity {
         });
 
         ImageView btnNightMode = findViewById(R.id.btnNightMode);
-        btnNightMode.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                isNightMode = !isNightMode;
-                prefs.edit().putBoolean("night_mode", isNightMode).apply();
-                onNightModeChange();
-            }
+        btnNightMode.setOnClickListener(v -> {
+            isNightMode = !isNightMode;
+            prefs.edit().putBoolean("night_mode", isNightMode).apply();
+            onNightModeChange();
         });
         //noinspection AndroidLintClickableViewAccessibility
-        btnNightMode.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                return nightModeGestureDetector.onTouchEvent(event);
-            }
-        });
+        btnNightMode.setOnTouchListener((v, event) -> nightModeGestureDetector.onTouchEvent(event));
 
 
         final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
@@ -494,67 +408,45 @@ public class MainActivity extends Activity {
         });
 
         ImageView btnTabs = findViewById(R.id.btnTabs);
-        btnTabs.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String[] items = new String[tabs.size()];
-                for (int i = 0; i < tabs.size(); i++) {
-                    items[i] = tabs.get(i).webview.getTitle();
-                }
-                ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
-                        MainActivity.this,
-                        android.R.layout.select_dialog_item,
-                        items,
-                        currentTabIndex);
-                AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Tabs")
-                        .setAdapter(adapter, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                switchToTab(which);
-                            }
-                        });
-                if (!closedTabs.isEmpty()) {
-                    tabsDialog.setNeutralButton("Undo closed tabs", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            String[] items = new String[closedTabs.size()];
-                            for (int i = 0; i < closedTabs.size(); i++) {
-                                items[i] = closedTabs.get(i).title;
-                            }
-                            new AlertDialog.Builder(MainActivity.this)
-                                    .setTitle("Undo closed tabs")
-                                    .setItems(items, new DialogInterface.OnClickListener() {
-                                        @Override
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            String url = closedTabs.get(which).url;
-                                            closedTabs.remove(which);
-                                            newTab(url);
-                                            switchToTab(tabs.size() - 1);
-                                        }
-                                    })
-                                    .show();
-                        }
-                    });
-                }
-                tabsDialog.show();
+        btnTabs.setOnClickListener(v -> {
+            String[] items = new String[tabs.size()];
+            for (int i = 0; i < tabs.size(); i++) {
+                items[i] = tabs.get(i).webview.getTitle();
             }
+            ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
+                    MainActivity.this,
+                    android.R.layout.select_dialog_item,
+                    items,
+                    currentTabIndex);
+            AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Tabs")
+                    .setAdapter(adapter, (dialog, which) -> switchToTab(which));
+            if (!closedTabs.isEmpty()) {
+                tabsDialog.setNeutralButton("Undo closed tabs", (dialog, which) -> {
+                    String[] items1 = new String[closedTabs.size()];
+                    for (int i = 0; i < closedTabs.size(); i++) {
+                        items1[i] = closedTabs.get(i).title;
+                    }
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Undo closed tabs")
+                            .setItems(items1, (dialog1, which1) -> {
+                                String url = closedTabs.get(which1).url;
+                                closedTabs.remove(which1);
+                                newTab(url);
+                                switchToTab(tabs.size() - 1);
+                            })
+                            .show();
+                });
+            }
+            tabsDialog.show();
         });
-        btnTabs.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                newTab("");
-                switchToTab(tabs.size() - 1);
-                return true;
-            }
+        btnTabs.setOnLongClickListener(v -> {
+            newTab("");
+            switchToTab(tabs.size() - 1);
+            return true;
         });
         //noinspection AndroidLintClickableViewAccessibility
-        btnTabs.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                return gestureDetector.onTouchEvent(event);
-            }
-        });
+        btnTabs.setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
         ((TextView) findViewById(R.id.btnTabsCount)).setText("1");
 
         final String[] menuItems = {
@@ -569,41 +461,32 @@ public class MainActivity extends Activity {
                 "Grooming", "http://www.kongsbergers.org/GroomingReport.html",
         };
         ImageView btnBookmakrs = findViewById(R.id.btnBookmarks);
-        btnBookmakrs.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                PopupMenu popup = new PopupMenu(MainActivity.this, v);
-                Menu menu = popup.getMenu();
-                for (int i = 0; i < menuItems.length; i += 2) {
-                    menu.add(0, i / 2, 0, menuItems[i]);
-                }
-                popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-                    @Override
-                    public boolean onMenuItemClick(MenuItem item) {
-                        int index = item.getItemId();
-                        if (index >= 0 && index < menuItems.length / 2) {
-                            String url = menuItems[index * 2 + 1];
-                            et.setText(url);
-                            loadUrl(url, getCurrentWebView());
-                            return true;
-                        }
-                        return false;
-                    }
-                });
-                popup.show();
+        btnBookmakrs.setOnClickListener(v -> {
+            PopupMenu popup = new PopupMenu(MainActivity.this, v);
+            Menu menu = popup.getMenu();
+            for (int i = 0; i < menuItems.length; i += 2) {
+                menu.add(0, i / 2, 0, menuItems[i]);
             }
+            popup.setOnMenuItemClickListener(item -> {
+                int index = item.getItemId();
+                if (index >= 0 && index < menuItems.length / 2) {
+                    String url = menuItems[index * 2 + 1];
+                    et.setText(url);
+                    loadUrl(url, getCurrentWebView());
+                    return true;
+                }
+                return false;
+            });
+            popup.show();
         });
 
-        et.setOnKeyListener(new View.OnKeyListener() {
-            @Override
-            public boolean onKey(View v, int keyCode, KeyEvent event) {
-                if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
-                    loadUrl(et.getText().toString(), getCurrentWebView());
-                    getCurrentWebView().requestFocus();
-                    return true;
-                } else {
-                    return false;
-                }
+        et.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
+                loadUrl(et.getText().toString(), getCurrentWebView());
+                getCurrentWebView().requestFocus();
+                return true;
+            } else {
+                return false;
             }
         });
 
@@ -664,13 +547,13 @@ public class MainActivity extends Activity {
             et.setBackgroundColor(Color.rgb(0x22, 0x22, 0x22));
             findViewById(R.id.main_layout).setBackgroundColor(Color.BLACK);
             findViewById(R.id.toolbar).setBackgroundColor(Color.BLACK);
-            ((ProgressBar)findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x66, 0)));
+            ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x66, 0)));
         } else {
             et.setTextColor(Color.BLACK);
             et.setBackgroundColor(Color.rgb(0xe0, 0xe0, 0xe0));
             findViewById(R.id.main_layout).setBackgroundColor(Color.WHITE);
             findViewById(R.id.toolbar).setBackgroundColor(Color.rgb(0xe0, 0xe0, 0xe0));
-            ((ProgressBar)findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0xcc, 0)));
+            ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0xcc, 0)));
         }
         for (int i = 0; i < tabs.size(); i++) {
             tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
@@ -792,6 +675,7 @@ public class MainActivity extends Activity {
                 checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     }
 
+    // java.util.function.BooleanSupplier requires API 24
     interface MyBooleanSupplier {
         boolean getAsBoolean();
     }
@@ -928,19 +812,16 @@ public class MainActivity extends Activity {
             d.setBounds(0, 0, size, size);
             v.setCompoundDrawables(null, null, d, null);
             //noinspection AndroidLintClickableViewAccessibility
-            v.setOnTouchListener(new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    if (event.getAction() != MotionEvent.ACTION_DOWN) {
-                        return false;
-                    }
-                    TextView t = (TextView) v;
-                    if (event.getX() > t.getWidth() - t.getCompoundPaddingRight()) {
-                        commitListener.onSearchCommit(getItem(position).toString());
-                        return true;
-                    }
+            v.setOnTouchListener((v1, event) -> {
+                if (event.getAction() != MotionEvent.ACTION_DOWN) {
                     return false;
                 }
+                TextView t = (TextView) v1;
+                if (event.getX() > t.getWidth() - t.getCompoundPaddingRight()) {
+                    commitListener.onSearchCommit(getItem(position).toString());
+                    return true;
+                }
+                return false;
             });
             return convertView;
         }
