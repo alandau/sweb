@@ -8,14 +8,14 @@
         android:id="@+id/et"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:completionThreshold="1"
         android:imeActionLabel="Go"
         android:imeOptions="actionGo"
         android:inputType="textUri"
-        android:selectAllOnFocus="true"
-        android:singleLine="true"
-        android:paddingTop="10dp"
         android:paddingBottom="10dp"
-        android:completionThreshold="1" />
+        android:paddingTop="10dp"
+        android:selectAllOnFocus="true"
+        android:singleLine="true" />
 
     <FrameLayout
         android:id="@+id/webviews"
@@ -41,11 +41,11 @@
         android:layout_width="match_parent"
         android:layout_height="40dp"
         android:layout_alignParentBottom="true"
-        android:paddingBottom="4dp"
-        android:paddingTop="4dp"
         android:background="#00000000"
         android:gravity="center"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:paddingBottom="4dp"
+        android:paddingTop="4dp">
 
         <ImageButton
             android:id="@+id/btnBack"
@@ -65,16 +65,6 @@
             android:background="#00000000"
             android:scaleType="centerInside"
             android:src="@drawable/forward"
-            android:tint="#61615f" />
-
-        <ImageButton
-            android:id="@+id/btnReload"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="#00000000"
-            android:scaleType="centerInside"
-            android:src="@drawable/reload"
             android:tint="#61615f" />
 
         <ImageButton
@@ -122,6 +112,17 @@
                 android:textSize="16dp"
                 tools:ignore="SpUsage" />
         </RelativeLayout>
+
+        <ImageButton
+            android:id="@+id/btnMenu"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#00000000"
+            android:scaleType="centerInside"
+            android:src="@drawable/menu"
+            android:tint="#61615f" />
+
     </LinearLayout>
 
 </RelativeLayout>

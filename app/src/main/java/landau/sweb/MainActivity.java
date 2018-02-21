@@ -19,6 +19,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Pair;
 import android.util.Patterns;
 import android.util.TypedValue;
 import android.view.GestureDetector;
@@ -74,10 +75,12 @@ public class MainActivity extends Activity {
         }
 
         WebView webview;
+        boolean isDesktopUA;
     }
 
     static final String searchUrl = "https://www.google.com/search?q=%s";
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
+    static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36";
 
     private ArrayList<Tab> tabs = new ArrayList<>();
     private int currentTabIndex;
@@ -184,7 +187,6 @@ public class MainActivity extends Activity {
                     if (request.isForMainFrame()) {
                         lastMainPage = request.getUrl().toString();
                     }
-                    String host = request.getUrl().getHost();
                     if (adBlocker.shouldBlock(request.getUrl(), lastMainPage)) {
                         return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
                     }
@@ -222,9 +224,13 @@ public class MainActivity extends Activity {
 
     private void newTab(String url) {
         WebView webview = createWebView();
+        boolean isDesktopUA = !tabs.isEmpty() && getCurrentTab().isDesktopUA;
+        webview.getSettings().setUserAgentString(isDesktopUA ? desktopUA : null);
         webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
-        tabs.add(new Tab(webview));
+        Tab tab = new Tab(webview);
+        tab.isDesktopUA = isDesktopUA;
+        tabs.add(tab);
         webviews.addView(webview);
         ((TextView) findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
         loadUrl(url, webview);
@@ -384,22 +390,48 @@ public class MainActivity extends Activity {
             }
         });
 
-        ImageView btnReload = findViewById(R.id.btnReload);
-        btnReload.setOnClickListener(new View.OnClickListener() {
+        @SuppressWarnings("unchecked")
+        final Pair<String, Runnable>[] menuActions = new Pair[] {
+                Pair.create("Toggle Desktop UA", new Runnable() {
+                    @Override
+                    public void run() {
+                        toggleDesktopUA();
+                    }
+                })
+        };
+        ImageView btnMenu = findViewById(R.id.btnMenu);
+        btnMenu.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                getCurrentWebView().reload();
+                PopupMenu popup = new PopupMenu(MainActivity.this, v);
+                Menu menu = popup.getMenu();
+                for (int i = 0; i < menuActions.length; i++) {
+                    menu.add(0, i, 0, menuActions[i].first);
+                }
+                popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                    @Override
+                    public boolean onMenuItemClick(MenuItem item) {
+                        int index = item.getItemId();
+                        if (index < 0 || index >= menuActions.length) {
+                            return false;
+                        }
+                        Runnable r = menuActions[index].second;
+                        r.run();
+                        return true;
+                    }
+                });
+                popup.show();
             }
         });
-        btnReload.setOnLongClickListener(new View.OnLongClickListener() {
+        btnMenu.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                getCurrentWebView().stopLoading();
+                getCurrentWebView().reload();
                 return true;
             }
         });
         //noinspection AndroidLintClickableViewAccessibility
-        btnReload.setOnTouchListener(new View.OnTouchListener() {
+        btnMenu.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 return addressBarGestureDetector.onTouchEvent(event);
@@ -624,6 +656,13 @@ public class MainActivity extends Activity {
             tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
             injectCSS(tabs.get(i).webview);
         }
+    }
+
+    private void toggleDesktopUA() {
+        Tab tab = getCurrentTab();
+        tab.isDesktopUA = !tab.isDesktopUA;
+        getCurrentWebView().getSettings().setUserAgentString(tab.isDesktopUA ? desktopUA : null);
+        getCurrentWebView().reload();
     }
 
     private void loadUrl(String url, WebView webview) {
