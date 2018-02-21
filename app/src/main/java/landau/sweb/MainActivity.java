@@ -28,6 +28,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
+import android.webkit.CookieManager;
 import android.webkit.HttpAuthHandler;
 import android.webkit.URLUtil;
 import android.webkit.WebBackForwardList;
@@ -350,7 +351,9 @@ public class MainActivity extends Activity {
             private MyBooleanSupplier getState;
         }
         @SuppressWarnings("unchecked") final MenuAction[] menuActions = new MenuAction[]{
-                new MenuAction("Toggle Desktop UA", this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA)
+                new MenuAction("Desktop UA", this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA),
+                new MenuAction("3rd party cookies", this::toggleThirdPartyCookies,
+                        () -> CookieManager.getInstance().acceptThirdPartyCookies(getCurrentWebView())),
         };
         ImageView btnMenu = findViewById(R.id.btnMenu);
         btnMenu.setOnClickListener(v -> {
@@ -566,6 +569,12 @@ public class MainActivity extends Activity {
         tab.isDesktopUA = !tab.isDesktopUA;
         getCurrentWebView().getSettings().setUserAgentString(tab.isDesktopUA ? desktopUA : null);
         getCurrentWebView().reload();
+    }
+
+    private void toggleThirdPartyCookies() {
+        CookieManager cookieManager = CookieManager.getInstance();
+        boolean newValue = !cookieManager.acceptThirdPartyCookies(getCurrentWebView());
+        cookieManager.setAcceptThirdPartyCookies(getCurrentWebView(), newValue);
     }
 
     private void loadUrl(String url, WebView webview) {
