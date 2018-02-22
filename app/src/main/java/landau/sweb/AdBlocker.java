@@ -258,6 +258,10 @@ public class AdBlocker {
     }
 
     boolean shouldBlock(Uri url, String mainPage) {
+        if (!"http".equals(url.getScheme()) || !"https".equals(url.getScheme())) {
+            // E.g. data url
+            return false;
+        }
         long start2 = System.currentTimeMillis();
         boolean result2 = shouldBlockHash(url, mainPage);
         long end2 = System.currentTimeMillis();

@@ -5,6 +5,8 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.DownloadManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -13,8 +15,10 @@ import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -103,7 +107,7 @@ public class MainActivity extends Activity {
         return getCurrentTab().webview;
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint({"SetJavaScriptEnabled", "DefaultLocale"})
     private WebView createWebView() {
         final ProgressBar progressBar = findViewById(R.id.progressbar);
 
@@ -201,6 +205,52 @@ public class MainActivity extends Activity {
                 }
             }).show();
             return true;
+        });
+        webview.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
+            String filename = URLUtil.guessFileName(url, contentDisposition, mimetype);
+            new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Download")
+                    .setMessage(String.format("Filename: %s\nSize: %.2f MB\nURL: %s",
+                            filename,
+                            contentLength / 1024.0 / 1024.0,
+                            url))
+                    .setPositiveButton("Download", (dialog, which) -> {
+                        DownloadManager.Request request;
+                        try {
+                            request = new DownloadManager.Request(Uri.parse(url));
+                        } catch (IllegalArgumentException e) {
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("Download")
+                                    .setMessage("Can't download this URL")
+                                    .setPositiveButton("OK", (dialog1, which1) -> {})
+                                    .show();
+                            return;
+                        }
+                        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+                        String cookie = CookieManager.getInstance().getCookie(url);
+                        if (cookie != null) {
+                            request.addRequestHeader("Cookie", cookie);
+                        }
+                        DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                        assert dm != null;
+                        dm.enqueue(request);
+                    })
+                    .setNeutralButton("Open", (dialog, which) -> {
+                        Intent i = new Intent(Intent.ACTION_VIEW);
+                        i.setData(Uri.parse(url));
+                        try {
+                            startActivity(i);
+                        } catch (ActivityNotFoundException e) {
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("Open")
+                                    .setMessage("Can't open files of this type. Try downloading instead.")
+                                    .setPositiveButton("OK", (dialog1, which1) -> {})
+                                    .show();
+                        }
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> {})
+                    .show();
         });
         return webview;
     }
