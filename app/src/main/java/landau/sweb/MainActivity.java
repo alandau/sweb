@@ -265,75 +265,22 @@ public class MainActivity extends Activity {
             loadUrl(et.getText().toString(), getCurrentWebView());
         });
 
-        final GestureDetector backGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
-            @Override
-            boolean onFlingUp() {
-                WebBackForwardList list = getCurrentWebView().copyBackForwardList();
-                final int idx = list.getCurrentIndex();
-                String[] items = new String[list.getSize()];
-                for (int i = 0; i < list.getSize(); i++) {
-                    items[i] = list.getItemAtIndex(i).getTitle();
-                }
-                ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
-                        MainActivity.this,
-                        android.R.layout.select_dialog_item,
-                        items,
-                        idx);
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Navigation History")
-                        .setAdapter(adapter, (dialog, which) -> getCurrentWebView().goBackOrForward(which - idx))
-                        .show();
-                return true;
-            }
-        });
+        setToolbarButtonActions(findViewById(R.id.btnBack), () -> {
+                    if (getCurrentWebView().canGoBack()) {
+                        getCurrentWebView().goBack();
+                    }
+                },
+                () -> getCurrentWebView().pageUp(true),
+                this::showTabHistory);
 
-        ImageView btnBack = findViewById(R.id.btnBack);
-        btnBack.setOnClickListener(v -> {
-            if (getCurrentWebView().canGoBack()) {
-                getCurrentWebView().goBack();
-            }
-        });
-        btnBack.setOnLongClickListener(v -> {
-            getCurrentWebView().pageUp(true);
-            return true;
-        });
-        //noinspection AndroidLintClickableViewAccessibility
-        btnBack.setOnTouchListener((v, event) -> backGestureDetector.onTouchEvent(event));
 
-        final GestureDetector adBlockGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
-            @Override
-            boolean onFlingUp() {
-                if (adBlocker != null) {
-                    adBlocker = null;
-                } else {
-                    adBlocker = hasStoragePermission() ? new AdBlocker() : null;
-                }
-                Toast.makeText(MainActivity.this, "Ad Blocker " + (adBlocker != null ? "enabled" : "disabled"), Toast.LENGTH_SHORT).show();
-                prefs.edit().putBoolean("adblocker", adBlocker != null).apply();
-                return true;
-            }
-        });
-
-        ImageView btnForward = findViewById(R.id.btnForward);
-        btnForward.setOnClickListener(v -> {
-            if (getCurrentWebView().canGoForward()) {
-                getCurrentWebView().goForward();
-            }
-        });
-        btnForward.setOnLongClickListener(v -> {
-            getCurrentWebView().pageDown(true);
-            return true;
-        });
-        //noinspection AndroidLintClickableViewAccessibility
-        btnForward.setOnTouchListener((v, event) -> adBlockGestureDetector.onTouchEvent(event));
-
-        final GestureDetector addressBarGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
-            @Override
-            boolean onFlingUp() {
-                et.setVisibility(et.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
-                return true;
-            }
-        });
+        setToolbarButtonActions(findViewById(R.id.btnForward), () -> {
+                    if (getCurrentWebView().canGoForward()) {
+                        getCurrentWebView().goForward();
+                    }
+                },
+                () -> getCurrentWebView().pageDown(true),
+                this::toggleAdblocker);
 
         class MenuAction {
             private MenuAction(String title, Runnable action) {
@@ -354,103 +301,49 @@ public class MainActivity extends Activity {
                 new MenuAction("Desktop UA", this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA),
                 new MenuAction("3rd party cookies", this::toggleThirdPartyCookies,
                         () -> CookieManager.getInstance().acceptThirdPartyCookies(getCurrentWebView())),
+                new MenuAction("Ad Blocker", this::toggleAdblocker, () -> adBlocker != null),
+                new MenuAction("Night mode", this::toggleNightMode, () -> isNightMode),
+                new MenuAction("Show address bar", this::toggleShowAddressBar, () -> et.getVisibility() == View.VISIBLE),
+                new MenuAction("Full screen", this::toggleFullscreen, () -> isFullscreen),
+                new MenuAction("Tab history", this::showTabHistory),
         };
         ImageView btnMenu = findViewById(R.id.btnMenu);
-        btnMenu.setOnClickListener(v -> {
-            PopupMenu popup = new PopupMenu(MainActivity.this, v);
-            Menu menu = popup.getMenu();
-            for (int i = 0; i < menuActions.length; i++) {
-                String title = menuActions[i].title;
-                if (menuActions[i].getState != null) {
-                    title += menuActions[i].getState.getAsBoolean() ? " - ON" : " - OFF";
-                }
-                menu.add(0, i, 0, title);
-            }
-            popup.setOnMenuItemClickListener(item -> {
-                int index = item.getItemId();
-                if (index < 0 || index >= menuActions.length) {
-                    return false;
-                }
-                menuActions[index].action.run();
-                return true;
-            });
-            popup.show();
-        });
-        btnMenu.setOnLongClickListener(v -> {
-            getCurrentWebView().reload();
-            return true;
-        });
-        //noinspection AndroidLintClickableViewAccessibility
-        btnMenu.setOnTouchListener((v, event) -> addressBarGestureDetector.onTouchEvent(event));
-
-        final GestureDetector nightModeGestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
-            @Override
-            boolean onFlingUp() {
-                isFullscreen = !isFullscreen;
-                updateFullScreen();
-                return true;
-            }
-        });
-
-        ImageView btnNightMode = findViewById(R.id.btnNightMode);
-        btnNightMode.setOnClickListener(v -> {
-            isNightMode = !isNightMode;
-            prefs.edit().putBoolean("night_mode", isNightMode).apply();
-            onNightModeChange();
-        });
-        //noinspection AndroidLintClickableViewAccessibility
-        btnNightMode.setOnTouchListener((v, event) -> nightModeGestureDetector.onTouchEvent(event));
-
-
-        final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
-            @Override
-            boolean onFlingUp() {
-                closeCurrentTab();
-                return true;
-            }
-        });
-
-        ImageView btnTabs = findViewById(R.id.btnTabs);
-        btnTabs.setOnClickListener(v -> {
-            String[] items = new String[tabs.size()];
-            for (int i = 0; i < tabs.size(); i++) {
-                items[i] = tabs.get(i).webview.getTitle();
-            }
-            ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
-                    MainActivity.this,
-                    android.R.layout.select_dialog_item,
-                    items,
-                    currentTabIndex);
-            AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("Tabs")
-                    .setAdapter(adapter, (dialog, which) -> switchToTab(which));
-            if (!closedTabs.isEmpty()) {
-                tabsDialog.setNeutralButton("Undo closed tabs", (dialog, which) -> {
-                    String[] items1 = new String[closedTabs.size()];
-                    for (int i = 0; i < closedTabs.size(); i++) {
-                        items1[i] = closedTabs.get(i).title;
+        setToolbarButtonActions(btnMenu, () -> {
+                    PopupMenu popup = new PopupMenu(MainActivity.this, btnMenu);
+                    Menu menu = popup.getMenu();
+                    for (int i = 0; i < menuActions.length; i++) {
+                        String title = menuActions[i].title;
+                        if (menuActions[i].getState != null) {
+                            title += menuActions[i].getState.getAsBoolean() ? " - ON" : " - OFF";
+                        }
+                        menu.add(0, i, 0, title);
                     }
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("Undo closed tabs")
-                            .setItems(items1, (dialog1, which1) -> {
-                                String url = closedTabs.get(which1).url;
-                                closedTabs.remove(which1);
-                                newTab(url);
-                                switchToTab(tabs.size() - 1);
-                            })
-                            .show();
-                });
-            }
-            tabsDialog.show();
-        });
-        btnTabs.setOnLongClickListener(v -> {
-            newTab("");
-            switchToTab(tabs.size() - 1);
-            return true;
-        });
-        //noinspection AndroidLintClickableViewAccessibility
-        btnTabs.setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
-        ((TextView) findViewById(R.id.btnTabsCount)).setText("1");
+                    popup.setOnMenuItemClickListener(item -> {
+                        int index = item.getItemId();
+                        if (index < 0 || index >= menuActions.length) {
+                            return false;
+                        }
+                        menuActions[index].action.run();
+                        return true;
+                    });
+                    popup.show();
+                },
+                () -> getCurrentWebView().reload(),
+                this::toggleShowAddressBar);
+
+        setToolbarButtonActions(findViewById(R.id.btnNightMode),
+                this::toggleNightMode,
+                null,
+                this::toggleFullscreen);
+
+
+        setToolbarButtonActions(findViewById(R.id.btnTabs),
+                this::showOpenTabs,
+                () -> {
+                    newTab("");
+                    switchToTab(tabs.size() - 1);
+                },
+                this::closeCurrentTab);
 
         final String[] menuItems = {
                 // Title, then url
@@ -499,6 +392,82 @@ public class MainActivity extends Activity {
         getCurrentWebView().setVisibility(View.VISIBLE);
         getCurrentWebView().requestFocus();
         onNightModeChange();
+    }
+
+    private void showOpenTabs() {
+        String[] items = new String[tabs.size()];
+        for (int i = 0; i < tabs.size(); i++) {
+            items[i] = tabs.get(i).webview.getTitle();
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
+                MainActivity.this,
+                android.R.layout.select_dialog_item,
+                items,
+                currentTabIndex);
+        AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
+                .setTitle("Tabs")
+                .setAdapter(adapter, (dialog, which) -> switchToTab(which));
+        if (!closedTabs.isEmpty()) {
+            tabsDialog.setNeutralButton("Undo closed tabs", (dialog, which) -> {
+                String[] items1 = new String[closedTabs.size()];
+                for (int i = 0; i < closedTabs.size(); i++) {
+                    items1[i] = closedTabs.get(i).title;
+                }
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Undo closed tabs")
+                        .setItems(items1, (dialog1, which1) -> {
+                            String url = closedTabs.get(which1).url;
+                            closedTabs.remove(which1);
+                            newTab(url);
+                            switchToTab(tabs.size() - 1);
+                        })
+                        .show();
+            });
+        }
+        tabsDialog.show();
+    }
+
+    private void showTabHistory() {
+        WebBackForwardList list = getCurrentWebView().copyBackForwardList();
+        final int idx = list.getCurrentIndex();
+        String[] items = new String[list.getSize()];
+        for (int i = 0; i < list.getSize(); i++) {
+            items[i] = list.getItemAtIndex(i).getTitle();
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
+                MainActivity.this,
+                android.R.layout.select_dialog_item,
+                items,
+                idx);
+        new AlertDialog.Builder(MainActivity.this)
+                .setTitle("Navigation History")
+                .setAdapter(adapter, (dialog, which) -> getCurrentWebView().goBackOrForward(which - idx))
+                .show();
+    }
+
+    private void toggleFullscreen() {
+        isFullscreen = !isFullscreen;
+        updateFullScreen();
+    }
+
+    private void toggleShowAddressBar() {
+        et.setVisibility(et.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+    }
+
+    private void toggleNightMode() {
+        isNightMode = !isNightMode;
+        prefs.edit().putBoolean("night_mode", isNightMode).apply();
+        onNightModeChange();
+    }
+
+    private void toggleAdblocker() {
+        if (adBlocker != null) {
+            adBlocker = null;
+        } else {
+            adBlocker = hasStoragePermission() ? new AdBlocker() : null;
+        }
+        Toast.makeText(MainActivity.this, "Ad Blocker " + (adBlocker != null ? "enabled" : "disabled"), Toast.LENGTH_SHORT).show();
+        prefs.edit().putBoolean("adblocker", adBlocker != null).apply();
     }
 
     private void closeCurrentTab() {
@@ -689,6 +658,29 @@ public class MainActivity extends Activity {
         boolean getAsBoolean();
     }
 
+    private void setToolbarButtonActions(View view, Runnable click, Runnable longClick, Runnable swipeUp) {
+        if (click != null) {
+            view.setOnClickListener(v -> click.run());
+        }
+        if (longClick != null) {
+            view.setOnLongClickListener(v -> {
+                longClick.run();
+                return true;
+            });
+        }
+        if (swipeUp != null) {
+            final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
+                @Override
+                boolean onFlingUp() {
+                    swipeUp.run();
+                    return true;
+                }
+            });
+            //noinspection AndroidLintClickableViewAccessibility
+            view.setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
+        }
+    }
+
     private class MyGestureDetector extends GestureDetector.SimpleOnGestureListener {
         private static final double FORBIDDEN_ZONE_MIN = Math.PI / 4 - Math.PI / 12;
         private static final double FORBIDDEN_ZONE_MAX = Math.PI / 4 + Math.PI / 12;
@@ -752,7 +744,7 @@ public class MainActivity extends Activity {
         }
 
         boolean onFlingDown() {
-            return false;
+            return true;
         }
     }
 
