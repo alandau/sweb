@@ -258,7 +258,7 @@ public class AdBlocker {
     }
 
     boolean shouldBlock(Uri url, String mainPage) {
-        if (!"http".equals(url.getScheme()) || !"https".equals(url.getScheme())) {
+        if (!"http".equals(url.getScheme()) && !"https".equals(url.getScheme())) {
             // E.g. data url
             return false;
         }
