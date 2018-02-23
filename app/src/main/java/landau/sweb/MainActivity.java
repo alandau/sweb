@@ -22,6 +22,7 @@ import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Base64;
 import android.util.Patterns;
 import android.util.TypedValue;
 import android.view.GestureDetector;
@@ -91,6 +92,8 @@ public class MainActivity extends Activity {
     private boolean isFullscreen;
     private SharedPreferences prefs;
     private AdBlocker adBlocker;
+    private boolean isLogRequests;
+    private ArrayList<String> requestsLog;
 
     static class TitleAndUrl {
         String title;
@@ -185,6 +188,13 @@ public class MainActivity extends Activity {
                     }
                 }
                 return super.shouldInterceptRequest(view, request);
+            }
+
+            @Override
+            public void onLoadResource(WebView view, String url) {
+                if (isLogRequests) {
+                    requestsLog.add(url);
+                }
             }
         });
         webview.setOnLongClickListener(v -> {
@@ -356,6 +366,7 @@ public class MainActivity extends Activity {
                 new MenuAction("Show address bar", this::toggleShowAddressBar, () -> et.getVisibility() == View.VISIBLE),
                 new MenuAction("Full screen", this::toggleFullscreen, () -> isFullscreen),
                 new MenuAction("Tab history", this::showTabHistory),
+                new MenuAction("Log requests", this::toggleLogRequests, () -> isLogRequests),
         };
         ImageView btnMenu = findViewById(R.id.btnMenu);
         setToolbarButtonActions(btnMenu, () -> {
@@ -596,12 +607,38 @@ public class MainActivity extends Activity {
         cookieManager.setAcceptThirdPartyCookies(getCurrentWebView(), newValue);
     }
 
+    private void toggleLogRequests() {
+        isLogRequests = !isLogRequests;
+        if (isLogRequests) {
+            // Start logging
+            if (requestsLog == null) {
+                requestsLog = new ArrayList<>();
+            } else {
+                requestsLog.clear();
+            }
+        } else {
+            // End logging, show result
+            StringBuilder sb = new StringBuilder("<title>Request Log</title><h1>Request Log</h1>");
+            for (String url : requestsLog) {
+                sb.append("<a href=\"");
+                sb.append(url);
+                sb.append("\">");
+                sb.append(url);
+                sb.append("</a><br>");
+            }
+            String base64 = Base64.encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
+            newTab("data:text/html;base64," + base64);
+            switchToTab(tabs.size() - 1);
+        }
+    }
+
     private void loadUrl(String url, WebView webview) {
         url = url.trim();
         if (url.isEmpty()) {
             url = "about:blank";
         }
-        if (url.indexOf(' ') == -1 && (url.startsWith("about:") || url.startsWith("javascript:") || Patterns.WEB_URL.matcher(url).matches())) {
+        if (url.startsWith("about:") || url.startsWith("javascript:") || url.startsWith("file:") || url.startsWith("data:") ||
+                (url.indexOf(' ') == -1 && Patterns.WEB_URL.matcher(url).matches())) {
             int indexOfHash = url.indexOf('#');
             String guess = URLUtil.guessUrl(url);
             if (indexOfHash != -1 && guess.indexOf('#') == -1) {
