@@ -203,7 +203,8 @@ public class MainActivity extends Activity {
                 return false;
             }
             final String url = r.getExtra();
-            new AlertDialog.Builder(MainActivity.this).setTitle(url).setItems(new String[]{"Open", "Open in new tab"}, (dialog, which) -> {
+            new AlertDialog.Builder(MainActivity.this).setTitle(url).setItems(
+                    new String[]{"Open", "Open in new tab", "Download"}, (dialog, which) -> {
                 switch (which) {
                     case 0:
                         et.setText(url);
@@ -211,6 +212,9 @@ public class MainActivity extends Activity {
                         break;
                     case 1:
                         newTab(url);
+                        break;
+                    case 2:
+                        startDownload(url, null);
                         break;
                 }
             }).show();
@@ -224,28 +228,7 @@ public class MainActivity extends Activity {
                             filename,
                             contentLength / 1024.0 / 1024.0,
                             url))
-                    .setPositiveButton("Download", (dialog, which) -> {
-                        DownloadManager.Request request;
-                        try {
-                            request = new DownloadManager.Request(Uri.parse(url));
-                        } catch (IllegalArgumentException e) {
-                            new AlertDialog.Builder(MainActivity.this)
-                                    .setTitle("Download")
-                                    .setMessage("Can't download this URL")
-                                    .setPositiveButton("OK", (dialog1, which1) -> {})
-                                    .show();
-                            return;
-                        }
-                        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
-                        String cookie = CookieManager.getInstance().getCookie(url);
-                        if (cookie != null) {
-                            request.addRequestHeader("Cookie", cookie);
-                        }
-                        DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-                        assert dm != null;
-                        dm.enqueue(request);
-                    })
+                    .setPositiveButton("Download", (dialog, which) -> startDownload(url, filename))
                     .setNeutralButton("Open", (dialog, which) -> {
                         Intent i = new Intent(Intent.ACTION_VIEW);
                         i.setData(Uri.parse(url));
@@ -263,6 +246,32 @@ public class MainActivity extends Activity {
                     .show();
         });
         return webview;
+    }
+
+    private void startDownload(String url, String filename) {
+        if (filename == null) {
+            filename = URLUtil.guessFileName(url, null, null);
+        }
+        DownloadManager.Request request;
+        try {
+            request = new DownloadManager.Request(Uri.parse(url));
+        } catch (IllegalArgumentException e) {
+            new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Download")
+                    .setMessage("Can't download this URL")
+                    .setPositiveButton("OK", (dialog1, which1) -> {})
+                    .show();
+            return;
+        }
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+        String cookie = CookieManager.getInstance().getCookie(url);
+        if (cookie != null) {
+            request.addRequestHeader("Cookie", cookie);
+        }
+        DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        assert dm != null;
+        dm.enqueue(request);
     }
 
     private void newTab(String url) {
@@ -532,7 +541,7 @@ public class MainActivity extends Activity {
     }
 
     private void closeCurrentTab() {
-        if (!getCurrentWebView().getUrl().equals("about:blank")) {
+        if (getCurrentWebView().getUrl() != null && !getCurrentWebView().getUrl().equals("about:blank")) {
             TitleAndUrl titleAndUrl = new TitleAndUrl();
             titleAndUrl.title = getCurrentWebView().getTitle();
             titleAndUrl.url = getCurrentWebView().getUrl();
@@ -624,7 +633,7 @@ public class MainActivity extends Activity {
                 sb.append(url);
                 sb.append("\">");
                 sb.append(url);
-                sb.append("</a><br>");
+                sb.append("</a><br><br>");
             }
             String base64 = Base64.encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
             newTab("data:text/html;base64," + base64);
