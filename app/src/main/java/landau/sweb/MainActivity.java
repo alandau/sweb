@@ -7,6 +7,8 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -232,14 +234,16 @@ public class MainActivity extends Activity {
             }
             final String url = r.getExtra();
             new AlertDialog.Builder(MainActivity.this).setTitle(url).setItems(
-                    new String[]{"Open", "Open in new tab", "Download"}, (dialog, which) -> {
+                    new String[]{"Open in new tab", "Copy URL", "Download"}, (dialog, which) -> {
                 switch (which) {
                     case 0:
-                        et.setText(url);
-                        loadUrl(url, getCurrentWebView());
+                        newTab(url);
                         break;
                     case 1:
-                        newTab(url);
+                        ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                        assert clipboard != null;
+                        ClipData clipData = ClipData.newPlainText("URL", url);
+                        clipboard.setPrimaryClip(clipData);
                         break;
                     case 2:
                         startDownload(url, null);
