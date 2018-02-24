@@ -25,7 +25,7 @@
             android:id="@+id/webviews"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_above="@id/toolbar"
+            android:layout_above="@id/searchPane"
             android:layout_below="@id/et"
             android:background="#00000000" />
 
@@ -39,6 +39,57 @@
             android:layout_centerVertical="true"
             android:max="100"
             android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/searchPane"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_above="@id/toolbar"
+            android:visibility="gone"
+            android:gravity="center_vertical">
+            <EditText
+                android:id="@+id/searchEdit"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp" />
+            <TextView
+                android:id="@+id/searchCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp" />
+            <ImageView
+                android:id="@+id/searchFindNext"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@android:drawable/arrow_down_float"
+                android:tint="#61615f"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp" />
+            <ImageView
+                android:id="@+id/searchFindPrev"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@android:drawable/arrow_up_float"
+                android:tint="#61615f"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp" />
+            <ImageView
+                android:id="@+id/searchClose"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:tint="#61615f"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/toolbar"

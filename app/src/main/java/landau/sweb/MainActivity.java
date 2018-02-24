@@ -22,6 +22,8 @@ import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Base64;
 import android.util.Patterns;
 import android.util.TypedValue;
@@ -96,6 +98,8 @@ public class MainActivity extends Activity {
     private ArrayList<String> requestsLog;
     private final View[] fullScreenView = new View[1];
     private final WebChromeClient.CustomViewCallback[] fullScreenCallback = new WebChromeClient.CustomViewCallback[1];
+    private EditText searchEdit;
+    private TextView searchCount;
 
     static class TitleAndUrl {
         String title;
@@ -269,6 +273,9 @@ public class MainActivity extends Activity {
                     .setNegativeButton("Cancel", (dialog, which) -> {})
                     .show();
         });
+        webview.setFindListener((activeMatchOrdinal, numberOfMatches, isDoneCounting) ->
+                searchCount.setText(numberOfMatches == 0 ? "Not found" :
+                        String.format("%d / %d", activeMatchOrdinal + 1, numberOfMatches)));
         return webview;
     }
 
@@ -400,6 +407,7 @@ public class MainActivity extends Activity {
                 new MenuAction("Full screen", this::toggleFullscreen, () -> isFullscreen),
                 new MenuAction("Tab history", this::showTabHistory),
                 new MenuAction("Log requests", this::toggleLogRequests, () -> isLogRequests),
+                new MenuAction("Find on page", this::findOnPage)
         };
         ImageView btnMenu = findViewById(R.id.btnMenu);
         setToolbarButtonActions(btnMenu, () -> {
@@ -478,6 +486,36 @@ public class MainActivity extends Activity {
             } else {
                 return false;
             }
+        });
+
+        searchEdit = findViewById(R.id.searchEdit);
+        searchEdit.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                getCurrentWebView().findAllAsync(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+        searchCount = findViewById(R.id.searchCount);
+        findViewById(R.id.searchFindNext).setOnClickListener(v -> {
+            hideKeyboard();
+            getCurrentWebView().findNext(true);
+        });
+        findViewById(R.id.searchFindPrev).setOnClickListener(v -> {
+            hideKeyboard();
+            getCurrentWebView().findNext(false);
+        });
+        findViewById(R.id.searchClose).setOnClickListener(v -> {
+            getCurrentWebView().clearMatches();
+            searchEdit.setText("");
+            getCurrentWebView().requestFocus();
+            findViewById(R.id.searchPane).setVisibility(View.GONE);
+            hideKeyboard();
         });
 
         adBlocker = prefs.getBoolean("adblocker", true) && hasStoragePermission() ? new AdBlocker() : null;
@@ -609,14 +647,24 @@ public class MainActivity extends Activity {
 
     private void onNightModeChange() {
         if (isNightMode) {
-            et.setTextColor(Color.rgb(0x61, 0x61, 0x5f));
-            et.setBackgroundColor(Color.rgb(0x22, 0x22, 0x22));
+            int textColor = Color.rgb(0x61, 0x61, 0x5f);
+            int backgroundColor = Color.rgb(0x22, 0x22, 0x22);
+            et.setTextColor(textColor);
+            et.setBackgroundColor(backgroundColor);
+            searchEdit.setTextColor(textColor);
+            searchEdit.setBackgroundColor(backgroundColor);
+            searchCount.setTextColor(textColor);
             findViewById(R.id.main_layout).setBackgroundColor(Color.BLACK);
             findViewById(R.id.toolbar).setBackgroundColor(Color.BLACK);
             ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x66, 0)));
         } else {
-            et.setTextColor(Color.BLACK);
-            et.setBackgroundColor(Color.rgb(0xe0, 0xe0, 0xe0));
+            int textColor = Color.BLACK;
+            int backgroundColor = Color.rgb(0xe0, 0xe0, 0xe0);
+            et.setTextColor(textColor);
+            et.setBackgroundColor(backgroundColor);
+            searchEdit.setTextColor(textColor);
+            searchEdit.setBackgroundColor(backgroundColor);
+            searchCount.setTextColor(textColor);
             findViewById(R.id.main_layout).setBackgroundColor(Color.WHITE);
             findViewById(R.id.toolbar).setBackgroundColor(Color.rgb(0xe0, 0xe0, 0xe0));
             ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0xcc, 0)));
@@ -665,6 +713,13 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void findOnPage() {
+        searchEdit.setText("");
+        findViewById(R.id.searchPane).setVisibility(View.VISIBLE);
+        searchEdit.requestFocus();
+        showKeyboard();
+    }
+
     private void loadUrl(String url, WebView webview) {
         url = url.trim();
         if (url.isEmpty()) {
@@ -686,9 +741,19 @@ public class MainActivity extends Activity {
 
         webview.loadUrl(url);
 
+        hideKeyboard();
+    }
+
+    private void hideKeyboard() {
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         assert imm != null;
         imm.hideSoftInputFromWindow(et.getWindowToken(), 0);
+    }
+
+    private void showKeyboard() {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        assert imm != null;
+        imm.toggleSoftInput(InputMethodManager.SHOW_IMPLICIT, 0);
     }
 
     @Override
