@@ -94,6 +94,8 @@ public class MainActivity extends Activity {
     private AdBlocker adBlocker;
     private boolean isLogRequests;
     private ArrayList<String> requestsLog;
+    private final View[] fullScreenView = new View[1];
+    private final WebChromeClient.CustomViewCallback[] fullScreenCallback = new WebChromeClient.CustomViewCallback[1];
 
     static class TitleAndUrl {
         String title;
@@ -136,6 +138,28 @@ public class MainActivity extends Activity {
                 } else {
                     progressBar.setProgress(newProgress);
                 }
+            }
+
+            @Override
+            public void onShowCustomView(View view, CustomViewCallback callback) {
+                fullScreenView[0] = view;
+                fullScreenCallback[0] = callback;
+                MainActivity.this.findViewById(R.id.main_layout).setVisibility(View.INVISIBLE);
+                ViewGroup fullscreenLayout = MainActivity.this.findViewById(R.id.fullScreenVideo);
+                fullscreenLayout.addView(view);
+                fullscreenLayout.setVisibility(View.VISIBLE);
+            }
+
+            @Override
+            public void onHideCustomView() {
+                if (fullScreenView[0] == null) return;
+
+                ViewGroup fullscreenLayout = MainActivity.this.findViewById(R.id.fullScreenVideo);
+                fullscreenLayout.removeView(fullScreenView[0]);
+                fullscreenLayout.setVisibility(View.GONE);
+                fullScreenView[0] = null;
+                fullScreenCallback[0] = null;
+                MainActivity.this.findViewById(R.id.main_layout).setVisibility(View.VISIBLE);
             }
         });
         webview.setWebViewClient(new WebViewClient() {
@@ -669,7 +693,9 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (getCurrentWebView().canGoBack()) {
+        if (findViewById(R.id.fullScreenVideo).getVisibility() == View.VISIBLE && fullScreenCallback[0] != null) {
+            fullScreenCallback[0].onCustomViewHidden();
+        } else if (getCurrentWebView().canGoBack()) {
             getCurrentWebView().goBack();
         } else if (tabs.size() > 1) {
             closeCurrentTab();
