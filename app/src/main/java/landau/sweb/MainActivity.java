@@ -624,19 +624,20 @@ public class MainActivity extends Activity {
 
     private void showTabHistory() {
         WebBackForwardList list = getCurrentWebView().copyBackForwardList();
-        final int idx = list.getCurrentIndex();
-        String[] items = new String[list.getSize()];
-        for (int i = 0; i < list.getSize(); i++) {
-            items[i] = list.getItemAtIndex(i).getTitle();
+        final int size = list.getSize();
+        final int idx = size - list.getCurrentIndex() - 1;
+        String[] items = new String[size];
+        for (int i = 0; i < size; i++) {
+            items[size - i - 1] = list.getItemAtIndex(i).getTitle();
         }
         ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
-                MainActivity.this,
+                this,
                 android.R.layout.simple_list_item_1,
                 items,
                 idx);
-        new AlertDialog.Builder(MainActivity.this)
+        new AlertDialog.Builder(this)
                 .setTitle("Navigation History")
-                .setAdapter(adapter, (dialog, which) -> getCurrentWebView().goBackOrForward(which - idx))
+                .setAdapter(adapter, (dialog, which) -> getCurrentWebView().goBackOrForward(idx - which))
                 .show();
     }
 
