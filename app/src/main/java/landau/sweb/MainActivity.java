@@ -76,6 +76,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends Activity {
@@ -107,8 +108,12 @@ public class MainActivity extends Activity {
     private final WebChromeClient.CustomViewCallback[] fullScreenCallback = new WebChromeClient.CustomViewCallback[1];
     private EditText searchEdit;
     private TextView searchCount;
+    private TextView txtTabCount;
 
     private static class MenuAction {
+
+        static HashMap<String, MenuAction> actions = new HashMap<>();
+
         private MenuAction(String title, int icon, Runnable action) {
             this(title, icon, action, null);
         }
@@ -118,6 +123,7 @@ public class MainActivity extends Activity {
             this.icon = icon;
             this.action = action;
             this.getState = getState;
+            actions.put(title, this);
         }
 
         @Override
@@ -144,7 +150,39 @@ public class MainActivity extends Activity {
             new MenuAction("Log requests", 0, this::toggleLogRequests, () -> isLogRequests),
             new MenuAction("Find on page", 0, this::findOnPage),
             new MenuAction("Page info", 0, this::pageInfo),
+            new MenuAction("Back", R.drawable.back,
+                    () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goBack();}),
+            new MenuAction("Scroll to top", android.R.drawable.arrow_up_float,
+                    () -> getCurrentWebView().pageUp(true)),
+            new MenuAction("Forward", R.drawable.forward,
+                    () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goForward();}),
+            new MenuAction("Scroll to bottom", android.R.drawable.arrow_down_float,
+                    () -> getCurrentWebView().pageDown(true)),
+            new MenuAction("Menu", R.drawable.menu, this::showMenu),
+            new MenuAction("Reload", R.drawable.reload, () -> getCurrentWebView().reload()),
+            new MenuAction("Bookmarks", R.drawable.bookmarks, this::showBookmarks),
+            new MenuAction("Show tabs", R.drawable.tabs, this::showOpenTabs),
+            new MenuAction("New tab", 0, () -> {
+                newTab("");
+                switchToTab(tabs.size() - 1);
+            }),
+            new MenuAction("Close tab", 0, this::closeCurrentTab),
     };
+
+    final String[][] toolbarActions = {
+            {"Back", "Scroll to top", "Tab history"},
+            {"Forward", "Scroll to bottom", "Ad Blocker"},
+            {"Bookmarks", null, null},
+            {"Night mode", null, "Full screen"},
+            {"Show tabs", "New tab", "Close tab"},
+            {"Menu", "Reload", "Show address bar"},
+    };
+
+    MenuAction getAction(String name) {
+        MenuAction action = MenuAction.actions.get(name);
+        if (action == null) throw new IllegalArgumentException("name");
+        return action;
+    }
 
     static class TitleAndUrl {
         String title;
@@ -402,7 +440,7 @@ public class MainActivity extends Activity {
         tab.isDesktopUA = isDesktopUA;
         tabs.add(tab);
         webviews.addView(webview);
-        ((TextView) findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
+        setTabCountText(tabs.size());
         loadUrl(url, webview);
     }
 
@@ -452,81 +490,7 @@ public class MainActivity extends Activity {
             loadUrl(et.getText().toString(), getCurrentWebView());
         });
 
-        setToolbarButtonActions(findViewById(R.id.btnBack), () -> {
-                    if (getCurrentWebView().canGoBack()) {
-                        getCurrentWebView().goBack();
-                    }
-                },
-                () -> getCurrentWebView().pageUp(true),
-                this::showTabHistory);
-
-
-        setToolbarButtonActions(findViewById(R.id.btnForward), () -> {
-                    if (getCurrentWebView().canGoForward()) {
-                        getCurrentWebView().goForward();
-                    }
-                },
-                () -> getCurrentWebView().pageDown(true),
-                this::toggleAdblocker);
-
-        ImageView btnMenu = findViewById(R.id.btnMenu);
-        setToolbarButtonActions(btnMenu, () -> {
-                    MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
-                            MainActivity.this,
-                            android.R.layout.simple_list_item_1,
-                            menuActions);
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("Actions")
-                            .setAdapter(adapter, (dialog, which) -> menuActions[which].action.run())
-                            .show();
-                },
-                () -> getCurrentWebView().reload(),
-                this::toggleShowAddressBar);
-
-        setToolbarButtonActions(findViewById(R.id.btnNightMode),
-                this::toggleNightMode,
-                null,
-                this::toggleFullscreen);
-
-
-        setToolbarButtonActions(findViewById(R.id.btnTabs),
-                this::showOpenTabs,
-                () -> {
-                    newTab("");
-                    switchToTab(tabs.size() - 1);
-                },
-                this::closeCurrentTab);
-
-        final String[] menuItems = {
-                // Title, then url
-                "Landley", "http://landley.net/notes.html",
-                "LWN.net", "https://lwn.net/Articles/?offset=0",
-                "OSNews", "http://mobile.osnews.com",
-                "Eli Bendersky", "https://eli.thegreenplace.net",
-                "OldNewThing", "https://blogs.msdn.microsoft.com/oldnewthing/",
-                "Anekdotov.net", "http://pda.anekdotov.net/",
-                "anekdot.ru", "https://www.anekdot.ru/last/anekdot/",
-                "Grooming", "http://www.kongsbergers.org/GroomingReport.html",
-        };
-        ImageView btnBookmakrs = findViewById(R.id.btnBookmarks);
-        btnBookmakrs.setOnClickListener(v -> {
-            PopupMenu popup = new PopupMenu(MainActivity.this, v);
-            Menu menu = popup.getMenu();
-            for (int i = 0; i < menuItems.length; i += 2) {
-                menu.add(0, i / 2, 0, menuItems[i]);
-            }
-            popup.setOnMenuItemClickListener(item -> {
-                int index = item.getItemId();
-                if (index >= 0 && index < menuItems.length / 2) {
-                    String url = menuItems[index * 2 + 1];
-                    et.setText(url);
-                    loadUrl(url, getCurrentWebView());
-                    return true;
-                }
-                return false;
-            });
-            popup.show();
-        });
+        setupToolbar(findViewById(R.id.toolbar));
 
         et.setOnKeyListener((v, keyCode, event) -> {
             if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
@@ -574,6 +538,45 @@ public class MainActivity extends Activity {
         getCurrentWebView().setVisibility(View.VISIBLE);
         getCurrentWebView().requestFocus();
         onNightModeChange();
+    }
+
+    private void setTabCountText(int count) {
+        if (txtTabCount != null) {
+            txtTabCount.setText(String.valueOf(count));
+        }
+    }
+
+    private void maybeSetupTabCountTextView(View view, String name) {
+        if ("Show tabs".equals(name)) {
+            txtTabCount = view.findViewById(R.id.txtText);
+        }
+    }
+
+    private void setupToolbar(ViewGroup parent) {
+        for (String[] actions : toolbarActions) {
+            View v = getLayoutInflater().inflate(R.layout.toolbar_button, parent, false);
+            parent.addView(v);
+            Runnable a1 = null, a2 = null, a3 = null;
+            if (actions[0] != null) {
+                maybeSetupTabCountTextView(v, actions[0]);
+                MenuAction action = getAction(actions[0]);
+                ((ImageView) v.findViewById(R.id.btnShortClick)).setImageResource(action.icon);
+                a1 = action.action;
+            }
+            if (actions[1] != null) {
+                maybeSetupTabCountTextView(v, actions[1]);
+                MenuAction action = getAction(actions[1]);
+                ((ImageView) v.findViewById(R.id.btnLongClick)).setImageResource(action.icon);
+                a2 = action.action;
+            }
+            if (actions[2] != null) {
+                maybeSetupTabCountTextView(v, actions[2]);
+                MenuAction action = getAction(actions[2]);
+                ((ImageView) v.findViewById(R.id.btnSwipeUp)).setImageResource(action.icon);
+                a3 = action.action;
+            }
+            setToolbarButtonActions(v, a1, a2, a3);
+        }
     }
 
     private void pageInfo() {
@@ -666,6 +669,37 @@ public class MainActivity extends Activity {
         prefs.edit().putBoolean("adblocker", adBlocker != null).apply();
     }
 
+    static final String[] bookmarks = {
+            // Title, then url
+            "Landley", "http://landley.net/notes.html",
+            "LWN.net", "https://lwn.net/Articles/?offset=0",
+            "OSNews", "http://mobile.osnews.com",
+            "Eli Bendersky", "https://eli.thegreenplace.net",
+            "OldNewThing", "https://blogs.msdn.microsoft.com/oldnewthing/",
+            "Anekdotov.net", "http://pda.anekdotov.net/",
+            "anekdot.ru", "https://www.anekdot.ru/last/anekdot/",
+            "Grooming", "http://www.kongsbergers.org/GroomingReport.html",
+    };
+
+    private void showBookmarks() {
+        PopupMenu popup = new PopupMenu(MainActivity.this, findViewById(R.id.toolbar));
+        Menu menu = popup.getMenu();
+        for (int i = 0; i < bookmarks.length; i += 2) {
+            menu.add(0, i / 2, 0, bookmarks[i]);
+        }
+        popup.setOnMenuItemClickListener(item -> {
+            int index = item.getItemId();
+            if (index >= 0 && index < bookmarks.length / 2) {
+                String url = bookmarks[index * 2 + 1];
+                et.setText(url);
+                loadUrl(url, getCurrentWebView());
+                return true;
+            }
+            return false;
+        });
+        popup.show();
+
+    }
     private void closeCurrentTab() {
         if (getCurrentWebView().getUrl() != null && !getCurrentWebView().getUrl().equals("about:blank")) {
             TitleAndUrl titleAndUrl = new TitleAndUrl();
@@ -686,7 +720,7 @@ public class MainActivity extends Activity {
         }
         getCurrentWebView().setVisibility(View.VISIBLE);
         et.setText(getCurrentWebView().getUrl());
-        ((TextView) findViewById(R.id.btnTabsCount)).setText(String.valueOf(tabs.size()));
+        setTabCountText(tabs.size());
         getCurrentWebView().requestFocus();
     }
 
@@ -782,6 +816,17 @@ public class MainActivity extends Activity {
         findViewById(R.id.searchPane).setVisibility(View.VISIBLE);
         searchEdit.requestFocus();
         showKeyboard();
+    }
+
+    private void showMenu() {
+        MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+                MainActivity.this,
+                android.R.layout.simple_list_item_1,
+                menuActions);
+        new AlertDialog.Builder(MainActivity.this)
+                .setTitle("Actions")
+                .setAdapter(adapter, (dialog, which) -> menuActions[which].action.run())
+                .show();
     }
 
     private void loadUrl(String url, WebView webview) {
