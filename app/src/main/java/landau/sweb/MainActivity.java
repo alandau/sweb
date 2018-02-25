@@ -18,6 +18,8 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.net.http.SslCertificate;
+import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -39,6 +41,7 @@ import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.CookieManager;
 import android.webkit.HttpAuthHandler;
+import android.webkit.SslErrorHandler;
 import android.webkit.URLUtil;
 import android.webkit.WebBackForwardList;
 import android.webkit.WebChromeClient;
@@ -71,6 +74,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends Activity {
@@ -171,7 +175,6 @@ public class MainActivity extends Activity {
         webview.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                super.onPageStarted(view, url, favicon);
                 progressBar.setProgress(0);
                 progressBar.setVisibility(View.VISIBLE);
                 if (view == getCurrentWebView()) {
@@ -182,9 +185,10 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
                 if (view == getCurrentWebView()) {
-                    et.setText(url);
+                    // Don't use the argument url here since navigation to that URL might have been
+                    // cancelled due to SSL error
+                    et.setText(view.getUrl());
                 }
                 injectCSS(view);
             }
@@ -225,6 +229,21 @@ public class MainActivity extends Activity {
                 if (isLogRequests) {
                     requestsLog.add(url);
                 }
+            }
+
+            final String[] sslErrors = {"Not yet valid", "Expired", "Hostname mismatch", "Untrusted CA", "Invalid date", "Unknown error"};
+
+            @Override
+            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+                int primaryError = error.getPrimaryError();
+                String errorStr = primaryError >= 0 && primaryError < sslErrors.length ? sslErrors[primaryError] : "Unknown error " + primaryError;
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Insecure connection")
+                        .setMessage(String.format("Error: %s\nURL: %s\n\nCertificate:\n%s",
+                                errorStr, error.getUrl(), certificateToStr(error.getCertificate())))
+                        .setPositiveButton("Proceed", (dialog, which) -> handler.proceed())
+                        .setNegativeButton("Cancel", (dialog, which) -> handler.cancel())
+                        .show();
             }
         });
         webview.setOnLongClickListener(v -> {
@@ -281,6 +300,31 @@ public class MainActivity extends Activity {
                 searchCount.setText(numberOfMatches == 0 ? "Not found" :
                         String.format("%d / %d", activeMatchOrdinal + 1, numberOfMatches)));
         return webview;
+    }
+
+    @SuppressLint("DefaultLocale")
+    private static String certificateToStr(SslCertificate certificate) {
+        if (certificate == null) {
+            return null;
+        }
+        String s = "";
+        SslCertificate.DName issuedTo = certificate.getIssuedTo();
+        if (issuedTo != null) {
+            s += "Issued to: " + issuedTo.getDName() + "\n";
+        }
+        SslCertificate.DName issuedBy = certificate.getIssuedBy();
+        if (issuedBy != null) {
+            s += "Issued by: " + issuedBy.getDName() + "\n";
+        }
+        Date issueDate = certificate.getValidNotBeforeDate();
+        if (issueDate != null) {
+            s += String.format("Issued on: %tF %tT %tz\n", issueDate, issueDate, issueDate);
+        }
+        Date expiryDate = certificate.getValidNotAfterDate();
+        if (expiryDate != null) {
+            s += String.format("Expires on: %tF %tT %tz\n", expiryDate, expiryDate, expiryDate);
+        }
+        return s;
     }
 
     private void startDownload(String url, String filename) {
@@ -411,7 +455,8 @@ public class MainActivity extends Activity {
                 new MenuAction("Full screen", this::toggleFullscreen, () -> isFullscreen),
                 new MenuAction("Tab history", this::showTabHistory),
                 new MenuAction("Log requests", this::toggleLogRequests, () -> isLogRequests),
-                new MenuAction("Find on page", this::findOnPage)
+                new MenuAction("Find on page", this::findOnPage),
+                new MenuAction("Page info", this::pageInfo),
         };
         ImageView btnMenu = findViewById(R.id.btnMenu);
         setToolbarButtonActions(btnMenu, () -> {
@@ -528,6 +573,19 @@ public class MainActivity extends Activity {
         getCurrentWebView().setVisibility(View.VISIBLE);
         getCurrentWebView().requestFocus();
         onNightModeChange();
+    }
+
+    private void pageInfo() {
+        String s = "URL: " + getCurrentWebView().getUrl() + "\n";
+        s += "Title: " + getCurrentWebView().getTitle() + "\n\n";
+        SslCertificate certificate = getCurrentWebView().getCertificate();
+        s += certificate == null ? "Not secure" : "Certificate:\n" + certificateToStr(certificate);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Page info")
+                .setMessage(s)
+                .setPositiveButton("OK", (dialog, which) -> {})
+                .show();
     }
 
     private void showOpenTabs() {
