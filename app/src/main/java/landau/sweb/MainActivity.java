@@ -29,6 +29,7 @@ import android.support.annotation.Nullable;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Base64;
+import android.util.DisplayMetrics;
 import android.util.Patterns;
 import android.util.TypedValue;
 import android.view.GestureDetector;
@@ -106,6 +107,44 @@ public class MainActivity extends Activity {
     private final WebChromeClient.CustomViewCallback[] fullScreenCallback = new WebChromeClient.CustomViewCallback[1];
     private EditText searchEdit;
     private TextView searchCount;
+
+    private static class MenuAction {
+        private MenuAction(String title, int icon, Runnable action) {
+            this(title, icon, action, null);
+        }
+
+        private MenuAction(String title, int icon, Runnable action, MyBooleanSupplier getState) {
+            this.title = title;
+            this.icon = icon;
+            this.action = action;
+            this.getState = getState;
+        }
+
+        @Override
+        public String toString() {
+            return title;
+        }
+
+        private String title;
+        private int icon;
+        private Runnable action;
+        private MyBooleanSupplier getState;
+    }
+
+    @SuppressWarnings("unchecked")
+    final MenuAction[] menuActions = new MenuAction[]{
+            new MenuAction("Desktop UA", 0, this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA),
+            new MenuAction("3rd party cookies", 0, this::toggleThirdPartyCookies,
+                    () -> CookieManager.getInstance().acceptThirdPartyCookies(getCurrentWebView())),
+            new MenuAction("Ad Blocker", 0, this::toggleAdblocker, () -> adBlocker != null),
+            new MenuAction("Night mode", R.drawable.night, this::toggleNightMode, () -> isNightMode),
+            new MenuAction("Show address bar", 0, this::toggleShowAddressBar, () -> et.getVisibility() == View.VISIBLE),
+            new MenuAction("Full screen", 0, this::toggleFullscreen, () -> isFullscreen),
+            new MenuAction("Tab history", R.drawable.left_right, this::showTabHistory),
+            new MenuAction("Log requests", 0, this::toggleLogRequests, () -> isLogRequests),
+            new MenuAction("Find on page", 0, this::findOnPage),
+            new MenuAction("Page info", 0, this::pageInfo),
+    };
 
     static class TitleAndUrl {
         String title;
@@ -430,54 +469,16 @@ public class MainActivity extends Activity {
                 () -> getCurrentWebView().pageDown(true),
                 this::toggleAdblocker);
 
-        class MenuAction {
-            private MenuAction(String title, Runnable action) {
-                this(title, action, null);
-            }
-
-            private MenuAction(String title, Runnable action, MyBooleanSupplier getState) {
-                this.title = title;
-                this.action = action;
-                this.getState = getState;
-            }
-
-            private String title;
-            private Runnable action;
-            private MyBooleanSupplier getState;
-        }
-        @SuppressWarnings("unchecked") final MenuAction[] menuActions = new MenuAction[]{
-                new MenuAction("Desktop UA", this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA),
-                new MenuAction("3rd party cookies", this::toggleThirdPartyCookies,
-                        () -> CookieManager.getInstance().acceptThirdPartyCookies(getCurrentWebView())),
-                new MenuAction("Ad Blocker", this::toggleAdblocker, () -> adBlocker != null),
-                new MenuAction("Night mode", this::toggleNightMode, () -> isNightMode),
-                new MenuAction("Show address bar", this::toggleShowAddressBar, () -> et.getVisibility() == View.VISIBLE),
-                new MenuAction("Full screen", this::toggleFullscreen, () -> isFullscreen),
-                new MenuAction("Tab history", this::showTabHistory),
-                new MenuAction("Log requests", this::toggleLogRequests, () -> isLogRequests),
-                new MenuAction("Find on page", this::findOnPage),
-                new MenuAction("Page info", this::pageInfo),
-        };
         ImageView btnMenu = findViewById(R.id.btnMenu);
         setToolbarButtonActions(btnMenu, () -> {
-                    PopupMenu popup = new PopupMenu(MainActivity.this, btnMenu);
-                    Menu menu = popup.getMenu();
-                    for (int i = 0; i < menuActions.length; i++) {
-                        String title = menuActions[i].title;
-                        if (menuActions[i].getState != null) {
-                            title += menuActions[i].getState.getAsBoolean() ? " - ON" : " - OFF";
-                        }
-                        menu.add(0, i, 0, title);
-                    }
-                    popup.setOnMenuItemClickListener(item -> {
-                        int index = item.getItemId();
-                        if (index < 0 || index >= menuActions.length) {
-                            return false;
-                        }
-                        menuActions[index].action.run();
-                        return true;
-                    });
-                    popup.show();
+                    MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+                            MainActivity.this,
+                            android.R.layout.simple_list_item_1,
+                            menuActions);
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Actions")
+                            .setAdapter(adapter, (dialog, which) -> menuActions[which].action.run())
+                            .show();
                 },
                 () -> getCurrentWebView().reload(),
                 this::toggleShowAddressBar);
@@ -595,7 +596,7 @@ public class MainActivity extends Activity {
         }
         ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
                 MainActivity.this,
-                android.R.layout.select_dialog_item,
+                android.R.layout.simple_list_item_1,
                 items,
                 currentTabIndex);
         AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
@@ -630,7 +631,7 @@ public class MainActivity extends Activity {
         }
         ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<>(
                 MainActivity.this,
-                android.R.layout.select_dialog_item,
+                android.R.layout.simple_list_item_1,
                 items,
                 idx);
         new AlertDialog.Builder(MainActivity.this)
@@ -1010,10 +1011,50 @@ public class MainActivity extends Activity {
         public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
             View view = super.getView(position, convertView, parent);
             TextView textView = view.findViewById(android.R.id.text1);
-            textView.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                    position == currentIndex ? android.R.drawable.ic_menu_mylocation : 0, 0, 0, 0);
+            int icon = position == currentIndex ? android.R.drawable.ic_menu_mylocation : R.drawable.empty;
+            Drawable d = getContext().getResources().getDrawable(icon, null);
+            int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, getContext().getResources().getDisplayMetrics());
+            d.setBounds(0, 0, size, size);
+            textView.setCompoundDrawablesRelative(d, null, null, null);
             textView.setCompoundDrawablePadding(
                     (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getContext().getResources().getDisplayMetrics()));
+            return view;
+        }
+    }
+
+    static class MenuActionArrayAdapter extends ArrayAdapter<MenuAction> {
+
+        MenuActionArrayAdapter(@NonNull Context context, int resource, @NonNull MenuAction[] objects) {
+            super(context, resource, objects);
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            View view = super.getView(position, convertView, parent);
+            TextView textView = view.findViewById(android.R.id.text1);
+            DisplayMetrics m = getContext().getResources().getDisplayMetrics();
+
+            MenuAction item = getItem(position);
+            assert item != null;
+
+            Drawable left = getContext().getResources().getDrawable(item.icon != 0 ? item.icon : R.drawable.empty, null);
+            int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, m);
+            left.setBounds(0, 0, size, size);
+            left.setTint(Color.rgb(0x61, 0x61, 0x5f));
+
+            Drawable right = null;
+            if (item.getState != null) {
+                int icon = item.getState.getAsBoolean() ? android.R.drawable.checkbox_on_background :
+                        android.R.drawable.checkbox_off_background;
+                right = getContext().getResources().getDrawable(icon, null);
+                right.setBounds(0, 0, size, size);
+            }
+
+            textView.setCompoundDrawables(left, null, right, null);
+            textView.setCompoundDrawablePadding(
+                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, m));
+
             return view;
         }
     }
