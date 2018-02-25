@@ -69,11 +69,15 @@ import org.json.JSONException;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -466,6 +470,25 @@ public class MainActivity extends Activity {
     @SuppressLint("SetTextI18n")
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            private Thread.UncaughtExceptionHandler defaultUEH = Thread.getDefaultUncaughtExceptionHandler();
+            @SuppressLint("SimpleDateFormat")
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+                File file = new File(Environment.getExternalStorageDirectory(), "sweb.log");
+                try {
+                    PrintWriter printWriter = new PrintWriter(new FileWriter(file, true));
+                    printWriter.println("Exception on " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+                    e.printStackTrace(printWriter);
+                    printWriter.close();
+                } catch (IOException e1) {
+                    // Ignore
+                }
+                defaultUEH.uncaughtException(t, e);
+            }
+        });
+
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         setContentView(R.layout.activity_main);
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> updateFullScreen());
