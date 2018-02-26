@@ -143,34 +143,34 @@ public class MainActivity extends Activity {
 
     @SuppressWarnings("unchecked")
     final MenuAction[] menuActions = new MenuAction[]{
-            new MenuAction("Desktop UA", 0, this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA),
-            new MenuAction("3rd party cookies", 0, this::toggleThirdPartyCookies,
+            new MenuAction("Desktop UA", R.drawable.ua, this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA),
+            new MenuAction("3rd party cookies", R.drawable.cookies_3rdparty, this::toggleThirdPartyCookies,
                     () -> CookieManager.getInstance().acceptThirdPartyCookies(getCurrentWebView())),
-            new MenuAction("Ad Blocker", 0, this::toggleAdblocker, () -> adBlocker != null),
+            new MenuAction("Ad Blocker", R.drawable.adblocker, this::toggleAdblocker, () -> adBlocker != null),
             new MenuAction("Night mode", R.drawable.night, this::toggleNightMode, () -> isNightMode),
-            new MenuAction("Show address bar", 0, this::toggleShowAddressBar, () -> et.getVisibility() == View.VISIBLE),
-            new MenuAction("Full screen", 0, this::toggleFullscreen, () -> isFullscreen),
+            new MenuAction("Show address bar", R.drawable.url_bar, this::toggleShowAddressBar, () -> et.getVisibility() == View.VISIBLE),
+            new MenuAction("Full screen", R.drawable.fullscreen, this::toggleFullscreen, () -> isFullscreen),
             new MenuAction("Tab history", R.drawable.left_right, this::showTabHistory),
-            new MenuAction("Log requests", 0, this::toggleLogRequests, () -> isLogRequests),
-            new MenuAction("Find on page", 0, this::findOnPage),
-            new MenuAction("Page info", 0, this::pageInfo),
+            new MenuAction("Log requests", R.drawable.log_requests, this::toggleLogRequests, () -> isLogRequests),
+            new MenuAction("Find on page", R.drawable.find_on_page, this::findOnPage),
+            new MenuAction("Page info", R.drawable.page_info, this::pageInfo),
             new MenuAction("Back", R.drawable.back,
                     () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goBack();}),
-            new MenuAction("Scroll to top", android.R.drawable.arrow_up_float,
+            new MenuAction("Scroll to top", R.drawable.top,
                     () -> getCurrentWebView().pageUp(true)),
             new MenuAction("Forward", R.drawable.forward,
                     () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goForward();}),
-            new MenuAction("Scroll to bottom", android.R.drawable.arrow_down_float,
+            new MenuAction("Scroll to bottom", R.drawable.bottom,
                     () -> getCurrentWebView().pageDown(true)),
             new MenuAction("Menu", R.drawable.menu, this::showMenu),
             new MenuAction("Reload", R.drawable.reload, () -> getCurrentWebView().reload()),
             new MenuAction("Bookmarks", R.drawable.bookmarks, this::showBookmarks),
             new MenuAction("Show tabs", R.drawable.tabs, this::showOpenTabs),
-            new MenuAction("New tab", 0, () -> {
+            new MenuAction("New tab", R.drawable.tab_new, () -> {
                 newTab("");
                 switchToTab(tabs.size() - 1);
             }),
-            new MenuAction("Close tab", 0, this::closeCurrentTab),
+            new MenuAction("Close tab", R.drawable.tab_close, this::closeCurrentTab),
     };
 
     final String[][] toolbarActions = {
