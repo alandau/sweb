@@ -69,19 +69,17 @@ import org.json.JSONException;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+
+import landau.sweb.utils.ExceptionLogger;
 
 public class MainActivity extends Activity {
 
@@ -467,24 +465,14 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    @SuppressLint("SetTextI18n")
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             private Thread.UncaughtExceptionHandler defaultUEH = Thread.getDefaultUncaughtExceptionHandler();
-            @SuppressLint("SimpleDateFormat")
             @Override
             public void uncaughtException(Thread t, Throwable e) {
-                File file = new File(Environment.getExternalStorageDirectory(), "sweb.log");
-                try {
-                    PrintWriter printWriter = new PrintWriter(new FileWriter(file, true));
-                    printWriter.println("Exception on " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
-                    e.printStackTrace(printWriter);
-                    printWriter.close();
-                } catch (IOException e1) {
-                    // Ignore
-                }
+                ExceptionLogger.logException(e);
                 defaultUEH.uncaughtException(t, e);
             }
         });

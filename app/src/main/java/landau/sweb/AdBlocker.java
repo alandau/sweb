@@ -16,6 +16,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.regex.Pattern;
 
+import landau.sweb.utils.ExceptionLogger;
+
 @SuppressWarnings({"StatementWithEmptyBody", "WeakerAccess"})
 public class AdBlocker {
 
@@ -257,22 +259,28 @@ public class AdBlocker {
         return false;
     }
 
+    // Runs on a WebView private thread
     boolean shouldBlock(Uri url, String mainPage) {
-        if (!"http".equals(url.getScheme()) && !"https".equals(url.getScheme())) {
-            // E.g. data url
+        try {
+            if (!"http".equals(url.getScheme()) && !"https".equals(url.getScheme())) {
+                // E.g. data url
+                return false;
+            }
+            long start2 = System.currentTimeMillis();
+            boolean result2 = shouldBlockHash(url, mainPage);
+            long end2 = System.currentTimeMillis();
+
+            long start = System.currentTimeMillis();
+            boolean result = result2 || (pattern != null && pattern.matcher(url.toString()).find());
+            long end = System.currentTimeMillis();
+
+            Log.i(TAG, "RES: " + result + "," + result2 + "    MATCH TIME: " + (end - start) + ", TIME2: " + (end2 - start2) + ", url: " + url);
+            result |= result2;
+            return result;
+        } catch (Exception e) {
+            ExceptionLogger.logException(e);
             return false;
         }
-        long start2 = System.currentTimeMillis();
-        boolean result2 = shouldBlockHash(url, mainPage);
-        long end2 = System.currentTimeMillis();
-
-        long start = System.currentTimeMillis();
-        boolean result = result2 || (pattern != null && pattern.matcher(url.toString()).find());
-        long end = System.currentTimeMillis();
-
-        Log.i(TAG, "RES: " + result + "," + result2 + "    MATCH TIME: " + (end - start) + ", TIME2: " + (end2-start2) + ", url: " + url);
-        result |= result2;
-        return result;
     }
 
     static String ruleToRegex(String rule) {
