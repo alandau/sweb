@@ -332,7 +332,7 @@ public class MainActivity extends Activity {
             }
             final String url = r.getExtra();
             new AlertDialog.Builder(MainActivity.this).setTitle(url).setItems(
-                    new String[]{"Open in new tab", "Copy URL", "Download"}, (dialog, which) -> {
+                    new String[]{"Open in new tab", "Copy URL", "Show full URL", "Download"}, (dialog, which) -> {
                 switch (which) {
                     case 0:
                         newTab(url);
@@ -344,6 +344,13 @@ public class MainActivity extends Activity {
                         clipboard.setPrimaryClip(clipData);
                         break;
                     case 2:
+                        new AlertDialog.Builder(MainActivity.this)
+                                .setTitle("Full URL")
+                                .setMessage(url)
+                                .setPositiveButton("OK", (dialog1, which1) -> {})
+                                .show();
+                        break;
+                    case 3:
                         startDownload(url, null);
                         break;
                 }
