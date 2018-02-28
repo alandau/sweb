@@ -23,11 +23,18 @@ public class AdBlocker {
 
     static final String TAG = AdBlocker.class.getSimpleName();
 
-    static class Rule {
+    static class RuleWithDomain {
+        boolean matchAllPaths;
         Pattern regex;
-        ArrayList<String> paths;
+        String path;
         HashSet<String> domains;
         boolean inverseDomains;
+    }
+    static class Rule {
+        boolean matchAllPaths;
+        Pattern regex;
+        ArrayList<String> paths;
+        ArrayList<RuleWithDomain> rulesWithDomain;
     }
 
     private Pattern pattern;
@@ -100,25 +107,21 @@ public class AdBlocker {
                 String domain = rule.substring(0, Math.min(caret, slash));
                 if (domain.indexOf('*') == -1) {
                     Rule r = rulesByDomain.get(domain);
-                    boolean created = false;
                     if (r == null) {
                         r = new Rule();
                         rulesByDomain.put(domain, r);
-                        created = true;
                     }
                     String path = rule.substring(Math.min(caret, slash));
-                    //if (!created || path.length() > 1 || (path.length() == 1 && path.charAt(0) != '^' && path.charAt(0) != '/')) {
+                    if (domains == null) {
                         if (r.paths == null) r.paths = new ArrayList<>();
-                        //if (!created) r.paths.add("/");
                         r.paths.add(path);
-                    //}
-                    if (domains != null) {
-                        if (created /* implies r.domains == null */) {
-                            r.domains = domains;
-                        } else if (r.domains != null){
-                            r.domains.addAll(domains);
-                        }
-                        r.inverseDomains = inverseDomains;
+                    } else {
+                        RuleWithDomain ruleWithDomain = new RuleWithDomain();
+                        ruleWithDomain.path = path;
+                        ruleWithDomain.domains = domains;
+                        ruleWithDomain.inverseDomains = inverseDomains;
+                        if (r.rulesWithDomain == null) r.rulesWithDomain = new ArrayList<>();
+                        r.rulesWithDomain.add(ruleWithDomain);
                     }
                 }
             } else {
@@ -149,12 +152,8 @@ public class AdBlocker {
             r = new Rule();
             rulesByDomain.put(domain, r);
         }
-        if (r.paths != null) {
-            r.paths.add("/");
-        }
-        if (r.domains != null) {
-            r.domains = null;
-        }
+        if (r.paths == null) r.paths = new ArrayList<>();
+        r.paths.add("/");
     }
     private void loadFromHostsFile(String firstline, BufferedReader br) throws IOException {
         String line = firstline;
@@ -197,27 +196,23 @@ public class AdBlocker {
         }
     }
 
-    boolean shouldBlockHashRule(Rule r, Uri url, String mainPage) {
-        if (r.domains != null) {
-            boolean domainMatched = false;
-            String mainDomain = Uri.parse(mainPage).getHost();
-            if (mainDomain == null || mainPage.isEmpty()) return false;
-            int period;
-            while ((period = mainDomain.indexOf('.')) != -1) {
-                if (r.domains.contains(mainDomain)) {
-                    domainMatched = true;
-                    break;
-                }
-                mainDomain = mainDomain.substring(period + 1);
-            }
-            if (r.inverseDomains) domainMatched = !domainMatched;
-            if (!domainMatched) {
-                return false;
-            }
+    String getPath(Uri url) {
+        String query = url.getEncodedQuery();
+        if (query == null) {
+            return url.getEncodedPath();
+        } else {
+            return url.getEncodedPath() + "?" + query;
         }
-        if (r.regex == null && r.paths == null) {
+    }
+
+    @SuppressWarnings("unused")
+    boolean shouldBlockHashRegular(Rule r, Uri url, String mainPage) {
+        if (r.matchAllPaths) {
             // Only domain, block all paths
             return true;
+        }
+        if (r.regex == null && r.paths == null) {
+            return false;
         }
         if (r.regex == null) {
             // r.paths is not null, so compile a regex
@@ -227,12 +222,13 @@ public class AdBlocker {
                 if (path.equals("/") || path.equals("^")) {
                     // Shortcut if path is / or ^
                     r.paths = null;
+                    r.matchAllPaths = true;
                     return true;
                 }
-                r.regex = Pattern.compile("^" + path);
+                r.regex = Pattern.compile("^" + ruleToRegex(path));
             } else {
                 StringBuilder sb = new StringBuilder("^(?:");
-                sb.append(r.paths.get(0));
+                sb.append(ruleToRegex(r.paths.get(0)));
                 for (int i = 1; i < r.paths.size(); i++) {
                     sb.append('|');
                     sb.append(ruleToRegex(r.paths.get(i)));
@@ -243,7 +239,48 @@ public class AdBlocker {
             r.paths = null; // free memory
         }
         // r.regex is not null, use it
-        return r.regex.matcher(url.getEncodedPath()).find();
+        return r.regex.matcher(getPath(url)).find();
+    }
+
+    boolean shouldBlockHashWithDomain(Rule r, Uri url, String mainPage) {
+        if (r.rulesWithDomain == null) {
+            return false;
+        }
+        String mainDomain = Uri.parse(mainPage).getHost();
+        if (mainDomain == null || mainPage.isEmpty()) return false;
+        String path = null;
+        for (RuleWithDomain ruleWithDomain : r.rulesWithDomain) {
+            int period;
+            while ((period = mainDomain.indexOf('.')) != -1) {
+                if (ruleWithDomain.domains.contains(mainDomain) != ruleWithDomain.inverseDomains) {
+                    if (ruleWithDomain.matchAllPaths) {
+                        // Match all paths
+                        return ruleWithDomain.inverseDomains;
+                    }
+                    if (ruleWithDomain.regex == null) {
+                        // Build regex the first time
+                        if (ruleWithDomain.path.equals("/") || ruleWithDomain.path.equals("^")) {
+                            // Shortcut if path is / or ^
+                            ruleWithDomain.path = null;
+                            ruleWithDomain.matchAllPaths = true;
+                            return true;
+                        }
+                        ruleWithDomain.regex = Pattern.compile("^" + ruleToRegex(ruleWithDomain.path));
+                    }
+                    if (path == null) path = getPath(url);
+                    if (ruleWithDomain.regex.matcher(path).find()) {
+                        // Regex not null, use it
+                        return true;
+                    }
+                }
+                mainDomain = mainDomain.substring(period + 1);
+            }
+        }
+        return false;
+    }
+
+    boolean shouldBlockHashRule(Rule r, Uri url, String mainPage) {
+        return shouldBlockHashRegular(r, url, mainPage) || shouldBlockHashWithDomain(r, url, mainPage);
     }
 
     boolean shouldBlockHash(Uri url, String mainPage) {
