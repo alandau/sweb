@@ -169,6 +169,7 @@ public class MainActivity extends Activity {
                 switchToTab(tabs.size() - 1);
             }),
             new MenuAction("Close tab", R.drawable.tab_close, this::closeCurrentTab),
+            new MenuAction("Share URL", android.R.drawable.ic_menu_share, this::shareUrl),
     };
 
     final String[][] toolbarActions = {
@@ -745,6 +746,8 @@ public class MainActivity extends Activity {
     private String getUrlFromIntent(Intent intent) {
         if (Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
             return intent.getDataString();
+        } else if (Intent.ACTION_SEND.equals(intent.getAction()) && "text/plain".equals(intent.getType())) {
+            return intent.getStringExtra(Intent.EXTRA_TEXT);
         } else if (Intent.ACTION_WEB_SEARCH.equals(intent.getAction()) && intent.getStringExtra("query") != null) {
             return intent.getStringExtra("query");
         } else {
@@ -845,6 +848,14 @@ public class MainActivity extends Activity {
                 .setTitle("Actions")
                 .setAdapter(adapter, (dialog, which) -> menuActions[which].action.run())
                 .show();
+    }
+
+    private void shareUrl() {
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
+        intent.putExtra(Intent.EXTRA_TEXT, getCurrentWebView().getUrl());
+        intent.setType("text/plain");
+        startActivity(Intent.createChooser(intent, "Share URL"));
     }
 
     private void loadUrl(String url, WebView webview) {
