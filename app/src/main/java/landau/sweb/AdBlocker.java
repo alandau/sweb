@@ -68,6 +68,7 @@ public class AdBlocker {
         Log.i(TAG, "count= " + count + ", time=" + diff + "ms" + " mem=" + info.getTotalPss() + "kb");
     }
 
+    @SuppressWarnings("unused")
     private void loadFromAdblockFile(String firstline, BufferedReader br) throws IOException {
         String line;
         while ((line = br.readLine()) != null) {
@@ -155,13 +156,16 @@ public class AdBlocker {
         if (r.paths == null) r.paths = new ArrayList<>();
         r.paths.add("/");
     }
+
+    private static Pattern spaceRegex = Pattern.compile("\\s+");
+
     private void loadFromHostsFile(String firstline, BufferedReader br) throws IOException {
         String line = firstline;
         while (line != null) {
             if (line.isEmpty() || line.startsWith("#")) {
                 // comment
             } else {
-                String[] components = line.split("\\s+");
+                String[] components = spaceRegex.split(line);
                 if (components.length == 1) {
                     // Host only
                     addSimpleDomain(components[0]);
@@ -322,15 +326,33 @@ public class AdBlocker {
 
     static String ruleToRegex(String rule) {
         boolean anchorEnd = false;
+        int len = rule.length();
         if (rule.endsWith("|")) {
             anchorEnd = true;
-            rule = rule.substring(0, rule.length() - 1);
+            len--;
         }
-        rule = rule.replaceAll("([|.$+?{}()\\[\\]\\\\])", "\\\\$1");
-        rule = rule.replace("^", "(?:[^\\w\\d_\\-.%]|$)");
-        rule = rule.replace("*", ".*?");
+        StringBuilder sb = new StringBuilder(len+32);
+        for (int i = 0; i < len; i++) {
+            char c = rule.charAt(i);
+            switch (c) {
+                case '^':
+                    sb.append("(?:[^\\w\\d_\\-.%]|$)");
+                    break;
+                case '*':
+                    sb.append(".*?");
+                    break;
+                case '|': case '.': case '$': case '+': case '?': case '{': case '}':
+                case '(': case ')': case '[': case ']': case '\\':
+                    sb.append('\\');
+                    sb.append(c);
+                    break;
+                default:
+                    sb.append(c);
+                    break;
+            }
+        }
         if (anchorEnd)
-            rule = rule + "$";
-        return rule;
+            sb.append('$');
+        return sb.toString();
     }
 }
