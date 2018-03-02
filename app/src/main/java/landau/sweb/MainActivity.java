@@ -9,11 +9,15 @@ import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -30,12 +34,12 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Base64;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.util.Patterns;
 import android.util.TypedValue;
 import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
-import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -51,6 +55,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.BaseAdapter;
@@ -59,7 +64,6 @@ import android.widget.Filter;
 import android.widget.Filterable;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
-import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -92,6 +96,8 @@ public class MainActivity extends Activity {
         boolean isDesktopUA;
     }
 
+    private static final String TAG = MainActivity.class.getSimpleName();
+
     static final String searchUrl = "https://www.google.com/search?q=%s";
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
     static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36";
@@ -111,6 +117,8 @@ public class MainActivity extends Activity {
     private EditText searchEdit;
     private TextView searchCount;
     private TextView txtTabCount;
+
+    private SQLiteDatabase placesDb;
 
     private static class MenuAction {
 
@@ -163,6 +171,7 @@ public class MainActivity extends Activity {
             new MenuAction("Menu", R.drawable.menu, this::showMenu),
             new MenuAction("Reload", R.drawable.reload, () -> getCurrentWebView().reload()),
             new MenuAction("Bookmarks", R.drawable.bookmarks, this::showBookmarks),
+            new MenuAction("Add bookmark", R.drawable.bookmark_add, this::addBookmark),
             new MenuAction("Show tabs", R.drawable.tabs, this::showOpenTabs),
             new MenuAction("New tab", R.drawable.tab_new, () -> {
                 newTab("");
@@ -175,7 +184,7 @@ public class MainActivity extends Activity {
     final String[][] toolbarActions = {
             {"Back", "Scroll to top", "Tab history"},
             {"Forward", "Scroll to bottom", "Ad Blocker"},
-            {"Bookmarks", null, null},
+            {"Bookmarks", null, "Add bookmark"},
             {"Night mode", null, "Full screen"},
             {"Show tabs", "New tab", "Close tab"},
             {"Menu", "Reload", "Show address bar"},
@@ -487,6 +496,12 @@ public class MainActivity extends Activity {
             }
         });
 
+        try {
+            placesDb = new PlacesDbHelper(this).getWritableDatabase();
+        } catch (SQLiteException e) {
+            Log.e(TAG, "Can't open database", e);
+        }
+
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         setContentView(R.layout.activity_main);
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> updateFullScreen());
@@ -559,6 +574,14 @@ public class MainActivity extends Activity {
         getCurrentWebView().setVisibility(View.VISIBLE);
         getCurrentWebView().requestFocus();
         onNightModeChange();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (placesDb != null) {
+            placesDb.close();
+        }
+        super.onDestroy();
     }
 
     private void setTabCountText(int count) {
@@ -703,24 +726,43 @@ public class MainActivity extends Activity {
     };
 
     private void showBookmarks() {
-        PopupMenu popup = new PopupMenu(MainActivity.this, findViewById(R.id.toolbar));
-        Menu menu = popup.getMenu();
-        for (int i = 0; i < bookmarks.length; i += 2) {
-            menu.add(0, i / 2, 0, bookmarks[i]);
-        }
-        popup.setOnMenuItemClickListener(item -> {
-            int index = item.getItemId();
-            if (index >= 0 && index < bookmarks.length / 2) {
-                String url = bookmarks[index * 2 + 1];
-                et.setText(url);
-                loadUrl(url, getCurrentWebView());
-                return true;
-            }
-            return false;
+        if (placesDb == null) return;
+        Cursor cursor = placesDb.rawQuery("SELECT title, url, id as _id FROM bookmarks", null);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Bookmarks")
+                .setOnDismissListener(dlg -> cursor.close())
+                .setCursor(cursor, (dlg, which) -> {
+                            cursor.moveToPosition(which);
+                            String url = cursor.getString(cursor.getColumnIndex("url"));
+                            et.setText(url);
+                            loadUrl(url, getCurrentWebView());
+                        }, "title")
+                .create();
+        dialog.getListView().setOnItemLongClickListener((parent, view, position, id) -> {
+            cursor.moveToPosition(position);
+            int rowid = cursor.getInt(cursor.getColumnIndex("_id"));
+            String title = cursor.getString(cursor.getColumnIndex("title"));
+            dialog.dismiss();
+            new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Delete bookmark?")
+                    .setMessage(title)
+                    .setNegativeButton("Cancel", (dlg, which) -> {})
+                    .setPositiveButton("Delete", (dlg, which) ->
+                            placesDb.execSQL("DELETE FROM bookmarks WHERE id = ?", new Object[] {rowid}))
+                    .show();
+            return true;
         });
-        popup.show();
-
+        dialog.show();
     }
+
+    private void addBookmark() {
+        if (placesDb == null) return;
+        ContentValues values = new ContentValues(2);
+        values.put("title", getCurrentWebView().getTitle());
+        values.put("url", getCurrentWebView().getUrl());
+        placesDb.insert("bookmarks", null, values);
+    }
+
     private void closeCurrentTab() {
         if (getCurrentWebView().getUrl() != null && !getCurrentWebView().getUrl().equals("about:blank")) {
             TitleAndUrl titleAndUrl = new TitleAndUrl();
