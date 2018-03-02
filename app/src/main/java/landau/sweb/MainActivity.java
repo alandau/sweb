@@ -218,6 +218,7 @@ public class MainActivity extends Activity {
         settings.setDomStorageEnabled(true);
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
+        settings.setLoadWithOverviewMode(true);
         webview.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
@@ -444,6 +445,7 @@ public class MainActivity extends Activity {
         WebView webview = createWebView();
         boolean isDesktopUA = !tabs.isEmpty() && getCurrentTab().isDesktopUA;
         webview.getSettings().setUserAgentString(isDesktopUA ? desktopUA : null);
+        webview.getSettings().setUseWideViewPort(isDesktopUA);
         webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
         Tab tab = new Tab(webview);
@@ -798,6 +800,7 @@ public class MainActivity extends Activity {
         Tab tab = getCurrentTab();
         tab.isDesktopUA = !tab.isDesktopUA;
         getCurrentWebView().getSettings().setUserAgentString(tab.isDesktopUA ? desktopUA : null);
+        getCurrentWebView().getSettings().setUseWideViewPort(tab.isDesktopUA);
         getCurrentWebView().reload();
     }
 
@@ -967,7 +970,9 @@ public class MainActivity extends Activity {
                         "}";
             }
             webview.evaluateJavascript("javascript:(function() {" + js + "})()", null);
-            webview.evaluateJavascript("javascript:document.querySelector('meta[name=viewport]').content='width=device-width;initial-scale=1.0;maximum-scale=3.0;user-scalable=1;';", null);
+            if (!getCurrentTab().isDesktopUA) {
+                webview.evaluateJavascript("javascript:document.querySelector('meta[name=viewport]').content='width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=1';", null);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
