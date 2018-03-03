@@ -31,6 +31,7 @@ import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.Editable;
+import android.text.Html;
 import android.text.TextWatcher;
 import android.util.Base64;
 import android.util.DisplayMetrics;
@@ -55,7 +56,6 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.BaseAdapter;
@@ -72,9 +72,13 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -101,6 +105,8 @@ public class MainActivity extends Activity {
     static final String searchUrl = "https://www.google.com/search?q=%s";
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
     static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36";
+
+    static final int PERMISSION_REQUEST_EXPORT_BOOKMARKS = 1;
 
     private ArrayList<Tab> tabs = new ArrayList<>();
     private int currentTabIndex;
@@ -172,6 +178,7 @@ public class MainActivity extends Activity {
             new MenuAction("Reload", R.drawable.reload, () -> getCurrentWebView().reload()),
             new MenuAction("Bookmarks", R.drawable.bookmarks, this::showBookmarks),
             new MenuAction("Add bookmark", R.drawable.bookmark_add, this::addBookmark),
+            new MenuAction("Export bookmarks", R.drawable.bookmarks_export, this::exportBookmarks),
             new MenuAction("Show tabs", R.drawable.tabs, this::showOpenTabs),
             new MenuAction("New tab", R.drawable.tab_new, () -> {
                 newTab("");
@@ -763,6 +770,45 @@ public class MainActivity extends Activity {
         placesDb.insert("bookmarks", null, values);
     }
 
+    private void exportBookmarks() {
+        if (!hasOrRequestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                "Writing to external storage is required to export bookmarks",
+                PERMISSION_REQUEST_EXPORT_BOOKMARKS)) {
+            return;
+        }
+        File file = new File(Environment.getExternalStorageDirectory(), "bookmarks.html");
+        try {
+            FileOutputStream fos = new FileOutputStream(file);
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
+            bw.write("<!DOCTYPE NETSCAPE-Bookmark-file-1>\n" +
+                    "<!-- This is an automatically generated file.\n" +
+                    "     It will be read and overwritten.\n" +
+                    "     DO NOT EDIT! -->\n" +
+                    "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n" +
+                    "<TITLE>Bookmarks</TITLE>\n" +
+                    "<H1>Bookmarks Menu</H1>\n" +
+                    "\n" +
+                    "<DL><p>\n");
+            try (Cursor cursor = placesDb.rawQuery("SELECT title, url FROM bookmarks", null)) {
+                final int titleIdx = cursor.getColumnIndex("title");
+                final int urlIdx = cursor.getColumnIndex("url");
+                while (cursor.moveToNext()) {
+                    bw.write("    <DT><A HREF=\"" + cursor.getString(urlIdx) + "\" ADD_DATE=\"0\" LAST_MODIFIED=\"0\">");
+                    bw.write(Html.escapeHtml(cursor.getString(titleIdx)));
+                    bw.write("</A>\n");
+                }
+            }
+            bw.write("</DL>\n");
+            bw.close();
+            Toast.makeText(this, "Bookmarks exported to bookmarks.html on SD Card", Toast.LENGTH_LONG).show();
+        } catch (IOException e) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Export bookmarks error")
+                    .setMessage(e.toString())
+                    .show();
+        }
+    }
+
     private void closeCurrentTab() {
         if (getCurrentWebView().getUrl() != null && !getCurrentWebView().getUrl().equals("about:blank")) {
             TitleAndUrl titleAndUrl = new TitleAndUrl();
@@ -1021,8 +1067,40 @@ public class MainActivity extends Activity {
     }
 
     boolean hasStoragePermission() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
                 checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    boolean hasOrRequestPermission(String permission, String explanation, int requestCode) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        if (checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) {
+            // Permission already granted
+            return true;
+        }
+        if (shouldShowRequestPermissionRationale(permission)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Permission Required")
+                    .setMessage(explanation)
+                    .setPositiveButton("OK", (dialog, which) -> requestPermissions(new String[] {permission}, requestCode))
+                    .show();
+            return false;
+        }
+        requestPermissions(new String[] {permission}, requestCode);
+        return false;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (grantResults.length == 0 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        switch (requestCode) {
+            case PERMISSION_REQUEST_EXPORT_BOOKMARKS:
+                exportBookmarks();
+                break;
+        }
     }
 
     // java.util.function.BooleanSupplier requires API 24
