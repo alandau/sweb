@@ -730,18 +730,6 @@ public class MainActivity extends Activity {
         prefs.edit().putBoolean("adblocker", adBlocker != null).apply();
     }
 
-    static final String[] bookmarks = {
-            // Title, then url
-            "Landley", "http://landley.net/notes.html",
-            "LWN.net", "https://lwn.net/Articles/?offset=0",
-            "OSNews", "http://mobile.osnews.com",
-            "Eli Bendersky", "https://eli.thegreenplace.net",
-            "OldNewThing", "https://blogs.msdn.microsoft.com/oldnewthing/",
-            "Anekdotov.net", "http://pda.anekdotov.net/",
-            "anekdot.ru", "https://www.anekdot.ru/last/anekdot/",
-            "Grooming", "http://www.kongsbergers.org/GroomingReport.html",
-    };
-
     private void showBookmarks() {
         if (placesDb == null) return;
         Cursor cursor = placesDb.rawQuery("SELECT title, url, id as _id FROM bookmarks", null);
