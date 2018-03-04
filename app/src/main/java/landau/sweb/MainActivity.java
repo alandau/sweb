@@ -789,6 +789,7 @@ public class MainActivity extends Activity {
                     .setMessage("The file bookmarks.html already exists on SD card. Overwrite?")
                     .setNegativeButton("Cancel", (dialog, which) -> {})
                     .setPositiveButton("Overwrite", (dialog, which) -> {
+                        //noinspection ResultOfMethodCallIgnored
                         file.delete();
                         exportBookmarks();
                     })
@@ -919,9 +920,7 @@ public class MainActivity extends Activity {
                 .setTitle("Delete all bookmarks?")
                 .setMessage("This action cannot be undone")
                 .setNegativeButton("Cancel", (dialog, which) -> {})
-                .setPositiveButton("Delete All", (dialog, which) -> {
-                    placesDb.execSQL("DELETE FROM bookmarks");
-                })
+                .setPositiveButton("Delete All", (dialog, which) -> placesDb.execSQL("DELETE FROM bookmarks"))
                 .show();
     }
 
