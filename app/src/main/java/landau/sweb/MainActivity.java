@@ -6,12 +6,14 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DownloadManager;
+import android.app.LoaderManager;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.Loader;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -114,6 +116,14 @@ public class MainActivity extends Activity {
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
     static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36";
 
+    static final String[] adblockRulesList = {
+            "https://easylist.to/easylist/easylist.txt",
+            "https://easylist.to/easylist/easyprivacy.txt",
+            "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=1&mimetype=plaintext",    // Peter's
+            "https://easylist.to/easylist/fanboy-social.txt",
+            "https://easylist-downloads.adblockplus.org/advblock.txt",  // RU AdList
+    };
+
     static final int FORM_FILE_CHOOSER = 1;
 
     static final int PERMISSION_REQUEST_EXPORT_BOOKMARKS = 1;
@@ -126,6 +136,7 @@ public class MainActivity extends Activity {
     private boolean isNightMode;
     private boolean isFullscreen;
     private SharedPreferences prefs;
+    private boolean useAdBlocker;
     private AdBlocker adBlocker;
     private boolean isLogRequests;
     private ArrayList<String> requestsLog;
@@ -171,7 +182,8 @@ public class MainActivity extends Activity {
             new MenuAction("Desktop UA", R.drawable.ua, this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA),
             new MenuAction("3rd party cookies", R.drawable.cookies_3rdparty, this::toggleThirdPartyCookies,
                     () -> CookieManager.getInstance().acceptThirdPartyCookies(getCurrentWebView())),
-            new MenuAction("Ad Blocker", R.drawable.adblocker, this::toggleAdblocker, () -> adBlocker != null),
+            new MenuAction("Ad Blocker", R.drawable.adblocker, this::toggleAdblocker, () -> useAdBlocker),
+            new MenuAction("Update adblock rules", 0, this::updateAdblockRules),
             new MenuAction("Night mode", R.drawable.night, this::toggleNightMode, () -> isNightMode),
             new MenuAction("Show address bar", R.drawable.url_bar, this::toggleShowAddressBar, () -> et.getVisibility() == View.VISIBLE),
             new MenuAction("Full screen", R.drawable.fullscreen, this::toggleFullscreen, () -> isFullscreen),
@@ -606,7 +618,8 @@ public class MainActivity extends Activity {
             hideKeyboard();
         });
 
-        adBlocker = prefs.getBoolean("adblocker", true) && hasStoragePermission() ? new AdBlocker() : null;
+        useAdBlocker = prefs.getBoolean("adblocker", true);
+        initAdblocker();
 
         newTab(et.getText().toString());
         getCurrentWebView().setVisibility(View.VISIBLE);
@@ -751,14 +764,40 @@ public class MainActivity extends Activity {
         onNightModeChange();
     }
 
-    private void toggleAdblocker() {
-        if (adBlocker != null) {
-            adBlocker = null;
+    private void initAdblocker() {
+        if (useAdBlocker) {
+            adBlocker = new AdBlocker(getExternalFilesDir("adblock"));
         } else {
-            adBlocker = hasStoragePermission() ? new AdBlocker() : null;
+            adBlocker = null;
         }
-        Toast.makeText(MainActivity.this, "Ad Blocker " + (adBlocker != null ? "enabled" : "disabled"), Toast.LENGTH_SHORT).show();
-        prefs.edit().putBoolean("adblocker", adBlocker != null).apply();
+    }
+
+    private void toggleAdblocker() {
+        useAdBlocker = !useAdBlocker;
+        initAdblocker();
+        prefs.edit().putBoolean("adblocker", useAdBlocker).apply();
+        Toast.makeText(MainActivity.this, "Ad Blocker " + (useAdBlocker ? "enabled" : "disabled"), Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateAdblockRules() {
+        getLoaderManager().restartLoader(0, null, new LoaderManager.LoaderCallbacks<Integer>() {
+            @Override
+            public Loader<Integer> onCreateLoader(int id, Bundle args) {
+                return new AdblockRulesLoader(MainActivity.this, adblockRulesList, getExternalFilesDir("adblock"));
+            }
+
+            @SuppressLint("DefaultLocale")
+            @Override
+            public void onLoadFinished(Loader<Integer> loader, Integer data) {
+                Toast.makeText(MainActivity.this,
+                        String.format("Updated %d / %d adblock subscriptions", data, adblockRulesList.length),
+                        Toast.LENGTH_SHORT).show();
+                initAdblocker();
+            }
+
+            @Override
+            public void onLoaderReset(Loader<Integer> loader) {}
+        });
     }
 
     private void showBookmarks() {
@@ -1210,11 +1249,6 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    boolean hasStoragePermission() {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-                checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     }
 
     boolean hasOrRequestPermission(String permission, String explanation, int requestCode) {

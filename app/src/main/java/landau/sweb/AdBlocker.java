@@ -3,7 +3,6 @@ package landau.sweb;
 
 import android.net.Uri;
 import android.os.Debug;
-import android.os.Environment;
 import android.util.Log;
 
 import java.io.BufferedReader;
@@ -45,10 +44,9 @@ public class AdBlocker {
     static final int OTHER = 0, COMMENT = 1, ELEM_HIDING = 2, ANCHORED = 3, EXCEPTION = 4, SIMPLE = 5, REGEX_NOOPT = 6;
     int[] counters = new int[50];
 
-    public AdBlocker() {
+    public AdBlocker(File rootDir) {
         long start = System.currentTimeMillis();
-        File f = new File(Environment.getExternalStorageDirectory(), "sweb");
-        File[] files = f.listFiles();
+        File[] files = rootDir.listFiles();
         if (files != null) {
             for (File file : files) {
                 loadFromFile(file);
