@@ -18,6 +18,7 @@ import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
+import android.database.sqlite.SQLiteStatement;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -72,12 +73,16 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -86,6 +91,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import landau.sweb.utils.ExceptionLogger;
 
@@ -107,6 +114,7 @@ public class MainActivity extends Activity {
     static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36";
 
     static final int PERMISSION_REQUEST_EXPORT_BOOKMARKS = 1;
+    static final int PERMISSION_REQUEST_IMPORT_BOOKMARKS = 2;
 
     private ArrayList<Tab> tabs = new ArrayList<>();
     private int currentTabIndex;
@@ -179,6 +187,8 @@ public class MainActivity extends Activity {
             new MenuAction("Bookmarks", R.drawable.bookmarks, this::showBookmarks),
             new MenuAction("Add bookmark", R.drawable.bookmark_add, this::addBookmark),
             new MenuAction("Export bookmarks", R.drawable.bookmarks_export, this::exportBookmarks),
+            new MenuAction("Import bookmarks", R.drawable.bookmarks_import, this::importBookmarks),
+            new MenuAction("Delete all bookmarks", 0, this::deleteAllBookmarks),
             new MenuAction("Show tabs", R.drawable.tabs, this::showOpenTabs),
             new MenuAction("New tab", R.drawable.tab_new, () -> {
                 newTab("");
@@ -771,12 +781,32 @@ public class MainActivity extends Activity {
     }
 
     private void exportBookmarks() {
+        if (placesDb == null) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Export bookmarks error")
+                    .setMessage("Can't open bookmarks database")
+                    .setPositiveButton("OK", (dialog, which) -> {})
+                    .show();
+            return;
+        }
         if (!hasOrRequestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                "Writing to external storage is required to export bookmarks",
+                null,
                 PERMISSION_REQUEST_EXPORT_BOOKMARKS)) {
             return;
         }
         File file = new File(Environment.getExternalStorageDirectory(), "bookmarks.html");
+        if (file.exists()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Export bookmarks")
+                    .setMessage("The file bookmarks.html already exists on SD card. Overwrite?")
+                    .setNegativeButton("Cancel", (dialog, which) -> {})
+                    .setPositiveButton("Overwrite", (dialog, which) -> {
+                        file.delete();
+                        exportBookmarks();
+                    })
+                    .show();
+            return;
+        }
         try {
             FileOutputStream fos = new FileOutputStream(file);
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
@@ -800,13 +830,111 @@ public class MainActivity extends Activity {
             }
             bw.write("</DL>\n");
             bw.close();
-            Toast.makeText(this, "Bookmarks exported to bookmarks.html on SD Card", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Bookmarks exported to bookmarks.html on SD card", Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             new AlertDialog.Builder(this)
                     .setTitle("Export bookmarks error")
                     .setMessage(e.toString())
+                    .setPositiveButton("OK", (dialog, which) -> {})
                     .show();
         }
+    }
+
+    @SuppressLint("DefaultLocale")
+    private void importBookmarks() {
+        if (placesDb == null) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Import bookmarks error")
+                    .setMessage("Can't open bookmarks database")
+                    .setPositiveButton("OK", (dialog, which) -> {})
+                    .show();
+            return;
+        }
+        if (!hasOrRequestPermission(Manifest.permission.READ_EXTERNAL_STORAGE,
+                null,
+                PERMISSION_REQUEST_IMPORT_BOOKMARKS)) {
+            return;
+        }
+        File file = new File(Environment.getExternalStorageDirectory(), "bookmarks.html");
+        StringBuilder sb = new StringBuilder();
+        try {
+            char[] buf = new char[16*1024];
+            FileInputStream fis = new FileInputStream(file);
+            BufferedReader br = new BufferedReader(new InputStreamReader(fis, StandardCharsets.UTF_8));
+            int count;
+            while ((count = br.read(buf)) != -1) {
+                sb.append(buf, 0, count);
+            }
+            br.close();
+        } catch (FileNotFoundException e) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Import bookmarks error")
+                    .setMessage("Bookmarks should be placed in a bookmarks.html file on the SD Card")
+                    .setPositiveButton("OK", (dialog, which) -> {})
+                    .show();
+            return;
+        } catch (IOException e) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Import bookmarks error")
+                    .setMessage(e.toString())
+                    .setPositiveButton("OK", (dialog, which) -> {})
+                    .show();
+            return;
+        }
+
+        ArrayList<TitleAndUrl> bookmarks = new ArrayList<>();
+        Pattern pattern = Pattern.compile("<A HREF=\"([^\"]*)\"[^>]*>([^<]*)</A>");
+        Matcher matcher = pattern.matcher(sb);
+        while (matcher.find()) {
+            TitleAndUrl pair = new TitleAndUrl();
+            pair.url = matcher.group(1);
+            pair.title = matcher.group(2);
+            if (pair.url == null || pair.title == null) continue;
+            pair.title = Html.fromHtml(pair.title).toString();
+            bookmarks.add(pair);
+        }
+
+        if (bookmarks.isEmpty()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Import bookmarks")
+                    .setMessage("No bookmarks found in bookmarks.html")
+                    .setPositiveButton("OK", (dialog, which) -> {})
+                    .show();
+            return;
+        }
+
+        try {
+            placesDb.beginTransaction();
+            SQLiteStatement stmt = placesDb.compileStatement("INSERT INTO bookmarks (title, url) VALUES (?,?)");
+            for (TitleAndUrl pair : bookmarks) {
+                stmt.bindString(1, pair.title);
+                stmt.bindString(2, pair.url);
+                stmt.execute();
+            }
+            placesDb.setTransactionSuccessful();
+            Toast.makeText(this, String.format("Imported %d bookmarks", bookmarks.size()), Toast.LENGTH_SHORT).show();
+        } finally {
+            placesDb.endTransaction();
+        }
+    }
+
+    private void deleteAllBookmarks() {
+        if (placesDb == null) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Bookmarks error")
+                    .setMessage("Can't open bookmarks database")
+                    .setPositiveButton("OK", (dialog, which) -> {})
+                    .show();
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Delete all bookmarks?")
+                .setMessage("This action cannot be undone")
+                .setNegativeButton("Cancel", (dialog, which) -> {})
+                .setPositiveButton("Delete All", (dialog, which) -> {
+                    placesDb.execSQL("DELETE FROM bookmarks");
+                })
+                .show();
     }
 
     private void closeCurrentTab() {
@@ -1079,7 +1207,7 @@ public class MainActivity extends Activity {
             // Permission already granted
             return true;
         }
-        if (shouldShowRequestPermissionRationale(permission)) {
+        if (explanation != null && shouldShowRequestPermissionRationale(permission)) {
             new AlertDialog.Builder(this)
                     .setTitle("Permission Required")
                     .setMessage(explanation)
@@ -1099,6 +1227,9 @@ public class MainActivity extends Activity {
         switch (requestCode) {
             case PERMISSION_REQUEST_EXPORT_BOOKMARKS:
                 exportBookmarks();
+                break;
+            case PERMISSION_REQUEST_IMPORT_BOOKMARKS:
+                importBookmarks();
                 break;
         }
     }
