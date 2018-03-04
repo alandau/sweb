@@ -50,6 +50,7 @@ import android.webkit.CookieManager;
 import android.webkit.HttpAuthHandler;
 import android.webkit.SslErrorHandler;
 import android.webkit.URLUtil;
+import android.webkit.ValueCallback;
 import android.webkit.WebBackForwardList;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -113,6 +114,8 @@ public class MainActivity extends Activity {
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
     static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36";
 
+    static final int FORM_FILE_CHOOSER = 1;
+
     static final int PERMISSION_REQUEST_EXPORT_BOOKMARKS = 1;
     static final int PERMISSION_REQUEST_IMPORT_BOOKMARKS = 2;
 
@@ -133,6 +136,8 @@ public class MainActivity extends Activity {
     private TextView txtTabCount;
 
     private SQLiteDatabase placesDb;
+
+    private ValueCallback<Uri[]> fileUploadCallback;
 
     private static class MenuAction {
 
@@ -234,7 +239,6 @@ public class MainActivity extends Activity {
 
         WebView webview = new WebView(this);
         webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
-        webview.setWebChromeClient(new WebChromeClient());
         WebSettings settings = webview.getSettings();
         settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
         settings.setAllowUniversalAccessFromFileURLs(true);
@@ -277,6 +281,23 @@ public class MainActivity extends Activity {
                 fullScreenView[0] = null;
                 fullScreenCallback[0] = null;
                 MainActivity.this.findViewById(R.id.main_layout).setVisibility(View.VISIBLE);
+            }
+
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                if (fileUploadCallback != null) {
+                    fileUploadCallback.onReceiveValue(null);
+                }
+
+                fileUploadCallback = filePathCallback;
+                Intent intent = fileChooserParams.createIntent();
+                try {
+                    startActivityForResult(intent, FORM_FILE_CHOOSER);
+                } catch (ActivityNotFoundException e) {
+                    Toast.makeText(MainActivity.this, "Can't open file chooser", Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+                return true;
             }
         });
         webview.setWebViewClient(new WebViewClient() {
@@ -599,6 +620,16 @@ public class MainActivity extends Activity {
             placesDb.close();
         }
         super.onDestroy();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == FORM_FILE_CHOOSER) {
+            if (fileUploadCallback != null) {
+                fileUploadCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
+                fileUploadCallback = null;
+            }
+        }
     }
 
     private void setTabCountText(int count) {
