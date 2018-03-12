@@ -128,6 +128,7 @@ public class MainActivity extends Activity {
 
     static final int PERMISSION_REQUEST_EXPORT_BOOKMARKS = 1;
     static final int PERMISSION_REQUEST_IMPORT_BOOKMARKS = 2;
+    static final int PERMISSION_REQUEST_DOWNLOAD = 3;
 
     private ArrayList<Tab> tabs = new ArrayList<>();
     private int currentTabIndex;
@@ -475,6 +476,11 @@ public class MainActivity extends Activity {
     }
 
     private void startDownload(String url, String filename) {
+        if (!hasOrRequestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                null,
+                PERMISSION_REQUEST_DOWNLOAD)) {
+            return;
+        }
         if (filename == null) {
             filename = URLUtil.guessFileName(url, null, null);
         }
