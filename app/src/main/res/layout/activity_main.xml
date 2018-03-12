@@ -48,47 +48,51 @@
             android:layout_above="@id/toolbar"
             android:visibility="gone"
             android:gravity="center_vertical">
+
             <EditText
                 android:id="@+id/searchEdit"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:paddingStart="4dp"
-                android:paddingEnd="4dp" />
+                android:paddingEnd="4dp"
+                android:paddingStart="4dp" />
+
             <TextView
                 android:id="@+id/searchCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp" />
+                android:layout_marginEnd="8dp"
+                android:layout_marginStart="8dp" />
+
             <ImageView
                 android:id="@+id/searchFindNext"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@android:drawable/arrow_down_float"
-                android:tint="#61615f"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp" />
+                android:layout_width="44dp"
+                android:layout_height="24dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/bottom"
+                android:tint="#61615f" />
+
             <ImageView
                 android:id="@+id/searchFindPrev"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@android:drawable/arrow_up_float"
-                android:tint="#61615f"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp" />
+                android:layout_width="44dp"
+                android:layout_height="24dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/top"
+                android:tint="#61615f" />
+
             <ImageView
                 android:id="@+id/searchClose"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@android:drawable/ic_menu_close_clear_cancel"
-                android:tint="#61615f"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp" />
+                android:layout_width="34dp"
+                android:layout_height="24dp"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/stop"
+                android:tint="#61615f" />
         </LinearLayout>
 
         <LinearLayout

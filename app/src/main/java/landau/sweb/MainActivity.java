@@ -192,28 +192,34 @@ public class MainActivity extends Activity {
             new MenuAction("Log requests", R.drawable.log_requests, this::toggleLogRequests, () -> isLogRequests),
             new MenuAction("Find on page", R.drawable.find_on_page, this::findOnPage),
             new MenuAction("Page info", R.drawable.page_info, this::pageInfo),
+            new MenuAction("Share URL", android.R.drawable.ic_menu_share, this::shareUrl),
+
             new MenuAction("Back", R.drawable.back,
+                    () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goForward();}),
+            new MenuAction("Forward", R.drawable.forward,
                     () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goBack();}),
+            new MenuAction("Reload", R.drawable.reload, () -> getCurrentWebView().reload()),
+            new MenuAction("Stop", R.drawable.stop, () -> getCurrentWebView().stopLoading()),
             new MenuAction("Scroll to top", R.drawable.top,
                     () -> getCurrentWebView().pageUp(true)),
-            new MenuAction("Forward", R.drawable.forward,
-                    () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goForward();}),
             new MenuAction("Scroll to bottom", R.drawable.bottom,
                     () -> getCurrentWebView().pageDown(true)),
+
             new MenuAction("Menu", R.drawable.menu, this::showMenu),
-            new MenuAction("Reload", R.drawable.reload, () -> getCurrentWebView().reload()),
+            new MenuAction("Full menu", R.drawable.menu, this::showFullMenu),
+
             new MenuAction("Bookmarks", R.drawable.bookmarks, this::showBookmarks),
             new MenuAction("Add bookmark", R.drawable.bookmark_add, this::addBookmark),
             new MenuAction("Export bookmarks", R.drawable.bookmarks_export, this::exportBookmarks),
             new MenuAction("Import bookmarks", R.drawable.bookmarks_import, this::importBookmarks),
             new MenuAction("Delete all bookmarks", 0, this::deleteAllBookmarks),
+
             new MenuAction("Show tabs", R.drawable.tabs, this::showOpenTabs),
             new MenuAction("New tab", R.drawable.tab_new, () -> {
                 newTab("");
                 switchToTab(tabs.size() - 1);
             }),
             new MenuAction("Close tab", R.drawable.tab_close, this::closeCurrentTab),
-            new MenuAction("Share URL", android.R.drawable.ic_menu_share, this::shareUrl),
     };
 
     final String[][] toolbarActions = {
@@ -223,6 +229,11 @@ public class MainActivity extends Activity {
             {"Night mode", null, "Full screen"},
             {"Show tabs", "New tab", "Close tab"},
             {"Menu", "Reload", "Show address bar"},
+    };
+
+    final String[] shortMenu = {
+            "Desktop UA", "Log requests", "Find on page", "Page info", "Share URL",
+            "Full menu"
     };
 
     MenuAction getAction(String name) {
@@ -1122,16 +1133,30 @@ public class MainActivity extends Activity {
     }
 
     private void showMenu() {
+        MenuAction[] shortMenuActions = new MenuAction[shortMenu.length];
+        for (int i = 0; i < shortMenu.length; i++) {
+            shortMenuActions[i] = getAction(shortMenu[i]);
+        }
+        MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+                MainActivity.this,
+                android.R.layout.simple_list_item_1,
+                shortMenuActions);
+        new AlertDialog.Builder(MainActivity.this)
+                .setTitle("Actions")
+                .setAdapter(adapter, (dialog, which) -> shortMenuActions[which].action.run())
+                .show();
+    }
+
+    private void showFullMenu() {
         MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
                 MainActivity.this,
                 android.R.layout.simple_list_item_1,
                 menuActions);
         new AlertDialog.Builder(MainActivity.this)
-                .setTitle("Actions")
+                .setTitle("Full menu")
                 .setAdapter(adapter, (dialog, which) -> menuActions[which].action.run())
                 .show();
     }
-
     private void shareUrl() {
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
