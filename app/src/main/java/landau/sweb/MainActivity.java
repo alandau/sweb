@@ -58,6 +58,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ArrayAdapter;
@@ -195,9 +196,9 @@ public class MainActivity extends Activity {
             new MenuAction("Share URL", android.R.drawable.ic_menu_share, this::shareUrl),
 
             new MenuAction("Back", R.drawable.back,
-                    () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goForward();}),
-            new MenuAction("Forward", R.drawable.forward,
                     () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goBack();}),
+            new MenuAction("Forward", R.drawable.forward,
+                    () -> {if (getCurrentWebView().canGoForward()) getCurrentWebView().goForward();}),
             new MenuAction("Reload", R.drawable.reload, () -> getCurrentWebView().reload()),
             new MenuAction("Stop", R.drawable.stop, () -> getCurrentWebView().stopLoading()),
             new MenuAction("Scroll to top", R.drawable.top,
@@ -213,6 +214,8 @@ public class MainActivity extends Activity {
             new MenuAction("Export bookmarks", R.drawable.bookmarks_export, this::exportBookmarks),
             new MenuAction("Import bookmarks", R.drawable.bookmarks_import, this::importBookmarks),
             new MenuAction("Delete all bookmarks", 0, this::deleteAllBookmarks),
+
+            new MenuAction("Clear history and cache", 0, this::clearHistoryCache),
 
             new MenuAction("Show tabs", R.drawable.tabs, this::showOpenTabs),
             new MenuAction("New tab", R.drawable.tab_new, () -> {
@@ -1009,6 +1012,15 @@ public class MainActivity extends Activity {
                 .setNegativeButton("Cancel", (dialog, which) -> {})
                 .setPositiveButton("Delete All", (dialog, which) -> placesDb.execSQL("DELETE FROM bookmarks"))
                 .show();
+    }
+
+    private void clearHistoryCache() {
+        WebView v = getCurrentWebView();
+        v.clearCache(true);
+        v.clearFormData();
+        v.clearHistory();
+        CookieManager.getInstance().removeAllCookies(null);
+        WebStorage.getInstance().deleteAllData();
     }
 
     private void closeCurrentTab() {
