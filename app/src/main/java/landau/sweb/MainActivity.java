@@ -47,6 +47,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.CookieManager;
 import android.webkit.HttpAuthHandler;
@@ -1080,6 +1081,8 @@ public class MainActivity extends Activity {
             findViewById(R.id.main_layout).setBackgroundColor(Color.BLACK);
             findViewById(R.id.toolbar).setBackgroundColor(Color.BLACK);
             ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x66, 0)));
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            getWindow().setNavigationBarColor(Color.BLACK);
         } else {
             int textColor = Color.BLACK;
             int backgroundColor = Color.rgb(0xe0, 0xe0, 0xe0);
@@ -1091,6 +1094,7 @@ public class MainActivity extends Activity {
             findViewById(R.id.main_layout).setBackgroundColor(Color.WHITE);
             findViewById(R.id.toolbar).setBackgroundColor(Color.rgb(0xe0, 0xe0, 0xe0));
             ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0xcc, 0)));
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         }
         for (int i = 0; i < tabs.size(); i++) {
             tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
