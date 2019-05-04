@@ -70,6 +70,7 @@ public class AdBlocker {
     private void loadFromAdblockFile(String firstline, BufferedReader br) throws IOException {
         String line;
         while ((line = br.readLine()) != null) {
+            count++;
             if (line.isEmpty()) {
                 // nothing
             } else if (line.startsWith("!")) {
@@ -95,6 +96,10 @@ public class AdBlocker {
                         domains = new HashSet<>(res.length);
                         for (String s : res) {
                             domains.add(s.startsWith("~") ? s.substring(1) : s);
+                        }
+                    } else {
+                        if ("object".equals(line.substring(dollar + 1))) {
+                            continue;
                         }
                     }
                 }
@@ -140,7 +145,6 @@ public class AdBlocker {
                     sb.append(line);
                 }
             }
-            count++;
         }
         br.close();
     }
