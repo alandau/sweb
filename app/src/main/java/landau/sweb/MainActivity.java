@@ -838,13 +838,45 @@ public class MainActivity extends Activity {
             cursor.moveToPosition(position);
             int rowid = cursor.getInt(cursor.getColumnIndex("_id"));
             String title = cursor.getString(cursor.getColumnIndex("title"));
+            String url = cursor.getString(cursor.getColumnIndex("url"));
             dialog.dismiss();
             new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("Delete bookmark?")
-                    .setMessage(title)
-                    .setNegativeButton("Cancel", (dlg, which) -> {})
-                    .setPositiveButton("Delete", (dlg, which) ->
-                            placesDb.execSQL("DELETE FROM bookmarks WHERE id = ?", new Object[] {rowid}))
+                    .setTitle(title)
+                    .setItems(new String[] {"Rename", "Change URL", "Delete"}, (dlg, which) -> {
+                        switch (which) {
+                            case 0: {
+                                EditText editView = new EditText(this);
+                                editView.setText(title);
+                                new AlertDialog.Builder(this)
+                                        .setTitle("Rename bookmark")
+                                        .setView(editView)
+                                        .setPositiveButton("Rename", (renameDlg, which1) -> {
+                                            placesDb.execSQL("UPDATE bookmarks SET title=? WHERE id=?", new Object[] {editView.getText(), rowid});
+                                        })
+                                        .setNegativeButton("Cancel", (renameDlg, which1) -> {
+                                        })
+                                        .show();
+                                break;
+                            }
+                            case 1: {
+                                EditText editView = new EditText(this);
+                                editView.setText(url);
+                                new AlertDialog.Builder(this)
+                                        .setTitle("Change bookmark URL")
+                                        .setView(editView)
+                                        .setPositiveButton("Change URL", (renameDlg, which1) -> {
+                                            placesDb.execSQL("UPDATE bookmarks SET url=? WHERE id=?", new Object[] {editView.getText(), rowid});
+                                        })
+                                        .setNegativeButton("Cancel", (renameDlg, which1) -> {
+                                        })
+                                        .show();
+                                break;
+                            }
+                            case 2:
+                                placesDb.execSQL("DELETE FROM bookmarks WHERE id = ?", new Object[] {rowid});
+                                break;
+                        }
+                    })
                     .show();
             return true;
         });
