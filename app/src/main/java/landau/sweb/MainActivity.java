@@ -30,6 +30,8 @@ import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -403,35 +405,37 @@ public class MainActivity extends Activity {
             }
         });
         webview.setOnLongClickListener(v -> {
+            String url = null, imageUrl = null;
             WebView.HitTestResult r = ((WebView) v).getHitTestResult();
-            if (r.getType() != WebView.HitTestResult.SRC_ANCHOR_TYPE && r.getType() != WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE) {
-                return false;
+            switch (r.getType()) {
+                case WebView.HitTestResult.SRC_ANCHOR_TYPE:
+                    url = r.getExtra();
+                    break;
+                case WebView.HitTestResult.IMAGE_TYPE:
+                    imageUrl = r.getExtra();
+                    break;
+                case WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE:
+                case WebView.HitTestResult.EMAIL_TYPE:
+                case WebView.HitTestResult.UNKNOWN_TYPE:
+                    Handler handler = new Handler();
+                    Message message = handler.obtainMessage();
+                    ((WebView)v).requestFocusNodeHref(message);
+                    url = message.getData().getString("url");
+                    if ("".equals(url)) {
+                        url = null;
+                    }
+                    imageUrl = message.getData().getString("src");
+                    if ("".equals(imageUrl)) {
+                        imageUrl = null;
+                    }
+                    if (url == null && imageUrl == null) {
+                        return false;
+                    }
+                    break;
+                default:
+                    return false;
             }
-            final String url = r.getExtra();
-            new AlertDialog.Builder(MainActivity.this).setTitle(url).setItems(
-                    new String[]{"Open in new tab", "Copy URL", "Show full URL", "Download"}, (dialog, which) -> {
-                switch (which) {
-                    case 0:
-                        newTab(url);
-                        break;
-                    case 1:
-                        ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                        assert clipboard != null;
-                        ClipData clipData = ClipData.newPlainText("URL", url);
-                        clipboard.setPrimaryClip(clipData);
-                        break;
-                    case 2:
-                        new AlertDialog.Builder(MainActivity.this)
-                                .setTitle("Full URL")
-                                .setMessage(url)
-                                .setPositiveButton("OK", (dialog1, which1) -> {})
-                                .show();
-                        break;
-                    case 3:
-                        startDownload(url, null);
-                        break;
-                }
-            }).show();
+            showLongPressMenu(url, imageUrl);
             return true;
         });
         webview.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
@@ -463,6 +467,62 @@ public class MainActivity extends Activity {
                 searchCount.setText(numberOfMatches == 0 ? "Not found" :
                         String.format("%d / %d", activeMatchOrdinal + 1, numberOfMatches)));
         return webview;
+    }
+
+    private void showLongPressMenu(String linkUrl, String imageUrl) {
+        String url;
+        String title;
+        String[] options = new String[]{"Open in new tab", "Copy URL", "Show full URL", "Download"};
+
+        if (imageUrl == null) {
+            if (linkUrl == null) {
+                throw new IllegalArgumentException("Bad null arguments in showLongPressMenu");
+            } else {
+                // Text link
+                url = linkUrl;
+                title = linkUrl;
+            }
+        } else {
+            if (linkUrl == null) {
+                // Image without link
+                url = imageUrl;
+                title = "Image: " + imageUrl;
+            } else {
+                // Image with link
+                url = linkUrl;
+                title = linkUrl;
+                String[] newOptions = new String[options.length + 1];
+                System.arraycopy(options, 0, newOptions, 0, options.length);
+                newOptions[newOptions.length - 1] = "Image Options";
+                options = newOptions;
+            }
+        }
+        new AlertDialog.Builder(MainActivity.this).setTitle(title).setItems(options, (dialog, which) -> {
+            switch (which) {
+                case 0:
+                    newTab(url);
+                    break;
+                case 1:
+                    ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    assert clipboard != null;
+                    ClipData clipData = ClipData.newPlainText("URL", url);
+                    clipboard.setPrimaryClip(clipData);
+                    break;
+                case 2:
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Full URL")
+                            .setMessage(url)
+                            .setPositiveButton("OK", (dialog1, which1) -> {})
+                            .show();
+                    break;
+                case 3:
+                    startDownload(url, null);
+                    break;
+                case 4:
+                    showLongPressMenu(null, imageUrl);
+                    break;
+            }
+        }).show();
     }
 
     @SuppressLint("DefaultLocale")
@@ -504,8 +564,8 @@ public class MainActivity extends Activity {
             request = new DownloadManager.Request(Uri.parse(url));
         } catch (IllegalArgumentException e) {
             new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("Download")
-                    .setMessage("Can't download this URL")
+                    .setTitle("Can't Download URL")
+                    .setMessage(url)
                     .setPositiveButton("OK", (dialog1, which1) -> {})
                     .show();
             return;
