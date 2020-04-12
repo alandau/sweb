@@ -24,6 +24,7 @@ import android.database.sqlite.SQLiteStatement;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.DrawableContainer;
 import android.net.Uri;
 import android.net.http.SslCertificate;
 import android.net.http.SslError;
@@ -118,7 +119,7 @@ public class MainActivity extends Activity {
 
     static final String searchUrl = "https://www.google.com/search?q=%s";
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
-    static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36";
+    static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36";
 
     static final String[] adblockRulesList = {
             "https://easylist.to/easylist/easylist.txt",
@@ -337,6 +338,8 @@ public class MainActivity extends Activity {
                 progressBar.setVisibility(View.VISIBLE);
                 if (view == getCurrentWebView()) {
                     et.setText(url);
+                    et.setSelection(0);
+                    view.requestFocus();
                 }
                 injectCSS(view);
             }
@@ -346,7 +349,10 @@ public class MainActivity extends Activity {
                 if (view == getCurrentWebView()) {
                     // Don't use the argument url here since navigation to that URL might have been
                     // cancelled due to SSL error
-                    et.setText(view.getUrl());
+                    if (et.getSelectionStart() == 0 && et.getSelectionEnd() == 0 && et.getText().toString().equals(view.getUrl())) {
+                        // If user haven't started typing anything, focus on webview
+                        view.requestFocus();
+                    }
                 }
                 injectCSS(view);
             }
@@ -647,7 +653,8 @@ public class MainActivity extends Activity {
 
         // setup edit text
         et.setSelected(false);
-        et.setText(getUrlFromIntent(getIntent()));
+        String initialUrl = getUrlFromIntent(getIntent());
+        et.setText(initialUrl.isEmpty() ? "about:blank" : initialUrl);
         et.setAdapter(new SearchAutocompleteAdapter(this, text -> {
             et.setText(text);
             et.setSelection(text.length());
@@ -1353,12 +1360,26 @@ public class MainActivity extends Activity {
             final String styleElementId = "night_mode_style_4398357";   // should be unique
             String js;
             if (isNightMode) {
-                js = "if (document.head && !document.getElementById('" + styleElementId + "')) {" +
-                        "   var style = document.createElement('style');" +
+                js = "if (document.head) {" +
+                        "if (!window.night_mode_id_list) night_mode_id_list = new Set();" +
+                        "var newset = new Set();" +
+                        "   for (var n of document.querySelectorAll(':not(a)')) { " +
+                        "     if (!n.id) n.id = 'night_mode_id_' + (night_mode_id_list.size + newset.size);" +
+                        "     if (!night_mode_id_list.has(n.id)) newset.add(n.id); " +
+                        "   }" +
+                        "for (var item of newset) night_mode_id_list.add(item);" +
+                        "var style = document.getElementById('" + styleElementId + "');" +
+                        "if (!style) {" +
+                        "   style = document.createElement('style');" +
                         "   style.id = '" + styleElementId + "';" +
                         "   style.type = 'text/css';" +
                         "   style.innerHTML = '" + css + "';" +
                         "   document.head.appendChild(style);" +
+                        "}" +
+                        "   var css2 = ' ';" +
+                        "   for (var nid of newset) css2 += ('#' + nid + '#' + nid + ',');" +
+                        "   css2 += '#nonexistent {background-color: #161a1e !important; color: #61615f !important; border-color: #212a32 !important; background-image:none !important; outline-color: #161a1e !important; z-index: 1 !important}';" +
+                        "   style.innerHTML += css2;" +
                         "}" +
                         "var iframes = document.getElementsByTagName('iframe');" +
                         "for (var i = 0; i < iframes.length; i++) {" +
@@ -1373,6 +1394,7 @@ public class MainActivity extends Activity {
                 js = "if (document.head && document.getElementById('" + styleElementId + "')) {" +
                         "   var style = document.getElementById('" + styleElementId + "');" +
                         "   document.head.removeChild(style);" +
+                        "   window.night_mode_id_list = undefined;" +
                         "}" +
                         "var iframes = document.getElementsByTagName('iframe');" +
                         "for (var i = 0; i < iframes.length; i++) {" +
@@ -1611,6 +1633,7 @@ public class MainActivity extends Activity {
             return position;
         }
 
+        @SuppressLint("ClickableViewAccessibility")
         @Override
         @SuppressWarnings("ConstantConditions")
         public View getView(final int position, View convertView, ViewGroup parent) {
@@ -1632,6 +1655,13 @@ public class MainActivity extends Activity {
                 TextView t = (TextView) v1;
                 if (event.getX() > t.getWidth() - t.getCompoundPaddingRight()) {
                     commitListener.onSearchCommit(getItem(position).toString());
+                    return true;
+                }
+                return false;
+            });
+            //noinspection AndroidLintClickableViewAccessibility
+            parent.setOnTouchListener((dropdown, event) -> {
+                if (event.getX() > dropdown.getWidth() - size * 2) {
                     return true;
                 }
                 return false;
