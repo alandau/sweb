@@ -1364,6 +1364,7 @@ public class MainActivity extends Activity {
                         "if (!window.night_mode_id_list) night_mode_id_list = new Set();" +
                         "var newset = new Set();" +
                         "   for (var n of document.querySelectorAll(':not(a)')) { " +
+                        "     if (n.closest('a') != null) continue;" +
                         "     if (!n.id) n.id = 'night_mode_id_' + (night_mode_id_list.size + newset.size);" +
                         "     if (!night_mode_id_list.has(n.id)) newset.add(n.id); " +
                         "   }" +
