@@ -254,7 +254,12 @@ public class MainActivity extends Activity {
         String url;
     }
 
-    private ArrayList<TitleAndUrl> closedTabs = new ArrayList<>();
+    static class TitleAndBundle {
+        String title;
+        Bundle bundle;
+    }
+
+    private ArrayList<TitleAndBundle> closedTabs = new ArrayList<>();
 
     private Tab getCurrentTab() {
         return tabs.get(currentTabIndex);
@@ -265,10 +270,13 @@ public class MainActivity extends Activity {
     }
 
     @SuppressLint({"SetJavaScriptEnabled", "DefaultLocale"})
-    private WebView createWebView() {
+    private WebView createWebView(Bundle bundle) {
         final ProgressBar progressBar = findViewById(R.id.progressbar);
 
         WebView webview = new WebView(this);
+        if (bundle != null) {
+            webview.restoreState(bundle);
+        }
         webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
         WebSettings settings = webview.getSettings();
         settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
@@ -606,8 +614,7 @@ public class MainActivity extends Activity {
         dm.enqueue(request);
     }
 
-    private void newTab(String url) {
-        WebView webview = createWebView();
+    private void newTabCommon(WebView webview) {
         boolean isDesktopUA = !tabs.isEmpty() && getCurrentTab().isDesktopUA;
         webview.getSettings().setUserAgentString(isDesktopUA ? desktopUA : null);
         webview.getSettings().setUseWideViewPort(isDesktopUA);
@@ -618,7 +625,17 @@ public class MainActivity extends Activity {
         tabs.add(tab);
         webviews.addView(webview);
         setTabCountText(tabs.size());
+    }
+
+    private void newTab(String url) {
+        WebView webview = createWebView(null);
+        newTabCommon(webview);
         loadUrl(url, webview);
+    }
+
+    private void newTabFromBundle(Bundle bundle) {
+        WebView webview = createWebView(bundle);
+        newTabCommon(webview);
     }
 
     private void switchToTab(int tab) {
@@ -826,9 +843,9 @@ public class MainActivity extends Activity {
                 new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Undo closed tabs")
                         .setItems(items1, (dialog1, which1) -> {
-                            String url = closedTabs.get(which1).url;
+                            Bundle bundle = closedTabs.get(which1).bundle;
                             closedTabs.remove(which1);
-                            newTab(url);
+                            newTabFromBundle(bundle);
                             switchToTab(tabs.size() - 1);
                         })
                         .show();
@@ -1144,10 +1161,11 @@ public class MainActivity extends Activity {
 
     private void closeCurrentTab() {
         if (getCurrentWebView().getUrl() != null && !getCurrentWebView().getUrl().equals("about:blank")) {
-            TitleAndUrl titleAndUrl = new TitleAndUrl();
-            titleAndUrl.title = getCurrentWebView().getTitle();
-            titleAndUrl.url = getCurrentWebView().getUrl();
-            closedTabs.add(0, titleAndUrl);
+            TitleAndBundle titleAndBundle = new TitleAndBundle();
+            titleAndBundle.title = getCurrentWebView().getTitle();
+            titleAndBundle.bundle = new Bundle();
+            getCurrentWebView().saveState(titleAndBundle.bundle);
+            closedTabs.add(0, titleAndBundle);
         }
         ((FrameLayout) findViewById(R.id.webviews)).removeView(getCurrentWebView());
         getCurrentWebView().destroy();
