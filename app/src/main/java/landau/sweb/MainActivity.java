@@ -24,7 +24,6 @@ import android.database.sqlite.SQLiteStatement;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.DrawableContainer;
 import android.net.Uri;
 import android.net.http.SslCertificate;
 import android.net.http.SslError;
@@ -198,6 +197,7 @@ public class MainActivity extends Activity {
             new MenuAction("Find on page", R.drawable.find_on_page, this::findOnPage),
             new MenuAction("Page info", R.drawable.page_info, this::pageInfo),
             new MenuAction("Share URL", android.R.drawable.ic_menu_share, this::shareUrl),
+            new MenuAction("Open URL in app", android.R.drawable.ic_menu_view, this::openUrlInApp),
 
             new MenuAction("Back", R.drawable.back,
                     () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goBack();}),
@@ -240,7 +240,7 @@ public class MainActivity extends Activity {
 
     final String[] shortMenu = {
             "Desktop UA", "Log requests", "Find on page", "Page info", "Share URL",
-            "Full menu"
+            "Open URL in app",  "Full menu"
     };
 
     MenuAction getAction(String name) {
@@ -386,6 +386,25 @@ public class MainActivity extends Activity {
                     }
                 }
                 return super.shouldInterceptRequest(view, request);
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                // For intent:// URLs, redirect to browser_fallback_url if given
+                if (url.startsWith("intent://")) {
+                    int start = url.indexOf(";S.browser_fallback_url=");
+                    if (start != -1) {
+                        start += ";S.browser_fallback_url=".length();
+                        int end = url.indexOf(';', start);
+                        if (end != -1 && end != start) {
+                            url = url.substring(start, end);
+                            url = Uri.decode(url);
+                            view.loadUrl(url);
+                            return true;
+                        }
+                    }
+                }
+                return false;
             }
 
             @Override
@@ -1272,12 +1291,27 @@ public class MainActivity extends Activity {
                 .setAdapter(adapter, (dialog, which) -> menuActions[which].action.run())
                 .show();
     }
+
     private void shareUrl() {
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
         intent.putExtra(Intent.EXTRA_TEXT, getCurrentWebView().getUrl());
         intent.setType("text/plain");
         startActivity(Intent.createChooser(intent, "Share URL"));
+    }
+
+    private void openUrlInApp() {
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setData(Uri.parse(getCurrentWebView().getUrl()));
+        try {
+            startActivity(i);
+        } catch (ActivityNotFoundException e) {
+            new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Open in app")
+                    .setMessage("No app can open this URL.")
+                    .setPositiveButton("OK", (dialog1, which1) -> {})
+                    .show();
+        }
     }
 
     private void loadUrl(String url, WebView webview) {
