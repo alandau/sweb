@@ -840,7 +840,7 @@ public class MainActivity extends Activity {
                 for (int i = 0; i < closedTabs.size(); i++) {
                     items1[i] = closedTabs.get(i).title;
                 }
-                new AlertDialog.Builder(MainActivity.this)
+                AlertDialog undoClosedTabsDialog = new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Undo closed tabs")
                         .setItems(items1, (dialog1, which1) -> {
                             Bundle bundle = closedTabs.get(which1).bundle;
@@ -848,7 +848,20 @@ public class MainActivity extends Activity {
                             newTabFromBundle(bundle);
                             switchToTab(tabs.size() - 1);
                         })
-                        .show();
+                        .create();
+                undoClosedTabsDialog.getListView().setOnItemLongClickListener((parent, view, position, id) -> {
+                    undoClosedTabsDialog.dismiss();
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Remove closed tab?")
+                            .setMessage(closedTabs.get(position).title)
+                            .setNegativeButton("Cancel", (dlg, which1) -> {})
+                            .setPositiveButton("Remove", (dlg, which1) -> {
+                                closedTabs.remove(position);
+                            })
+                            .show();
+                    return true;
+                });
+                undoClosedTabsDialog.show();
             });
         }
         tabsDialog.show();
@@ -1166,6 +1179,9 @@ public class MainActivity extends Activity {
             titleAndBundle.bundle = new Bundle();
             getCurrentWebView().saveState(titleAndBundle.bundle);
             closedTabs.add(0, titleAndBundle);
+            if (closedTabs.size() > 500) {
+                closedTabs.remove(closedTabs.size() - 1);
+            }
         }
         ((FrameLayout) findViewById(R.id.webviews)).removeView(getCurrentWebView());
         getCurrentWebView().destroy();
