@@ -154,6 +154,7 @@ public class MainActivity extends Activity {
     private SQLiteDatabase placesDb;
 
     private ValueCallback<Uri[]> fileUploadCallback;
+    private boolean fileUploadCallbackShouldReset;
 
     private static class MenuAction {
 
@@ -331,12 +332,29 @@ public class MainActivity extends Activity {
                 fileUploadCallback = filePathCallback;
                 Intent intent = fileChooserParams.createIntent();
                 try {
+                    fileUploadCallbackShouldReset = true;
                     startActivityForResult(intent, FORM_FILE_CHOOSER);
+                    return true;
                 } catch (ActivityNotFoundException e) {
-                    Toast.makeText(MainActivity.this, "Can't open file chooser", Toast.LENGTH_SHORT).show();
-                    return false;
+                    // Continue below
                 }
-                return true;
+
+                // FileChooserParams.createIntent() copies the <input type=file> "accept" attribute to the intent's getType(),
+                // which can be e.g. ".png,.jpg" in addition to mime-type-style "image/*", however startActivityForResult()
+                // only accepts mime-type-style. Try with just */* instead.
+                intent.setType("*/*");
+                try {
+                    fileUploadCallbackShouldReset = false;
+                    startActivityForResult(intent, FORM_FILE_CHOOSER);
+                    return true;
+                } catch (ActivityNotFoundException e) {
+                    // Continue below
+                }
+
+                // Everything failed, let user know
+                Toast.makeText(MainActivity.this, "Can't open file chooser", Toast.LENGTH_SHORT).show();
+                fileUploadCallback = null;
+                return false;
             }
         });
         webview.setWebViewClient(new WebViewClient() {
@@ -763,8 +781,14 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == FORM_FILE_CHOOSER) {
             if (fileUploadCallback != null) {
-                fileUploadCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
-                fileUploadCallback = null;
+                // When the first file chooser activity fails to start due to an intent type not being a mime-type,
+                // we should not reset the callback since we'd be called back soon with the */* type.
+                if (fileUploadCallbackShouldReset) {
+                    fileUploadCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
+                    fileUploadCallback = null;
+                } else {
+                    fileUploadCallbackShouldReset = true;
+                }
             }
         }
     }
