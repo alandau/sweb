@@ -102,6 +102,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import landau.sweb.utils.ExceptionLogger;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
+import android.webkit.DownloadListener;
+import android.view.View.OnTouchListener;
+import android.view.View.*;
+import android.widget.AdapterView.OnItemLongClickListener;
+import android.widget.AdapterView;
+import android.content.DialogInterface.OnDismissListener;
+import java.lang.reflect.*;
+import net.gnu.sweb.R;
 
 public class MainActivity extends Activity {
 
@@ -182,54 +192,135 @@ public class MainActivity extends Activity {
         private Runnable action;
         private MyBooleanSupplier getState;
     }
+	static class Run implements Runnable {
+
+		private Object obj;
+		private String funcName;
+
+		private String TAG;
+		public Run(Object obj, String funcName) {
+			this.obj = obj;
+			this.funcName = funcName;
+		}
+
+		@Override
+		public void run() {
+			try {
+				Method m = obj.getClass().getMethod(funcName, new Class[]{});
+				m.setAccessible(true);
+				m.invoke(obj);
+			} catch (NoSuchMethodException e) {
+				Log.e(TAG, e.getMessage(), e);
+			} catch (IllegalArgumentException e) {
+				Log.e(TAG, e.getMessage(), e);
+			} catch (InvocationTargetException e) {
+				Log.e(TAG, e.getMessage(), e);
+			} catch (IllegalAccessException e) {
+				Log.e(TAG, e.getMessage(), e);
+			} 
+		}
+	}
+    static Run newR(Object obj, String funcName) {
+		return new Run(obj, funcName);
+	}
 
     @SuppressWarnings("unchecked")
     final MenuAction[] menuActions = new MenuAction[]{
-            new MenuAction("Desktop UA", R.drawable.ua, this::toggleDesktopUA, () -> getCurrentTab().isDesktopUA),
-            new MenuAction("3rd party cookies", R.drawable.cookies_3rdparty, this::toggleThirdPartyCookies,
-                    () -> CookieManager.getInstance().acceptThirdPartyCookies(getCurrentWebView())),
-            new MenuAction("Ad Blocker", R.drawable.adblocker, this::toggleAdblocker, () -> useAdBlocker),
-            new MenuAction("Update adblock rules", 0, this::updateAdblockRules),
-            new MenuAction("Night mode", R.drawable.night, this::toggleNightMode, () -> isNightMode),
-            new MenuAction("Show address bar", R.drawable.url_bar, this::toggleShowAddressBar, () -> et.getVisibility() == View.VISIBLE),
-            new MenuAction("Full screen", R.drawable.fullscreen, this::toggleFullscreen, () -> isFullscreen),
-            new MenuAction("Tab history", R.drawable.left_right, this::showTabHistory),
-            new MenuAction("Log requests", R.drawable.log_requests, this::toggleLogRequests, () -> isLogRequests),
-            new MenuAction("Find on page", R.drawable.find_on_page, this::findOnPage),
-            new MenuAction("Page info", R.drawable.page_info, this::pageInfo),
-            new MenuAction("Share URL", android.R.drawable.ic_menu_share, this::shareUrl),
-            new MenuAction("Open URL in app", android.R.drawable.ic_menu_view, this::openUrlInApp),
+		new MenuAction("Desktop UA", R.drawable.ua, newR(this,"toggleDesktopUA"), new MyBooleanSupplier() {
+				public boolean getAsBoolean() {
+					return getCurrentTab().isDesktopUA;
+				}}),
+		new MenuAction("3rd party cookies", R.drawable.cookies_3rdparty, newR(this,"toggleThirdPartyCookies"),
+			new MyBooleanSupplier() {
+				public boolean getAsBoolean() {
+					return CookieManager.getInstance().acceptThirdPartyCookies(getCurrentWebView());
+				}}),
+		new MenuAction("Ad Blocker", R.drawable.adblocker, newR(this,"toggleAdblocker"), new MyBooleanSupplier() {
+				public boolean getAsBoolean() {
+					return useAdBlocker;
+				}} ),
+		new MenuAction("Update adblock rules", 0, newR(this,"updateAdblockRules")),
+		new MenuAction("Night mode", R.drawable.night, newR(this,"toggleNightMode"), new MyBooleanSupplier() {
+				public boolean getAsBoolean() {
+					return isNightMode;
+				}} ),
+		new MenuAction("Show address bar", R.drawable.url_bar, newR(this,"toggleShowAddressBar"), new MyBooleanSupplier() {
+				public boolean getAsBoolean() {
+					return et.getVisibility() == View.VISIBLE;
+				}} ),
+		new MenuAction("Full screen", R.drawable.fullscreen, newR(this,"toggleFullscreen"), new MyBooleanSupplier() {
+				public boolean getAsBoolean() {
+					return isFullscreen;
+				}} ),
+		new MenuAction("Tab history", R.drawable.left_right, newR(this,"showTabHistory")),
+		new MenuAction("Log requests", R.drawable.log_requests, newR(this,"toggleLogRequests"), new MyBooleanSupplier() {
+				public boolean getAsBoolean() {
+					return isLogRequests;
+				}}),
+		new MenuAction("Find on page", R.drawable.find_on_page, newR(this,"findOnPage")),
+		new MenuAction("Page info", R.drawable.page_info, newR(this,"pageInfo")),
+		new MenuAction("Share URL", android.R.drawable.ic_menu_share, newR(this,"shareUrl")),
+		new MenuAction("Open URL in app", android.R.drawable.ic_menu_view, newR(this,"openUrlInApp")),
 
-            new MenuAction("Back", R.drawable.back,
-                    () -> {if (getCurrentWebView().canGoBack()) getCurrentWebView().goBack();}),
-            new MenuAction("Forward", R.drawable.forward,
-                    () -> {if (getCurrentWebView().canGoForward()) getCurrentWebView().goForward();}),
-            new MenuAction("Reload", R.drawable.reload, () -> getCurrentWebView().reload()),
-            new MenuAction("Stop", R.drawable.stop, () -> getCurrentWebView().stopLoading()),
-            new MenuAction("Scroll to top", R.drawable.top,
-                    () -> getCurrentWebView().pageUp(true)),
-            new MenuAction("Scroll to bottom", R.drawable.bottom,
-                    () -> getCurrentWebView().pageDown(true)),
+		new MenuAction("Back", R.drawable.back, new Runnable() {
+				@Override
+				public void run() {
+					if (getCurrentWebView().canGoBack()) getCurrentWebView().goBack();
+				}
+			}),
+		new MenuAction("Forward", R.drawable.forward, new Runnable() {
+				@Override
+				public void run() {
+					if (getCurrentWebView().canGoForward()) getCurrentWebView().goForward();
+				}
+			}),
+		new MenuAction("Reload", R.drawable.reload, new Runnable() {
+				@Override
+				public void run() {
+					getCurrentWebView().reload();
+				}
+			}),
+		new MenuAction("Stop", R.drawable.stop, new Runnable() {
+				@Override
+				public void run() {
+					getCurrentWebView().stopLoading();
+				}
+			}),
+		new MenuAction("Scroll to top", R.drawable.top, new Runnable() {
+				@Override
+				public void run() {
+					getCurrentWebView().pageUp(true);
+				}
+			}),
+		new MenuAction("Scroll to bottom", R.drawable.bottom, new Runnable() {
+				@Override
+				public void run() {
+					getCurrentWebView().pageDown(true);
+				}
+			}),
 
-            new MenuAction("Menu", R.drawable.menu, this::showMenu),
-            new MenuAction("Full menu", R.drawable.menu, this::showFullMenu),
+		new MenuAction("Menu", R.drawable.menu, newR(this,"showMenu")),
+		new MenuAction("Full menu", R.drawable.menu, newR(this,"showFullMenu")),
 
-            new MenuAction("Bookmarks", R.drawable.bookmarks, this::showBookmarks),
-            new MenuAction("Add bookmark", R.drawable.bookmark_add, this::addBookmark),
-            new MenuAction("Export bookmarks", R.drawable.bookmarks_export, this::exportBookmarks),
-            new MenuAction("Import bookmarks", R.drawable.bookmarks_import, this::importBookmarks),
-            new MenuAction("Delete all bookmarks", 0, this::deleteAllBookmarks),
+		new MenuAction("Bookmarks", R.drawable.bookmarks, newR(this,"showBookmarks")),
+		new MenuAction("Add bookmark", R.drawable.bookmark_add, newR(this,"addBookmark")),
+		new MenuAction("Export bookmarks", R.drawable.bookmarks_export, newR(this,"exportBookmarks")),
+		new MenuAction("Import bookmarks", R.drawable.bookmarks_import, newR(this,"importBookmarks")),
+		new MenuAction("Delete all bookmarks", 0, newR(this,"deleteAllBookmarks")),
 
-            new MenuAction("Clear history and cache", 0, this::clearHistoryCache),
+		new MenuAction("Clear history and cache", 0, newR(this,"clearHistoryCache")),
 
-            new MenuAction("Show tabs", R.drawable.tabs, this::showOpenTabs),
-            new MenuAction("New tab", R.drawable.tab_new, () -> {
-                newTab("");
-                switchToTab(tabs.size() - 1);
-            }),
-            new MenuAction("Close tab", R.drawable.tab_close, this::closeCurrentTab),
-    };
-
+		new MenuAction("Show tabs", R.drawable.tabs, newR(this,"showOpenTabs")),
+		new MenuAction("New tab", R.drawable.tab_new, new Runnable() {
+				@Override
+				public void run() {
+					newTab("");
+					switchToTab(tabs.size() - 1);
+				}
+			}),
+		new MenuAction("Close tab", R.drawable.tab_close, newR(this,"closeCurrentTab")),
+	};
+	
     final String[][] toolbarActions = {
             {"Back", "Scroll to top", "Tab history"},
             {"Forward", "Scroll to bottom", "Ad Blocker"},
@@ -272,7 +363,7 @@ public class MainActivity extends Activity {
 
     @SuppressLint({"SetJavaScriptEnabled", "DefaultLocale"})
     private WebView createWebView(Bundle bundle) {
-        final ProgressBar progressBar = findViewById(R.id.progressbar);
+        final ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressbar);
 
         WebView webview = new WebView(this);
         if (bundle != null) {
@@ -306,7 +397,7 @@ public class MainActivity extends Activity {
                 fullScreenView[0] = view;
                 fullScreenCallback[0] = callback;
                 MainActivity.this.findViewById(R.id.main_layout).setVisibility(View.INVISIBLE);
-                ViewGroup fullscreenLayout = MainActivity.this.findViewById(R.id.fullScreenVideo);
+                ViewGroup fullscreenLayout = (ViewGroup) MainActivity.this.findViewById(R.id.fullScreenVideo);
                 fullscreenLayout.addView(view);
                 fullscreenLayout.setVisibility(View.VISIBLE);
             }
@@ -315,7 +406,7 @@ public class MainActivity extends Activity {
             public void onHideCustomView() {
                 if (fullScreenView[0] == null) return;
 
-                ViewGroup fullscreenLayout = MainActivity.this.findViewById(R.id.fullScreenVideo);
+                ViewGroup fullscreenLayout = (ViewGroup) MainActivity.this.findViewById(R.id.fullScreenVideo);
                 fullscreenLayout.removeView(fullScreenView[0]);
                 fullscreenLayout.setVisibility(View.GONE);
                 fullScreenView[0] = null;
@@ -389,12 +480,15 @@ public class MainActivity extends Activity {
                         .setTitle(host)
                         .setView(R.layout.login_password)
                         .setCancelable(false)
-                        .setPositiveButton("OK", (dialog, which) -> {
+					.setPositiveButton("OK", new OnClickListener() {
+						public void onClick(DialogInterface dialog, int which) {
                             String username = ((EditText) ((Dialog) dialog).findViewById(R.id.username)).getText().toString();
                             String password = ((EditText) ((Dialog) dialog).findViewById(R.id.password)).getText().toString();
                             handler.proceed(username, password);
-                        })
-                        .setNegativeButton("Cancel", (dialog, which) -> handler.cancel()).show();
+                        }})
+					.setNegativeButton("Cancel", new OnClickListener() {
+						public void onClick(DialogInterface dialog, int which) {
+							handler.cancel();}}).show();
             }
 
             final InputStream emptyInputStream = new ByteArrayInputStream(new byte[0]);
@@ -443,19 +537,24 @@ public class MainActivity extends Activity {
             final String[] sslErrors = {"Not yet valid", "Expired", "Hostname mismatch", "Untrusted CA", "Invalid date", "Unknown error"};
 
             @Override
-            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+            public void onReceivedSslError(WebView view, final SslErrorHandler handler, SslError error) {
                 int primaryError = error.getPrimaryError();
                 String errorStr = primaryError >= 0 && primaryError < sslErrors.length ? sslErrors[primaryError] : "Unknown error " + primaryError;
                 new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Insecure connection")
                         .setMessage(String.format("Error: %s\nURL: %s\n\nCertificate:\n%s",
                                 errorStr, error.getUrl(), certificateToStr(error.getCertificate())))
-                        .setPositiveButton("Proceed", (dialog, which) -> handler.proceed())
-                        .setNegativeButton("Cancel", (dialog, which) -> handler.cancel())
+					.setPositiveButton("Proceed", new OnClickListener() {
+						public void onClick(DialogInterface dialog, int which) {
+							handler.proceed();}})
+				.setNegativeButton("Cancel", new OnClickListener() {
+						public void onClick(DialogInterface dialog, int which) {
+							handler.cancel();}})
                         .show();
             }
         });
-        webview.setOnLongClickListener(v -> {
+        webview.setOnLongClickListener(new View.OnLongClickListener() {
+	public boolean onLongClick(android.view.View v) {
             String url = null, imageUrl = null;
             WebView.HitTestResult r = ((WebView) v).getHitTestResult();
             switch (r.getType()) {
@@ -488,40 +587,51 @@ public class MainActivity extends Activity {
             }
             showLongPressMenu(url, imageUrl);
             return true;
-        });
-        webview.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
-            String filename = URLUtil.guessFileName(url, contentDisposition, mimetype);
-            new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("Download")
-                    .setMessage(String.format("Filename: %s\nSize: %.2f MB\nURL: %s",
-                            filename,
-                            contentLength / 1024.0 / 1024.0,
-                            url))
-                    .setPositiveButton("Download", (dialog, which) -> startDownload(url, filename))
-                    .setNeutralButton("Open", (dialog, which) -> {
-                        Intent i = new Intent(Intent.ACTION_VIEW);
-                        i.setData(Uri.parse(url));
-                        try {
-                            startActivity(i);
-                        } catch (ActivityNotFoundException e) {
-                            new AlertDialog.Builder(MainActivity.this)
-                                    .setTitle("Open")
-                                    .setMessage("Can't open files of this type. Try downloading instead.")
-                                    .setPositiveButton("OK", (dialog1, which1) -> {})
-                                    .show();
-                        }
-                    })
-                    .setNegativeButton("Cancel", (dialog, which) -> {})
-                    .show();
-        });
-        webview.setFindListener((activeMatchOrdinal, numberOfMatches, isDoneCounting) ->
-                searchCount.setText(numberOfMatches == 0 ? "Not found" :
-                        String.format("%d / %d", activeMatchOrdinal + 1, numberOfMatches)));
+        }});
+        webview.setDownloadListener(new DownloadListener() {
+				public void onDownloadStart(final String url, final String userAgent, final String contentDisposition, final String mimetype, final long contentLength) {
+					final String filename = URLUtil.guessFileName(url, contentDisposition, mimetype);
+					new AlertDialog.Builder(MainActivity.this)
+						.setTitle("Download")
+						.setMessage(String.format("Filename: %s\nSize: %.2f MB\nURL: %s",
+												  filename,
+												  contentLength / 1024.0 / 1024.0,
+												  url))
+						.setPositiveButton("Download", new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which) {
+								startDownload(url, filename);}})
+						.setNeutralButton("Open", new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which) {
+
+								Intent i = new Intent(Intent.ACTION_VIEW);
+								i.setData(Uri.parse(url));
+								try {
+									startActivity(i);
+								} catch (ActivityNotFoundException e) {
+									new AlertDialog.Builder(MainActivity.this)
+										.setTitle("Open")
+										.setMessage("Can't open files of this type. Try downloading instead.")
+										.setPositiveButton("OK", new OnClickListener() {
+											public void onClick(DialogInterface dialog, int which) {
+											}})
+										.show();
+								}
+							}})
+						.setNegativeButton("Cancel", new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which) {
+							}})
+						.show();
+				}});
+        webview.setFindListener(new WebView.FindListener() {
+				public void onFindResultReceived(int activeMatchOrdinal, int numberOfMatches, boolean isDoneCounting) {
+					searchCount.setText(numberOfMatches == 0 ? "Not found" :
+										String.format("%d / %d", activeMatchOrdinal + 1, numberOfMatches));
+				}});
         return webview;
     }
 
-    private void showLongPressMenu(String linkUrl, String imageUrl) {
-        String url;
+    private void showLongPressMenu(String linkUrl, final String imageUrl) {
+        final String url;
         String title;
         String[] options = new String[]{"Open in new tab", "Copy URL", "Show full URL", "Download"};
 
@@ -548,7 +658,9 @@ public class MainActivity extends Activity {
                 options = newOptions;
             }
         }
-        new AlertDialog.Builder(MainActivity.this).setTitle(title).setItems(options, (dialog, which) -> {
+        new AlertDialog.Builder(MainActivity.this).setTitle(title).setItems(options, new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					
             switch (which) {
                 case 0:
                     newTab(url);
@@ -563,7 +675,9 @@ public class MainActivity extends Activity {
                     new AlertDialog.Builder(MainActivity.this)
                             .setTitle("Full URL")
                             .setMessage(url)
-                            .setPositiveButton("OK", (dialog1, which1) -> {})
+						.setPositiveButton("OK", new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which) {
+							}})
                             .show();
                     break;
                 case 3:
@@ -573,7 +687,7 @@ public class MainActivity extends Activity {
                     showLongPressMenu(null, imageUrl);
                     break;
             }
-        }).show();
+        }}).show();
     }
 
     @SuppressLint("DefaultLocale")
@@ -617,7 +731,9 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(MainActivity.this)
                     .setTitle("Can't Download URL")
                     .setMessage(url)
-                    .setPositiveButton("OK", (dialog1, which1) -> {})
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
                     .show();
             return;
         }
@@ -695,42 +811,47 @@ public class MainActivity extends Activity {
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         setContentView(R.layout.activity_main);
-        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> updateFullScreen());
+        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
+				public void onSystemUiVisibilityChange(int p1) {
+					updateFullScreen();}});
 
         isFullscreen = false;
         isNightMode = prefs.getBoolean("night_mode", false);
 
-        webviews = findViewById(R.id.webviews);
+        webviews = (FrameLayout) findViewById(R.id.webviews);
         currentTabIndex = 0;
 
-        et = findViewById(R.id.et);
+        et = (AutoCompleteTextView) findViewById(R.id.et);
 
         // setup edit text
         et.setSelected(false);
         String initialUrl = getUrlFromIntent(getIntent());
         et.setText(initialUrl.isEmpty() ? "about:blank" : initialUrl);
-        et.setAdapter(new SearchAutocompleteAdapter(this, text -> {
-            et.setText(text);
-            et.setSelection(text.length());
-        }));
-        et.setOnItemClickListener((parent, view, position, id) -> {
-            getCurrentWebView().requestFocus();
-            loadUrl(et.getText().toString(), getCurrentWebView());
-        });
+        et.setAdapter(new SearchAutocompleteAdapter(this, new SearchAutocompleteAdapter.OnSearchCommitListener() {
+							  public void onSearchCommit(String text) {
+								  et.setText(text);
+								  et.setSelection(text.length());
+							  }}));
+        et.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+					getCurrentWebView().requestFocus();
+					loadUrl(et.getText().toString(), getCurrentWebView());
+				}});
 
-        setupToolbar(findViewById(R.id.toolbar));
+        setupToolbar((ViewGroup)findViewById(R.id.toolbar));
 
-        et.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
-                loadUrl(et.getText().toString(), getCurrentWebView());
-                getCurrentWebView().requestFocus();
-                return true;
-            } else {
-                return false;
-            }
-        });
+        et.setOnKeyListener(new View.OnKeyListener() {
+				public boolean onKey(View v, int keyCode, KeyEvent event) {
+					if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
+						loadUrl(et.getText().toString(), getCurrentWebView());
+						getCurrentWebView().requestFocus();
+						return true;
+					} else {
+						return false;
+					}
+				}});
 
-        searchEdit = findViewById(R.id.searchEdit);
+        searchEdit = (EditText) findViewById(R.id.searchEdit);
         searchEdit.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -743,22 +864,25 @@ public class MainActivity extends Activity {
             @Override
             public void afterTextChanged(Editable s) {}
         });
-        searchCount = findViewById(R.id.searchCount);
-        findViewById(R.id.searchFindNext).setOnClickListener(v -> {
-            hideKeyboard();
-            getCurrentWebView().findNext(true);
-        });
-        findViewById(R.id.searchFindPrev).setOnClickListener(v -> {
-            hideKeyboard();
-            getCurrentWebView().findNext(false);
-        });
-        findViewById(R.id.searchClose).setOnClickListener(v -> {
-            getCurrentWebView().clearMatches();
-            searchEdit.setText("");
-            getCurrentWebView().requestFocus();
-            findViewById(R.id.searchPane).setVisibility(View.GONE);
-            hideKeyboard();
-        });
+        searchCount = (TextView) findViewById(R.id.searchCount);
+        findViewById(R.id.searchFindNext).setOnClickListener(new View.OnClickListener() {
+				public void onClick(View v) {
+					hideKeyboard();
+					getCurrentWebView().findNext(true);
+				}});
+        findViewById(R.id.searchFindPrev).setOnClickListener(new View.OnClickListener() {
+				public void onClick(View v) {
+					hideKeyboard();
+					getCurrentWebView().findNext(false);
+				}});
+        findViewById(R.id.searchClose).setOnClickListener(new View.OnClickListener() {
+				public void onClick(View v) {
+					getCurrentWebView().clearMatches();
+					searchEdit.setText("");
+					getCurrentWebView().requestFocus();
+					findViewById(R.id.searchPane).setVisibility(View.GONE);
+					hideKeyboard();
+				}});
 
         useAdBlocker = prefs.getBoolean("adblocker", true);
         initAdblocker();
@@ -801,7 +925,7 @@ public class MainActivity extends Activity {
 
     private void maybeSetupTabCountTextView(View view, String name) {
         if ("Show tabs".equals(name)) {
-            txtTabCount = view.findViewById(R.id.txtText);
+            txtTabCount = (TextView) view.findViewById(R.id.txtText);
         }
     }
 
@@ -832,7 +956,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void pageInfo() {
+    public void pageInfo() {
         String s = "URL: " + getCurrentWebView().getUrl() + "\n";
         s += "Title: " + getCurrentWebView().getTitle() + "\n\n";
         SslCertificate certificate = getCurrentWebView().getCertificate();
@@ -841,11 +965,13 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setTitle("Page info")
                 .setMessage(s)
-                .setPositiveButton("OK", (dialog, which) -> {})
+			.setPositiveButton("OK", new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+				}})
                 .show();
     }
 
-    private void showOpenTabs() {
+    public void showOpenTabs() {
         String[] items = new String[tabs.size()];
         for (int i = 0; i < tabs.size(); i++) {
             items[i] = tabs.get(i).webview.getTitle();
@@ -857,41 +983,49 @@ public class MainActivity extends Activity {
                 currentTabIndex);
         AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
                 .setTitle("Tabs")
-                .setAdapter(adapter, (dialog, which) -> switchToTab(which));
+			.setAdapter(adapter, new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					switchToTab(which);}});
         if (!closedTabs.isEmpty()) {
-            tabsDialog.setNeutralButton("Undo closed tabs", (dialog, which) -> {
-                String[] items1 = new String[closedTabs.size()];
-                for (int i = 0; i < closedTabs.size(); i++) {
-                    items1[i] = closedTabs.get(i).title;
-                }
-                AlertDialog undoClosedTabsDialog = new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Undo closed tabs")
-                        .setItems(items1, (dialog1, which1) -> {
-                            Bundle bundle = closedTabs.get(which1).bundle;
-                            closedTabs.remove(which1);
-                            newTabFromBundle(bundle);
-                            switchToTab(tabs.size() - 1);
-                        })
-                        .create();
-                undoClosedTabsDialog.getListView().setOnItemLongClickListener((parent, view, position, id) -> {
-                    undoClosedTabsDialog.dismiss();
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("Remove closed tab?")
-                            .setMessage(closedTabs.get(position).title)
-                            .setNegativeButton("Cancel", (dlg, which1) -> {})
-                            .setPositiveButton("Remove", (dlg, which1) -> {
-                                closedTabs.remove(position);
-                            })
-                            .show();
-                    return true;
-                });
-                undoClosedTabsDialog.show();
-            });
+            tabsDialog.setNeutralButton("Undo closed tabs", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+						String[] items1 = new String[closedTabs.size()];
+						for (int i = 0; i < closedTabs.size(); i++) {
+							items1[i] = closedTabs.get(i).title;
+						}
+						final AlertDialog undoClosedTabsDialog = new AlertDialog.Builder(MainActivity.this)
+							.setTitle("Undo closed tabs")
+							.setItems(items1, new OnClickListener() {
+								public void onClick(DialogInterface dialog, int which1) {
+									Bundle bundle = closedTabs.get(which1).bundle;
+									closedTabs.remove(which1);
+									newTabFromBundle(bundle);
+									switchToTab(tabs.size() - 1);
+								}})
+							.create();
+						undoClosedTabsDialog.getListView().setOnItemLongClickListener(new OnItemLongClickListener() {
+								public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, long id) {
+									undoClosedTabsDialog.dismiss();
+									new AlertDialog.Builder(MainActivity.this)
+										.setTitle("Remove closed tab?")
+										.setMessage(closedTabs.get(position).title)
+										.setNegativeButton("Cancel", new OnClickListener() {
+											public void onClick(DialogInterface dialog, int which) {
+											}})
+										.setPositiveButton("Remove", new OnClickListener() {
+											public void onClick(DialogInterface dialog, int which) {
+												closedTabs.remove(position);
+											}})
+										.show();
+									return true;
+								}});
+						undoClosedTabsDialog.show();
+					}});
         }
         tabsDialog.show();
     }
 
-    private void showTabHistory() {
+    public void showTabHistory() {
         WebBackForwardList list = getCurrentWebView().copyBackForwardList();
         final int size = list.getSize();
         final int idx = size - list.getCurrentIndex() - 1;
@@ -906,20 +1040,22 @@ public class MainActivity extends Activity {
                 idx);
         new AlertDialog.Builder(this)
                 .setTitle("Navigation History")
-                .setAdapter(adapter, (dialog, which) -> getCurrentWebView().goBackOrForward(idx - which))
+			.setAdapter(adapter, new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					getCurrentWebView().goBackOrForward(idx - which);}})
                 .show();
     }
 
-    private void toggleFullscreen() {
+    public void toggleFullscreen() {
         isFullscreen = !isFullscreen;
         updateFullScreen();
     }
 
-    private void toggleShowAddressBar() {
+    public void toggleShowAddressBar() {
         et.setVisibility(et.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
     }
 
-    private void toggleNightMode() {
+    public void toggleNightMode() {
         isNightMode = !isNightMode;
         prefs.edit().putBoolean("night_mode", isNightMode).apply();
         onNightModeChange();
@@ -933,14 +1069,14 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void toggleAdblocker() {
+    public void toggleAdblocker() {
         useAdBlocker = !useAdBlocker;
         initAdblocker();
         prefs.edit().putBoolean("adblocker", useAdBlocker).apply();
         Toast.makeText(MainActivity.this, "Ad Blocker " + (useAdBlocker ? "enabled" : "disabled"), Toast.LENGTH_SHORT).show();
     }
 
-    private void updateAdblockRules() {
+    public void updateAdblockRules() {
         getLoaderManager().restartLoader(0, null, new LoaderManager.LoaderCallbacks<Integer>() {
             @Override
             public Loader<Integer> onCreateLoader(int id, Bundle args) {
@@ -961,69 +1097,78 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void showBookmarks() {
+    public void showBookmarks() {
         if (placesDb == null) return;
-        Cursor cursor = placesDb.rawQuery("SELECT title, url, id as _id FROM bookmarks", null);
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Bookmarks")
-                .setOnDismissListener(dlg -> cursor.close())
-                .setCursor(cursor, (dlg, which) -> {
-                            cursor.moveToPosition(which);
-                            String url = cursor.getString(cursor.getColumnIndex("url"));
-                            et.setText(url);
-                            loadUrl(url, getCurrentWebView());
-                        }, "title")
-                .create();
-        dialog.getListView().setOnItemLongClickListener((parent, view, position, id) -> {
-            cursor.moveToPosition(position);
-            int rowid = cursor.getInt(cursor.getColumnIndex("_id"));
-            String title = cursor.getString(cursor.getColumnIndex("title"));
-            String url = cursor.getString(cursor.getColumnIndex("url"));
-            dialog.dismiss();
-            new AlertDialog.Builder(MainActivity.this)
-                    .setTitle(title)
-                    .setItems(new String[] {"Rename", "Change URL", "Delete"}, (dlg, which) -> {
-                        switch (which) {
-                            case 0: {
-                                EditText editView = new EditText(this);
-                                editView.setText(title);
-                                new AlertDialog.Builder(this)
-                                        .setTitle("Rename bookmark")
-                                        .setView(editView)
-                                        .setPositiveButton("Rename", (renameDlg, which1) -> {
-                                            placesDb.execSQL("UPDATE bookmarks SET title=? WHERE id=?", new Object[] {editView.getText(), rowid});
-                                        })
-                                        .setNegativeButton("Cancel", (renameDlg, which1) -> {
-                                        })
-                                        .show();
-                                break;
-                            }
-                            case 1: {
-                                EditText editView = new EditText(this);
-                                editView.setText(url);
-                                new AlertDialog.Builder(this)
-                                        .setTitle("Change bookmark URL")
-                                        .setView(editView)
-                                        .setPositiveButton("Change URL", (renameDlg, which1) -> {
-                                            placesDb.execSQL("UPDATE bookmarks SET url=? WHERE id=?", new Object[] {editView.getText(), rowid});
-                                        })
-                                        .setNegativeButton("Cancel", (renameDlg, which1) -> {
-                                        })
-                                        .show();
-                                break;
-                            }
-                            case 2:
-                                placesDb.execSQL("DELETE FROM bookmarks WHERE id = ?", new Object[] {rowid});
-                                break;
-                        }
-                    })
-                    .show();
-            return true;
-        });
+        final Cursor cursor = placesDb.rawQuery("SELECT title, url, id as _id FROM bookmarks", null);
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+			.setTitle("Bookmarks")
+			.setOnDismissListener(new OnDismissListener() {
+				public void onDismiss(android.content.DialogInterface p1) {
+					cursor.close();}})
+			.setCursor(cursor, new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					cursor.moveToPosition(which);
+					String url = cursor.getString(cursor.getColumnIndex("url"));
+					et.setText(url);
+					loadUrl(url, getCurrentWebView());
+				}}, "title")
+			.create();
+        dialog.getListView().setOnItemLongClickListener(new OnItemLongClickListener() {
+				public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+					cursor.moveToPosition(position);
+					final int rowid = cursor.getInt(cursor.getColumnIndex("_id"));
+					final String title = cursor.getString(cursor.getColumnIndex("title"));
+					final String url = cursor.getString(cursor.getColumnIndex("url"));
+					dialog.dismiss();
+					new AlertDialog.Builder(MainActivity.this)
+						.setTitle(title)
+						.setItems(new String[] {"Rename", "Change URL", "Delete"}, new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which) {
+								switch (which) {
+									case 0: {
+											final EditText editView = new EditText(MainActivity.this);
+											editView.setText(title);
+											new AlertDialog.Builder(MainActivity.this)
+												.setTitle("Rename bookmark")
+												.setView(editView)
+												.setPositiveButton("Rename", new OnClickListener() {
+													public void onClick(DialogInterface dialog, int which) {
+														placesDb.execSQL("UPDATE bookmarks SET title=? WHERE id=?", new Object[] {editView.getText(), rowid});
+													}})
+												.setNegativeButton("Cancel", new OnClickListener() {
+													public void onClick(DialogInterface dialog, int which) {
+													}})
+												.show();
+											break;
+										}
+									case 1: {
+											final EditText editView = new EditText(MainActivity.this);
+											editView.setText(url);
+											new AlertDialog.Builder(MainActivity.this)
+												.setTitle("Change bookmark URL")
+												.setView(editView)
+												.setPositiveButton("Change URL", new OnClickListener() {
+													public void onClick(DialogInterface dialog, int which) {
+														placesDb.execSQL("UPDATE bookmarks SET url=? WHERE id=?", new Object[] {editView.getText(), rowid});
+													}})
+												.setNegativeButton("Cancel", new OnClickListener() {
+													public void onClick(DialogInterface dialog, int which) {
+													}})
+												.show();
+											break;
+										}
+									case 2:
+										placesDb.execSQL("DELETE FROM bookmarks WHERE id = ?", new Object[] {rowid});
+										break;
+								}
+							}})
+						.show();
+					return true;
+				}});
         dialog.show();
     }
 
-    private void addBookmark() {
+    public void addBookmark() {
         if (placesDb == null) return;
         ContentValues values = new ContentValues(2);
         values.put("title", getCurrentWebView().getTitle());
@@ -1031,12 +1176,14 @@ public class MainActivity extends Activity {
         placesDb.insert("bookmarks", null, values);
     }
 
-    private void exportBookmarks() {
+    public void exportBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
                     .setTitle("Export bookmarks error")
                     .setMessage("Can't open bookmarks database")
-                    .setPositiveButton("OK", (dialog, which) -> {})
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
                     .show();
             return;
         }
@@ -1045,17 +1192,20 @@ public class MainActivity extends Activity {
                 PERMISSION_REQUEST_EXPORT_BOOKMARKS)) {
             return;
         }
-        File file = new File(Environment.getExternalStorageDirectory(), "bookmarks.html");
+        final File file = new File(Environment.getExternalStorageDirectory(), "bookmarks.html");
         if (file.exists()) {
             new AlertDialog.Builder(this)
                     .setTitle("Export bookmarks")
                     .setMessage("The file bookmarks.html already exists on SD card. Overwrite?")
-                    .setNegativeButton("Cancel", (dialog, which) -> {})
-                    .setPositiveButton("Overwrite", (dialog, which) -> {
+				.setNegativeButton("Cancel", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
+			.setPositiveButton("Overwrite", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
                         //noinspection ResultOfMethodCallIgnored
                         file.delete();
                         exportBookmarks();
-                    })
+                    }})
                     .show();
             return;
         }
@@ -1087,18 +1237,22 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Export bookmarks error")
                     .setMessage(e.toString())
-                    .setPositiveButton("OK", (dialog, which) -> {})
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
                     .show();
         }
     }
 
     @SuppressLint("DefaultLocale")
-    private void importBookmarks() {
+    public void importBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
                     .setTitle("Import bookmarks error")
                     .setMessage("Can't open bookmarks database")
-                    .setPositiveButton("OK", (dialog, which) -> {})
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
                     .show();
             return;
         }
@@ -1122,14 +1276,18 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Import bookmarks error")
                     .setMessage("Bookmarks should be placed in a bookmarks.html file on the SD Card")
-                    .setPositiveButton("OK", (dialog, which) -> {})
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
                     .show();
             return;
         } catch (IOException e) {
             new AlertDialog.Builder(this)
                     .setTitle("Import bookmarks error")
                     .setMessage(e.toString())
-                    .setPositiveButton("OK", (dialog, which) -> {})
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
                     .show();
             return;
         }
@@ -1150,7 +1308,9 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Import bookmarks")
                     .setMessage("No bookmarks found in bookmarks.html")
-                    .setPositiveButton("OK", (dialog, which) -> {})
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
                     .show();
             return;
         }
@@ -1170,24 +1330,30 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void deleteAllBookmarks() {
+    public void deleteAllBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
                     .setTitle("Bookmarks error")
                     .setMessage("Can't open bookmarks database")
-                    .setPositiveButton("OK", (dialog, which) -> {})
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
                     .show();
             return;
         }
         new AlertDialog.Builder(this)
                 .setTitle("Delete all bookmarks?")
                 .setMessage("This action cannot be undone")
-                .setNegativeButton("Cancel", (dialog, which) -> {})
-                .setPositiveButton("Delete All", (dialog, which) -> placesDb.execSQL("DELETE FROM bookmarks"))
+			.setNegativeButton("Cancel", new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+				}})
+			.setPositiveButton("Delete All", new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					placesDb.execSQL("DELETE FROM bookmarks");}})
                 .show();
     }
 
-    private void clearHistoryCache() {
+    public void clearHistoryCache() {
         WebView v = getCurrentWebView();
         v.clearCache(true);
         v.clearFormData();
@@ -1196,7 +1362,7 @@ public class MainActivity extends Activity {
         WebStorage.getInstance().deleteAllData();
     }
 
-    private void closeCurrentTab() {
+    public void closeCurrentTab() {
         if (getCurrentWebView().getUrl() != null && !getCurrentWebView().getUrl().equals("about:blank")) {
             TitleAndBundle titleAndBundle = new TitleAndBundle();
             titleAndBundle.title = getCurrentWebView().getTitle();
@@ -1245,7 +1411,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void onNightModeChange() {
+    public void onNightModeChange() {
         if (isNightMode) {
             int textColor = Color.rgb(0x61, 0x61, 0x5f);
             int backgroundColor = Color.rgb(0x22, 0x22, 0x22);
@@ -1278,7 +1444,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void toggleDesktopUA() {
+    public void toggleDesktopUA() {
         Tab tab = getCurrentTab();
         tab.isDesktopUA = !tab.isDesktopUA;
         getCurrentWebView().getSettings().setUserAgentString(tab.isDesktopUA ? desktopUA : null);
@@ -1286,13 +1452,13 @@ public class MainActivity extends Activity {
         getCurrentWebView().reload();
     }
 
-    private void toggleThirdPartyCookies() {
+    public void toggleThirdPartyCookies() {
         CookieManager cookieManager = CookieManager.getInstance();
         boolean newValue = !cookieManager.acceptThirdPartyCookies(getCurrentWebView());
         cookieManager.setAcceptThirdPartyCookies(getCurrentWebView(), newValue);
     }
 
-    private void toggleLogRequests() {
+    public void toggleLogRequests() {
         isLogRequests = !isLogRequests;
         if (isLogRequests) {
             // Start logging
@@ -1317,15 +1483,15 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void findOnPage() {
+    public void findOnPage() {
         searchEdit.setText("");
         findViewById(R.id.searchPane).setVisibility(View.VISIBLE);
         searchEdit.requestFocus();
         showKeyboard();
     }
 
-    private void showMenu() {
-        MenuAction[] shortMenuActions = new MenuAction[shortMenu.length];
+    public void showMenu() {
+        final MenuAction[] shortMenuActions = new MenuAction[shortMenu.length];
         for (int i = 0; i < shortMenu.length; i++) {
             shortMenuActions[i] = getAction(shortMenu[i]);
         }
@@ -1335,22 +1501,26 @@ public class MainActivity extends Activity {
                 shortMenuActions);
         new AlertDialog.Builder(MainActivity.this)
                 .setTitle("Actions")
-                .setAdapter(adapter, (dialog, which) -> shortMenuActions[which].action.run())
+			.setAdapter(adapter, new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					shortMenuActions[which].action.run();}})
                 .show();
     }
 
-    private void showFullMenu() {
+    public void showFullMenu() {
         MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
                 MainActivity.this,
                 android.R.layout.simple_list_item_1,
                 menuActions);
         new AlertDialog.Builder(MainActivity.this)
                 .setTitle("Full menu")
-                .setAdapter(adapter, (dialog, which) -> menuActions[which].action.run())
+			.setAdapter(adapter, new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					menuActions[which].action.run();}})
                 .show();
     }
 
-    private void shareUrl() {
+    public void shareUrl() {
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
         intent.putExtra(Intent.EXTRA_TEXT, getCurrentWebView().getUrl());
@@ -1358,7 +1528,7 @@ public class MainActivity extends Activity {
         startActivity(Intent.createChooser(intent, "Share URL"));
     }
 
-    private void openUrlInApp() {
+    public void openUrlInApp() {
         Intent i = new Intent(Intent.ACTION_VIEW);
         i.setData(Uri.parse(getCurrentWebView().getUrl()));
         try {
@@ -1367,12 +1537,14 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(MainActivity.this)
                     .setTitle("Open in app")
                     .setMessage("No app can open this URL.")
-                    .setPositiveButton("OK", (dialog1, which1) -> {})
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+					}})
                     .show();
         }
     }
 
-    private void loadUrl(String url, WebView webview) {
+    public void loadUrl(String url, WebView webview) {
         url = url.trim();
         if (url.isEmpty()) {
             url = "about:blank";
@@ -1505,7 +1677,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    boolean hasOrRequestPermission(String permission, String explanation, int requestCode) {
+    boolean hasOrRequestPermission(final String permission, String explanation, final int requestCode) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return true;
         }
@@ -1517,7 +1689,9 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Permission Required")
                     .setMessage(explanation)
-                    .setPositiveButton("OK", (dialog, which) -> requestPermissions(new String[] {permission}, requestCode))
+				.setPositiveButton("OK", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+						requestPermissions(new String[] {permission}, requestCode);}})
                     .show();
             return false;
         }
@@ -1545,15 +1719,18 @@ public class MainActivity extends Activity {
         boolean getAsBoolean();
     }
 
-    private void setToolbarButtonActions(View view, Runnable click, Runnable longClick, Runnable swipeUp) {
+    private void setToolbarButtonActions(final View view, final Runnable click, final Runnable longClick, final Runnable swipeUp) {
         if (click != null) {
-            view.setOnClickListener(v -> click.run());
+            view.setOnClickListener(new View.OnClickListener() {
+					public void onClick(View v) {
+						click.run();}});
         }
         if (longClick != null) {
-            view.setOnLongClickListener(v -> {
-                longClick.run();
-                return true;
-            });
+            view.setOnLongClickListener(new OnLongClickListener() {
+					public boolean onLongClick(View v) {
+						longClick.run();
+						return true;
+					}});
         }
         if (swipeUp != null) {
             final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
@@ -1564,7 +1741,9 @@ public class MainActivity extends Activity {
                 }
             });
             //noinspection AndroidLintClickableViewAccessibility
-            view.setOnTouchListener((v, event) -> gestureDetector.onTouchEvent(event));
+            view.setOnTouchListener(new OnTouchListener() {
+					public boolean onTouch(View v, MotionEvent event) {
+						return gestureDetector.onTouchEvent(event);}});
         }
     }
 
@@ -1647,7 +1826,7 @@ public class MainActivity extends Activity {
         @Override
         public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
             View view = super.getView(position, convertView, parent);
-            TextView textView = view.findViewById(android.R.id.text1);
+            TextView textView = (TextView) view.findViewById(android.R.id.text1);
             int icon = position == currentIndex ? android.R.drawable.ic_menu_mylocation : R.drawable.empty;
             Drawable d = getContext().getResources().getDrawable(icon, null);
             int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, getContext().getResources().getDisplayMetrics());
@@ -1669,7 +1848,7 @@ public class MainActivity extends Activity {
         @Override
         public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
             View view = super.getView(position, convertView, parent);
-            TextView textView = view.findViewById(android.R.id.text1);
+            TextView textView = (TextView) view.findViewById(android.R.id.text1);
             DisplayMetrics m = getContext().getResources().getDisplayMetrics();
 
             MenuAction item = getItem(position);
@@ -1734,14 +1913,15 @@ public class MainActivity extends Activity {
                 LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
                 convertView = inflater.inflate(android.R.layout.simple_dropdown_item_1line, parent, false);
             }
-            TextView v = convertView.findViewById(android.R.id.text1);
+            TextView v = (TextView) convertView.findViewById(android.R.id.text1);
             v.setText(completions.get(position));
             Drawable d = mContext.getResources().getDrawable(R.drawable.commit_search, null);
-            int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32, mContext.getResources().getDisplayMetrics());
+            final int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32, mContext.getResources().getDisplayMetrics());
             d.setBounds(0, 0, size, size);
             v.setCompoundDrawables(null, null, d, null);
             //noinspection AndroidLintClickableViewAccessibility
-            v.setOnTouchListener((v1, event) -> {
+            v.setOnTouchListener(new OnTouchListener() {
+					public boolean onTouch(View v1, MotionEvent event) {
                 if (event.getAction() != MotionEvent.ACTION_DOWN) {
                     return false;
                 }
@@ -1751,14 +1931,15 @@ public class MainActivity extends Activity {
                     return true;
                 }
                 return false;
-            });
+            }});
             //noinspection AndroidLintClickableViewAccessibility
-            parent.setOnTouchListener((dropdown, event) -> {
+            parent.setOnTouchListener(new OnTouchListener() {
+					public boolean onTouch(View dropdown, MotionEvent event) {
                 if (event.getX() > dropdown.getWidth() - size * 2) {
                     return true;
                 }
                 return false;
-            });
+            }});
             return convertView;
         }
 

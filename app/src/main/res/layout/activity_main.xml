@@ -23,24 +23,18 @@
             android:selectAllOnFocus="true"
             android:singleLine="true" />
 
-        <FrameLayout
-            android:id="@+id/webviews"
+        <LinearLayout
+            android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_above="@id/searchPane"
-            android:layout_below="@id/et"
-            android:background="#00000000" />
+            android:layout_height="40dp"
+            android:layout_alignParentBottom="true"
+            android:background="#00000000"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingBottom="4dp"
+            android:paddingTop="4dp">
 
-        <ProgressBar
-            android:id="@+id/progressbar"
-            style="@android:style/Widget.ProgressBar.Horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="2dp"
-            android:layout_alignTop="@id/webviews"
-            android:layout_centerHorizontal="true"
-            android:layout_centerVertical="true"
-            android:max="100"
-            android:visibility="gone" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/searchPane"
@@ -96,19 +90,25 @@
                 android:src="@drawable/stop"
                 android:tint="#61615f" />
         </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/toolbar"
+        <FrameLayout
+            android:id="@+id/webviews"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_alignParentBottom="true"
-            android:background="#00000000"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingBottom="4dp"
-            android:paddingTop="4dp">
+            android:layout_height="match_parent"
+            android:layout_above="@id/searchPane"
+            android:layout_below="@id/et"
+            android:background="#00000000" />
 
-        </LinearLayout>
+        <ProgressBar
+            android:id="@+id/progressbar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_alignTop="@id/webviews"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:max="100"
+            android:visibility="gone" />
+		
     </RelativeLayout>
 
     <FrameLayout
