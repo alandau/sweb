@@ -1,0 +1,57 @@
+apply plugin: 'com.android.application'
+
+android {
+    buildToolsVersion '27.0.3'
+    compileSdkVersion 27
+    defaultConfig {
+        applicationId "net.gnu.sweb"
+        minSdkVersion 21
+        targetSdkVersion 26
+        versionCode 6
+        versionName "1.5.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        resValue "string", "app_name", "SWeb"
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            useProguard false
+            zipAlignEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
+			minifyEnabled true
+            shrinkResources true
+            useProguard false
+            zipAlignEnabled true
+            applicationIdSuffix = ".debug"
+            resValue "string", "app_name", "SWeb Debug"
+        }
+    }
+    compileOptions {
+        targetCompatibility 1.8
+        sourceCompatibility 1.8
+    }
+}
+repositories {
+	jcenter()
+	mavenCentral()
+	google()
+    maven { 
+		url 'https://jitpack.io'
+		url 'https://repo1.maven.org/maven2/'
+		url 'https://github.com/psiegman/mvn-repo/raw/master/releases'
+	}
+	flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile 'com.android.support:support-annotations:24.1.1'
+    //testImplementation 'junit:junit:4.12'
+    //androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    //androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+}

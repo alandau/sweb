@@ -124,7 +124,7 @@ public class MainActivity extends Activity {
         boolean isDesktopUA;
     }
 
-    private static final String TAG = MainActivity.class.getSimpleName();
+    private static final String TAG = "MainActivity";
 
     static final String searchUrl = "https://www.google.com/search?q=%s";
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
@@ -160,7 +160,9 @@ public class MainActivity extends Activity {
     private EditText searchEdit;
     private TextView searchCount;
     private TextView txtTabCount;
-
+	private boolean blockImages;
+    private boolean blockVideos;
+    
     private SQLiteDatabase placesDb;
 
     private ValueCallback<Uri[]> fileUploadCallback;
@@ -206,7 +208,7 @@ public class MainActivity extends Activity {
 		@Override
 		public void run() {
 			try {
-				Method m = obj.getClass().getMethod(funcName, new Class[]{});
+				Method m = obj.getClass().getDeclaredMethod(funcName, new Class[]{});
 				m.setAccessible(true);
 				m.invoke(obj);
 			} catch (NoSuchMethodException e) {
@@ -239,6 +241,16 @@ public class MainActivity extends Activity {
 				public boolean getAsBoolean() {
 					return useAdBlocker;
 				}} ),
+				
+		new MenuAction("Block Images", R.drawable.adblocker, newR(this,"toggleBlockImages"), new MyBooleanSupplier() {
+				public boolean getAsBoolean() {
+					return blockImages;
+				}} ),
+		new MenuAction("Block Videos", R.drawable.adblocker, newR(this,"toggleBlockVideos"), new MyBooleanSupplier() {
+				public boolean getAsBoolean() {
+					return blockVideos;
+				}} ),
+		
 		new MenuAction("Update adblock rules", 0, newR(this,"updateAdblockRules")),
 		new MenuAction("Night mode", R.drawable.night, newR(this,"toggleNightMode"), new MyBooleanSupplier() {
 				public boolean getAsBoolean() {
@@ -257,6 +269,13 @@ public class MainActivity extends Activity {
 				public boolean getAsBoolean() {
 					return isLogRequests;
 				}}),
+		new MenuAction("Show Log Requests", R.drawable.log_requests, new Runnable() {
+				@Override
+				public void run() {
+					showLogRequests();
+				}
+			}),
+		
 		new MenuAction("Find on page", R.drawable.find_on_page, newR(this,"findOnPage")),
 		new MenuAction("Page info", R.drawable.page_info, newR(this,"pageInfo")),
 		new MenuAction("Share URL", android.R.drawable.ic_menu_share, newR(this,"shareUrl")),
@@ -384,7 +403,7 @@ public class MainActivity extends Activity {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 super.onProgressChanged(view, newProgress);
-                injectCSS(view);
+                //injectCSS(view);
                 if (newProgress == 100) {
                     progressBar.setVisibility(View.GONE);
                 } else {
@@ -458,7 +477,7 @@ public class MainActivity extends Activity {
                     et.setSelection(0);
                     view.requestFocus();
                 }
-                injectCSS(view);
+                //injectCSS(view);
             }
 
             @Override
@@ -471,7 +490,7 @@ public class MainActivity extends Activity {
                         view.requestFocus();
                     }
                 }
-                injectCSS(view);
+                //injectCSS(view);
             }
 
             @Override
@@ -494,17 +513,34 @@ public class MainActivity extends Activity {
             final InputStream emptyInputStream = new ByteArrayInputStream(new byte[0]);
 
             String lastMainPage = "";
-
+			final Pattern IMAGES_PATTERN = Pattern.compile(".*?\\.(gif|jpg|jpeg|png|bmp|webp|tif|tiff|wmf|psd|pic).*?", Pattern.CASE_INSENSITIVE);
+			final Pattern VIDEOS_PATTERN = Pattern.compile(".*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv).*?", Pattern.CASE_INSENSITIVE);
+			final Pattern AUDIO_PATTERN = Pattern.compile(".*?\\.(mp3|opus|wav|wma|amr|ogg|vp9|pcm).*?", Pattern.CASE_INSENSITIVE);
+			
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                if (adBlocker != null) {
+                final Uri url = request.getUrl();
+				if (adBlocker != null) {
                     if (request.isForMainFrame()) {
-                        lastMainPage = request.getUrl().toString();
+						lastMainPage = url.toString();
                     }
-                    if (adBlocker.shouldBlock(request.getUrl(), lastMainPage)) {
+                    if (adBlocker.shouldBlock(url, lastMainPage)) {
                         return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
                     }
                 }
+				final String path = url.getPath();
+				if (path != null) {
+					if (blockImages) {
+						if (IMAGES_PATTERN.matcher(path).matches()) {
+							return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+						}
+					}
+					if (blockVideos) {
+						if (VIDEOS_PATTERN.matcher(path).matches()) {
+							return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+						}
+					}
+				}
                 return super.shouldInterceptRequest(view, request);
             }
 
@@ -630,7 +666,7 @@ public class MainActivity extends Activity {
         return webview;
     }
 
-    private void showLongPressMenu(String linkUrl, final String imageUrl) {
+    void showLongPressMenu(String linkUrl, final String imageUrl) {
         final String url;
         String title;
         String[] options = new String[]{"Open in new tab", "Copy URL", "Show full URL", "Download"};
@@ -956,7 +992,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    public void pageInfo() {
+    void pageInfo() {
         String s = "URL: " + getCurrentWebView().getUrl() + "\n";
         s += "Title: " + getCurrentWebView().getTitle() + "\n\n";
         SslCertificate certificate = getCurrentWebView().getCertificate();
@@ -971,7 +1007,7 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    public void showOpenTabs() {
+    void showOpenTabs() {
         String[] items = new String[tabs.size()];
         for (int i = 0; i < tabs.size(); i++) {
             items[i] = tabs.get(i).webview.getTitle();
@@ -1025,7 +1061,7 @@ public class MainActivity extends Activity {
         tabsDialog.show();
     }
 
-    public void showTabHistory() {
+    void showTabHistory() {
         WebBackForwardList list = getCurrentWebView().copyBackForwardList();
         final int size = list.getSize();
         final int idx = size - list.getCurrentIndex() - 1;
@@ -1046,19 +1082,29 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    public void toggleFullscreen() {
+    void toggleFullscreen() {
         isFullscreen = !isFullscreen;
         updateFullScreen();
     }
 
-    public void toggleShowAddressBar() {
+    void toggleShowAddressBar() {
         et.setVisibility(et.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
     }
 
-    public void toggleNightMode() {
+    void toggleNightMode() {
         isNightMode = !isNightMode;
         prefs.edit().putBoolean("night_mode", isNightMode).apply();
         onNightModeChange();
+    }
+
+    void toggleBlockImages() {
+        blockImages = !blockImages;
+        prefs.edit().putBoolean("blockImages", blockImages).apply();
+    }
+
+    void toggleBlockVideos() {
+        blockVideos = !blockVideos;
+        prefs.edit().putBoolean("blockVideos", blockVideos).apply();
     }
 
     private void initAdblocker() {
@@ -1067,16 +1113,17 @@ public class MainActivity extends Activity {
         } else {
             adBlocker = null;
         }
+		Log.d(TAG, "adBlocker " + adBlocker);
     }
 
-    public void toggleAdblocker() {
+    void toggleAdblocker() {
         useAdBlocker = !useAdBlocker;
         initAdblocker();
         prefs.edit().putBoolean("adblocker", useAdBlocker).apply();
         Toast.makeText(MainActivity.this, "Ad Blocker " + (useAdBlocker ? "enabled" : "disabled"), Toast.LENGTH_SHORT).show();
     }
 
-    public void updateAdblockRules() {
+    void updateAdblockRules() {
         getLoaderManager().restartLoader(0, null, new LoaderManager.LoaderCallbacks<Integer>() {
             @Override
             public Loader<Integer> onCreateLoader(int id, Bundle args) {
@@ -1097,7 +1144,7 @@ public class MainActivity extends Activity {
         });
     }
 
-    public void showBookmarks() {
+    void showBookmarks() {
         if (placesDb == null) return;
         final Cursor cursor = placesDb.rawQuery("SELECT title, url, id as _id FROM bookmarks", null);
         final AlertDialog dialog = new AlertDialog.Builder(this)
@@ -1168,7 +1215,7 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    public void addBookmark() {
+    void addBookmark() {
         if (placesDb == null) return;
         ContentValues values = new ContentValues(2);
         values.put("title", getCurrentWebView().getTitle());
@@ -1176,7 +1223,7 @@ public class MainActivity extends Activity {
         placesDb.insert("bookmarks", null, values);
     }
 
-    public void exportBookmarks() {
+    void exportBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
                     .setTitle("Export bookmarks error")
@@ -1245,7 +1292,7 @@ public class MainActivity extends Activity {
     }
 
     @SuppressLint("DefaultLocale")
-    public void importBookmarks() {
+    void importBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
                     .setTitle("Import bookmarks error")
@@ -1330,7 +1377,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    public void deleteAllBookmarks() {
+    void deleteAllBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
                     .setTitle("Bookmarks error")
@@ -1353,7 +1400,7 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    public void clearHistoryCache() {
+    void clearHistoryCache() {
         WebView v = getCurrentWebView();
         v.clearCache(true);
         v.clearFormData();
@@ -1362,7 +1409,7 @@ public class MainActivity extends Activity {
         WebStorage.getInstance().deleteAllData();
     }
 
-    public void closeCurrentTab() {
+    void closeCurrentTab() {
         if (getCurrentWebView().getUrl() != null && !getCurrentWebView().getUrl().equals("about:blank")) {
             TitleAndBundle titleAndBundle = new TitleAndBundle();
             titleAndBundle.title = getCurrentWebView().getTitle();
@@ -1413,7 +1460,7 @@ public class MainActivity extends Activity {
 
     public void onNightModeChange() {
         if (isNightMode) {
-            int textColor = Color.rgb(0x61, 0x61, 0x5f);
+            int textColor = Color.rgb(0xa1, 0xa1, 0xa1);
             int backgroundColor = Color.rgb(0x22, 0x22, 0x22);
             et.setTextColor(textColor);
             et.setBackgroundColor(backgroundColor);
@@ -1425,6 +1472,9 @@ public class MainActivity extends Activity {
             ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x66, 0)));
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             getWindow().setNavigationBarColor(Color.BLACK);
+			for (Tab tab : tabs) {
+				tab.webview.setBackgroundColor(0xffbbbbbb);
+			}
         } else {
             int textColor = Color.BLACK;
             int backgroundColor = Color.rgb(0xe0, 0xe0, 0xe0);
@@ -1437,14 +1487,17 @@ public class MainActivity extends Activity {
             findViewById(R.id.toolbar).setBackgroundColor(Color.rgb(0xe0, 0xe0, 0xe0));
             ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0xcc, 0)));
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+			for (Tab tab : tabs) {
+				tab.webview.setBackgroundColor(0xfffff8da);
+			}
         }
-        for (int i = 0; i < tabs.size(); i++) {
-            tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
-            injectCSS(tabs.get(i).webview);
-        }
+//        for (int i = 0; i < tabs.size(); i++) {
+//            tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
+//            injectCSS(tabs.get(i).webview);
+//        }
     }
 
-    public void toggleDesktopUA() {
+    void toggleDesktopUA() {
         Tab tab = getCurrentTab();
         tab.isDesktopUA = !tab.isDesktopUA;
         getCurrentWebView().getSettings().setUserAgentString(tab.isDesktopUA ? desktopUA : null);
@@ -1452,15 +1505,20 @@ public class MainActivity extends Activity {
         getCurrentWebView().reload();
     }
 
-    public void toggleThirdPartyCookies() {
+    void toggleThirdPartyCookies() {
         CookieManager cookieManager = CookieManager.getInstance();
         boolean newValue = !cookieManager.acceptThirdPartyCookies(getCurrentWebView());
         cookieManager.setAcceptThirdPartyCookies(getCurrentWebView(), newValue);
     }
 
-    public void toggleLogRequests() {
+    void toggleLogRequests() {
         isLogRequests = !isLogRequests;
         if (isLogRequests) {
+			if (!hasOrRequestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
+										null,
+										PERMISSION_REQUEST_DOWNLOAD)) {
+				return;
+			}
             // Start logging
             if (requestsLog == null) {
                 requestsLog = new ArrayList<>();
@@ -1469,28 +1527,32 @@ public class MainActivity extends Activity {
             }
         } else {
             // End logging, show result
-            StringBuilder sb = new StringBuilder("<title>Request Log</title><h1>Request Log</h1>");
-            for (String url : requestsLog) {
-                sb.append("<a href=\"");
-                sb.append(url);
-                sb.append("\">");
-                sb.append(url);
-                sb.append("</a><br><br>");
-            }
-            String base64 = Base64.encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
-            newTab("data:text/html;base64," + base64);
-            switchToTab(tabs.size() - 1);
+            showLogRequests();
         }
     }
 
-    public void findOnPage() {
+	private void showLogRequests() {
+		StringBuilder sb = new StringBuilder("<title>Request Log</title><h1>Request Log</h1>");
+		for (String url : requestsLog) {
+			sb.append("<a href=\"");
+			sb.append(url);
+			sb.append("\">");
+			sb.append(url);
+			sb.append("</a><br><br>");
+		}
+		String base64 = Base64.encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
+		newTab("data:text/html;base64," + base64);
+		switchToTab(tabs.size() - 1);
+	}
+
+    void findOnPage() {
         searchEdit.setText("");
         findViewById(R.id.searchPane).setVisibility(View.VISIBLE);
         searchEdit.requestFocus();
         showKeyboard();
     }
 
-    public void showMenu() {
+    void showMenu() {
         final MenuAction[] shortMenuActions = new MenuAction[shortMenu.length];
         for (int i = 0; i < shortMenu.length; i++) {
             shortMenuActions[i] = getAction(shortMenu[i]);
@@ -1507,7 +1569,7 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    public void showFullMenu() {
+    void showFullMenu() {
         MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
                 MainActivity.this,
                 android.R.layout.simple_list_item_1,
@@ -1520,7 +1582,7 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    public void shareUrl() {
+    void shareUrl() {
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
         intent.putExtra(Intent.EXTRA_TEXT, getCurrentWebView().getUrl());
@@ -1528,7 +1590,7 @@ public class MainActivity extends Activity {
         startActivity(Intent.createChooser(intent, "Share URL"));
     }
 
-    public void openUrlInApp() {
+    void openUrlInApp() {
         Intent i = new Intent(Intent.ACTION_VIEW);
         i.setData(Uri.parse(getCurrentWebView().getUrl()));
         try {
