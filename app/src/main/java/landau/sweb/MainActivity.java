@@ -175,24 +175,34 @@ public class MainActivity extends Activity {
     private boolean accept3PartyCookies;
 	private boolean saveFormData;
 	private boolean javaScriptEnabled;
-	private boolean pluginsEnabled;
+	//private boolean pluginsEnabled;
 	private boolean appCacheEnabled;
 	private boolean allowContentAccess;
 	private boolean mediaPlaybackRequiresUserGesture;
 	private boolean loadWithOverviewMode;
 	private boolean domStorageEnabled;
-	private boolean enableSmoothTransition;
+	//private boolean enableSmoothTransition;
 	private boolean geolocationEnabled;
 	private int mixedContentMode;
 	private boolean databaseEnabled;
 	private boolean offscreenPreRaster;
-	private boolean savePassword;
+	//private boolean savePassword;
 	private String userAgentString;
-	private boolean supportMultipleWindows;
-	private boolean useWebViewBackgroundForOverscrollBackground;
-	private boolean navDump;
-	private boolean lightTouchEnabled;
-	private boolean useDoubleTree;
+	//private boolean supportMultipleWindows;
+	//private boolean useWebViewBackgroundForOverscrollBackground;
+	//private boolean navDump;
+	//private boolean lightTouchEnabled;
+	//private boolean useDoubleTree;
+	private boolean AllowFileAccess;
+	private boolean AllowFileAccessFromFileURLs;
+	private boolean AllowUniversalAccessFromFileURLs;
+	private boolean BlockNetworkLoads;
+	private boolean JavaScriptCanOpenWindowsAutomatically;
+//	private boolean LOAD_DEFAULT;
+//	private boolean LOAD_CACHE_ELSE_NETWORK;
+//	private boolean LOAD_NO_CACHE;
+//	private boolean LOAD_CACHE_ONLY;
+	private int CacheMode;
 	
     private SQLiteDatabase placesDb;
 	private WebView printWeb;
@@ -290,6 +300,7 @@ public class MainActivity extends Activity {
 		new MenuAction("Save Page", android.R.drawable.ic_menu_save, newR("savePage")),
 		new MenuAction("Save Page as Pdf", android.R.drawable.ic_menu_save, newR("savePageAsPdf")),
 		new MenuAction("Save Page as Image", android.R.drawable.ic_menu_save, newR("savePageAsImage")),
+		new MenuAction("Find on page", R.drawable.find_on_page, newR("findOnPage")),
 		
 		new MenuAction("Desktop UA", R.drawable.ua, newR("toggleDesktopUA"), newR("isDesktopUA")),
 		new MenuAction("Enable Cookies", R.drawable.cookie, newR("toggleCookies"),newR("acceptCookie")),
@@ -301,23 +312,15 @@ public class MainActivity extends Activity {
 		new MenuAction("Save History", R.drawable.adblocker, newR("toggleSaveHistory"), newR("saveHistory")),
 		new MenuAction("Save Form Data", R.drawable.adblocker, newR("toggleSaveFormData"), newR("saveFormData")),
 		
-		new MenuAction("javaScriptEnabled", R.drawable.adblocker, newR("togglejavaScriptEnabled"), newR("javaScriptEnabled")),
-		new MenuAction("pluginsEnabled", R.drawable.adblocker, newR("togglepluginsEnabled"), newR("pluginsEnabled")),
-		new MenuAction("appCacheEnabled", R.drawable.adblocker, newR("toggleappCacheEnabled"), newR("appCacheEnabled")),
-		new MenuAction("allowContentAccess", R.drawable.adblocker, newR("toggleallowContentAccess"), newR("allowContentAccess")),
-		new MenuAction("mediaPlaybackRequiresUserGesture", R.drawable.adblocker, newR("togglemediaPlaybackRequiresUserGesture"), newR("mediaPlaybackRequiresUserGesture")),
-		new MenuAction("loadWithOverviewMode", R.drawable.adblocker, newR("toggleloadWithOverviewMode"), newR("loadWithOverviewMode")),
-		new MenuAction("domStorageEnabled", R.drawable.adblocker, newR("toggledomStorageEnabled"), newR("domStorageEnabled")),
-		new MenuAction("enableSmoothTransition", R.drawable.adblocker, newR("toggleenableSmoothTransition"), newR("enableSmoothTransition")),
-		new MenuAction("geolocationEnabled", R.drawable.adblocker, newR("togglegeolocationEnabled"), newR("geolocationEnabled")),
-		new MenuAction("databaseEnabled", R.drawable.adblocker, newR("toggledatabaseEnabled"), newR("databaseEnabled")),
-		new MenuAction("offscreenPreRaster", R.drawable.adblocker, newR("toggleoffscreenPreRaster"), newR("offscreenPreRaster")),
-		new MenuAction("savePassword", R.drawable.adblocker, newR("togglesavePassword"), newR("savePassword")),
-		new MenuAction("supportMultipleWindows", R.drawable.adblocker, newR("togglesupportMultipleWindows"), newR("supportMultipleWindows")),
-		new MenuAction("useWebViewBackgroundForOverscrollBackground", R.drawable.adblocker, newR("toggleuseWebViewBackgroundForOverscrollBackground"), newR("useWebViewBackgroundForOverscrollBackground")),
-		new MenuAction("navDump", R.drawable.adblocker, newR("togglenavDump"), newR("navDump")),
-		new MenuAction("lightTouchEnabled", R.drawable.adblocker, newR("togglelightTouchEnabled"), newR("lightTouchEnabled")),
-		new MenuAction("useDoubleTree", R.drawable.adblocker, newR("toggleuseDoubleTree"), newR("useDoubleTree")),
+		new MenuAction("JavaScript Enabled", R.drawable.adblocker, newR("togglejavaScriptEnabled"), newR("javaScriptEnabled")),
+		new MenuAction("App Cache Enabled", R.drawable.adblocker, newR("toggleappCacheEnabled"), newR("appCacheEnabled")),
+		new MenuAction("Allow ContentAccess", R.drawable.adblocker, newR("toggleallowContentAccess"), newR("allowContentAccess")),
+		new MenuAction("Media Playback Requires Gesture", R.drawable.adblocker, newR("togglemediaPlaybackRequiresUserGesture"), newR("mediaPlaybackRequiresUserGesture")),
+		new MenuAction("Load With Overview Mode", R.drawable.adblocker, newR("toggleloadWithOverviewMode"), newR("loadWithOverviewMode")),
+		new MenuAction("DomStorage Enabled", R.drawable.adblocker, newR("toggledomStorageEnabled"), newR("domStorageEnabled")),
+		new MenuAction("Geolocation Enabled", R.drawable.adblocker, newR("togglegeolocationEnabled"), newR("geolocationEnabled")),
+		new MenuAction("Database Enabled", R.drawable.adblocker, newR("toggledatabaseEnabled"), newR("databaseEnabled")),
+		new MenuAction("Offscreen PreRaster", R.drawable.adblocker, newR("toggleoffscreenPreRaster"), newR("offscreenPreRaster")),
 		
 		new MenuAction("Update adblock rules", 0, newR("updateAdblockRules")),
 		new MenuAction("Night mode", R.drawable.night, newR("toggleNightMode"), newR("isNightMode")),
@@ -326,8 +329,16 @@ public class MainActivity extends Activity {
 		new MenuAction("Tab history", R.drawable.left_right, newR("showTabHistory")),
 		new MenuAction("Log requests", R.drawable.log_requests, newR("toggleLogRequests"), newR("isLogRequests")),
 		new MenuAction("Show Log Requests", R.drawable.log_requests, newR("showLogRequests")),
+		new MenuAction("Allow File Access", R.drawable.adblocker, newR("toggleAllowFileAccess"), newR("AllowFileAccess")),
+		new MenuAction("Allow File Access From File URLs", R.drawable.adblocker, newR("toggleAllowFileAccessFromFileURLs"), newR("AllowFileAccessFromFileURLs")),
+		new MenuAction("Allow Universal Access From File URLs", R.drawable.adblocker, newR("toggleAllowUniversalAccessFromFileURLs"), newR("AllowUniversalAccessFromFileURLs")),
+		new MenuAction("Block Page Resources", R.drawable.adblocker, newR("toggleBlockNetworkLoads"), newR("BlockNetworkLoads")),
+		new MenuAction("Popup Windows", R.drawable.adblocker, newR("toggleJavaScriptCanOpenWindowsAutomatically"), newR("JavaScriptCanOpenWindowsAutomatically")),
+		new MenuAction("LOAD_DEFAULT", R.drawable.adblocker, newR("toggleLOAD_DEFAULT"), newR("LOAD_DEFAULT")),
+		new MenuAction("LOAD_CACHE_ELSE_NETWORK", R.drawable.adblocker, newR("toggleLOAD_CACHE_ELSE_NETWORK"), newR("LOAD_CACHE_ELSE_NETWORK")),
+		new MenuAction("LOAD_NO_CACHE", R.drawable.adblocker, newR("toggleLOAD_NO_CACHE"), newR("LOAD_NO_CACHE")),
+		new MenuAction("LOAD_CACHE_ONLY", R.drawable.adblocker, newR("toggleLOAD_CACHE_ONLY"), newR("LOAD_CACHE_ONLY")),
 		
-		new MenuAction("Find on page", R.drawable.find_on_page, newR("findOnPage")),
 		new MenuAction("Page info", R.drawable.page_info, newR("pageInfo")),
 		new MenuAction("Share URL", android.R.drawable.ic_menu_share, newR("shareUrl")),
 		new MenuAction("Open URL in app", android.R.drawable.ic_menu_view, newR("openUrlInApp")),
@@ -806,28 +817,30 @@ public class MainActivity extends Activity {
 		settings.setSaveFormData(saveFormData);
 		
 		settings.setJavaScriptEnabled(javaScriptEnabled);
-		settings.setPluginsEnabled(pluginsEnabled);
 		settings.setAppCacheEnabled(appCacheEnabled);
 		settings.setAllowContentAccess(allowContentAccess);
 		settings.setMediaPlaybackRequiresUserGesture(mediaPlaybackRequiresUserGesture);
 		settings.setLoadWithOverviewMode(loadWithOverviewMode);
 		settings.setDomStorageEnabled(domStorageEnabled);
-		settings.setEnableSmoothTransition(enableSmoothTransition);
 		settings.setGeolocationEnabled(geolocationEnabled);
 		settings.setMixedContentMode(mixedContentMode);
 		settings.setDatabaseEnabled(databaseEnabled);
 		settings.setLoadsImagesAutomatically(!blockImages);
 		settings.setOffscreenPreRaster(offscreenPreRaster);
-		settings.setSavePassword(savePassword);
 		settings.setUserAgentString(userAgentString);
-		settings.setSupportMultipleWindows(supportMultipleWindows);
-		settings.setUseWebViewBackgroundForOverscrollBackground(useWebViewBackgroundForOverscrollBackground);
-		settings.setNavDump(navDump);
 		settings.setAppCachePath(getExternalFilesDir("cache").getAbsolutePath());
 		settings.setDatabasePath(getExternalFilesDir("db").getAbsolutePath());
-		settings.setPluginsPath(getExternalFilesDir("plugin").getAbsolutePath());
-        settings.setLightTouchEnabled(lightTouchEnabled);
-		settings.setUseDoubleTree(useDoubleTree);
+		
+		settings.setAllowFileAccess(AllowFileAccess);
+		settings.setAllowFileAccessFromFileURLs(AllowFileAccessFromFileURLs);
+		settings.setAllowUniversalAccessFromFileURLs(AllowUniversalAccessFromFileURLs);
+		settings.setBlockNetworkLoads(BlockNetworkLoads);
+		settings.setJavaScriptCanOpenWindowsAutomatically(JavaScriptCanOpenWindowsAutomatically);
+		settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+		settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+		settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+		settings.setCacheMode(WebSettings.LOAD_CACHE_ONLY);
+		
 		
 		webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
@@ -980,24 +993,22 @@ public class MainActivity extends Activity {
 		saveFormData = prefs.getBoolean("saveFormData", true);
 		
 		javaScriptEnabled = prefs.getBoolean("javaScriptEnabled", true);
-		pluginsEnabled = prefs.getBoolean("pluginsEnabled", true);
 		appCacheEnabled = prefs.getBoolean("appCacheEnabled", true);
 		allowContentAccess = prefs.getBoolean("allowContentAccess", true);
 		mediaPlaybackRequiresUserGesture = prefs.getBoolean("mediaPlaybackRequiresUserGesture", true);
 		loadWithOverviewMode = prefs.getBoolean("loadWithOverviewMode", true);
 		domStorageEnabled = prefs.getBoolean("domStorageEnabled", true);
-		enableSmoothTransition = prefs.getBoolean("enableSmoothTransition", true);
 		geolocationEnabled = prefs.getBoolean("geolocationEnabled", true);
 		mixedContentMode = prefs.getInt("mixedContentMode", 0);
 		databaseEnabled = prefs.getBoolean("databaseEnabled", true);
 		offscreenPreRaster = prefs.getBoolean("offscreenPreRaster", true);
-		savePassword = prefs.getBoolean("savePassword", true);
 		userAgentString = prefs.getString("userAgentString", "Android");
-		supportMultipleWindows = prefs.getBoolean("supportMultipleWindows", true);
-		useWebViewBackgroundForOverscrollBackground = prefs.getBoolean("useWebViewBackgroundForOverscrollBackground", true);
-		navDump = prefs.getBoolean("navDump", true);
-		lightTouchEnabled = prefs.getBoolean("lightTouchEnabled", true);
-		useDoubleTree = prefs.getBoolean("useDoubleTree", true);
+		AllowFileAccess = prefs.getBoolean("AllowFileAccess", true);
+		AllowFileAccessFromFileURLs = prefs.getBoolean("AllowFileAccessFromFileURLs", true);
+		AllowUniversalAccessFromFileURLs = prefs.getBoolean("AllowUniversalAccessFromFileURLs", true);
+		BlockNetworkLoads = prefs.getBoolean("BlockNetworkLoads", true);
+		JavaScriptCanOpenWindowsAutomatically = prefs.getBoolean("JavaScriptCanOpenWindowsAutomatically", true);
+		CacheMode = prefs.getInt("CacheMode", WebSettings.LOAD_DEFAULT);
 		
 		
         newTab(et.getText().toString());
@@ -1241,13 +1252,6 @@ public class MainActivity extends Activity {
 			t.webview.getSettings().setJavaScriptEnabled(javaScriptEnabled);
 		}
 	}
-	void togglepluginsEnabled() {
-		pluginsEnabled = !pluginsEnabled;
-		prefs.edit().putBoolean("pluginsEnabled", pluginsEnabled).apply();
-		for (Tab t : tabs) {
-			t.webview.getSettings().setPluginsEnabled(pluginsEnabled);
-		}
-	}
 	void toggleappCacheEnabled() {
 		appCacheEnabled = !appCacheEnabled;
 		prefs.edit().putBoolean("appCacheEnabled", appCacheEnabled).apply();
@@ -1283,13 +1287,6 @@ public class MainActivity extends Activity {
 			t.webview.getSettings().setDomStorageEnabled(domStorageEnabled);
 		}
 	}
-	void toggleenableSmoothTransition() {
-		enableSmoothTransition = !enableSmoothTransition;
-		prefs.edit().putBoolean("enableSmoothTransition", enableSmoothTransition).apply();
-		for (Tab t : tabs) {
-			t.webview.getSettings().setEnableSmoothTransition(enableSmoothTransition);
-		}
-	}
 	void togglegeolocationEnabled() {
 		geolocationEnabled = !geolocationEnabled;
 		prefs.edit().putBoolean("geolocationEnabled", geolocationEnabled).apply();
@@ -1311,46 +1308,67 @@ public class MainActivity extends Activity {
 			t.webview.getSettings().setOffscreenPreRaster(offscreenPreRaster);
 		}
 	}
-	void togglesavePassword() {
-		savePassword = !savePassword;
-		prefs.edit().putBoolean("savePassword", savePassword).apply();
+	void toggleAllowFileAccess() {
+		AllowFileAccess = !AllowFileAccess;
+		prefs.edit().putBoolean("AllowFileAccess", AllowFileAccess).apply();
 		for (Tab t : tabs) {
-			t.webview.getSettings().setSavePassword(savePassword);
+			t.webview.getSettings().setAllowFileAccess(AllowFileAccess);
 		}
 	}
-	void togglesupportMultipleWindows() {
-		supportMultipleWindows = !supportMultipleWindows;
-		prefs.edit().putBoolean("supportMultipleWindows", supportMultipleWindows).apply();
+	void toggleAllowFileAccessFromFileURLs() {
+		AllowFileAccessFromFileURLs = !AllowFileAccessFromFileURLs;
+		prefs.edit().putBoolean("AllowFileAccessFromFileURLs", AllowFileAccessFromFileURLs).apply();
 		for (Tab t : tabs) {
-			t.webview.getSettings().setSupportMultipleWindows(supportMultipleWindows);
+			t.webview.getSettings().setAllowFileAccessFromFileURLs(AllowFileAccessFromFileURLs);
 		}
 	}
-	void toggleuseWebViewBackgroundForOverscrollBackground() {
-		useWebViewBackgroundForOverscrollBackground = !useWebViewBackgroundForOverscrollBackground;
-		prefs.edit().putBoolean("useWebViewBackgroundForOverscrollBackground", useWebViewBackgroundForOverscrollBackground).apply();
+	void toggleAllowUniversalAccessFromFileURLs() {
+		AllowUniversalAccessFromFileURLs = !AllowUniversalAccessFromFileURLs;
+		prefs.edit().putBoolean("AllowUniversalAccessFromFileURLs", AllowUniversalAccessFromFileURLs).apply();
 		for (Tab t : tabs) {
-			t.webview.getSettings().setUseWebViewBackgroundForOverscrollBackground(useWebViewBackgroundForOverscrollBackground);
+			t.webview.getSettings().setAllowUniversalAccessFromFileURLs(AllowUniversalAccessFromFileURLs);
 		}
 	}
-	void togglenavDump() {
-		navDump = !navDump;
-		prefs.edit().putBoolean("navDump", navDump).apply();
+	void toggleBlockNetworkLoads() {
+		BlockNetworkLoads = !BlockNetworkLoads;
+		prefs.edit().putBoolean("BlockNetworkLoads", BlockNetworkLoads).apply();
 		for (Tab t : tabs) {
-			t.webview.getSettings().setNavDump(navDump);
+			t.webview.getSettings().setBlockNetworkLoads(BlockNetworkLoads);
 		}
 	}
-	void togglelightTouchEnabled() {
-		lightTouchEnabled = !lightTouchEnabled;
-		prefs.edit().putBoolean("lightTouchEnabled", lightTouchEnabled).apply();
+	void toggleJavaScriptCanOpenWindowsAutomatically() {
+		JavaScriptCanOpenWindowsAutomatically = !JavaScriptCanOpenWindowsAutomatically;
+		prefs.edit().putBoolean("JavaScriptCanOpenWindowsAutomatically", JavaScriptCanOpenWindowsAutomatically).apply();
 		for (Tab t : tabs) {
-			t.webview.getSettings().setLightTouchEnabled(lightTouchEnabled);
+			t.webview.getSettings().setJavaScriptCanOpenWindowsAutomatically(JavaScriptCanOpenWindowsAutomatically);
 		}
 	}
-	void toggleuseDoubleTree() {
-		useDoubleTree = !useDoubleTree;
-		prefs.edit().putBoolean("useDoubleTree", useDoubleTree).apply();
+	void toggleLOAD_DEFAULT() {
+		CacheMode = WebSettings.LOAD_DEFAULT;
+		prefs.edit().putInt("CacheMode", WebSettings.LOAD_DEFAULT).apply();
 		for (Tab t : tabs) {
-			t.webview.getSettings().setUseDoubleTree(useDoubleTree);
+			t.webview.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
+		}
+	}
+	void toggleLOAD_CACHE_ELSE_NETWORK() {
+		CacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK;
+		prefs.edit().putInt("CacheMode", WebSettings.LOAD_CACHE_ELSE_NETWORK).apply();
+		for (Tab t : tabs) {
+			t.webview.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+		}
+	}
+	void toggleLOAD_NO_CACHE() {
+		CacheMode = WebSettings.LOAD_NO_CACHE;
+		prefs.edit().putInt("CacheMode", WebSettings.LOAD_NO_CACHE).apply();
+		for (Tab t : tabs) {
+			t.webview.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+		}
+	}
+	void toggleLOAD_CACHE_ONLY() {
+		CacheMode = WebSettings.LOAD_CACHE_ONLY;
+		prefs.edit().putInt("CacheMode", WebSettings.LOAD_CACHE_ONLY).apply();
+		for (Tab t : tabs) {
+			t.webview.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ONLY);
 		}
 	}
 	
@@ -1378,19 +1396,22 @@ public class MainActivity extends Activity {
 		if (printWeb != null) {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 				// the minimum bitmap height needs to be the view height
-				int bitmapHeight = (printWeb.getMeasuredHeight() < printWeb.getContentHeight())
+				final int bitmapHeight = (printWeb.getMeasuredHeight() < printWeb.getContentHeight())
 					? printWeb.getContentHeight() : printWeb.getMeasuredHeight();
+				final int bitmapWidth = (printWeb.getMeasuredWidth() < printWeb.getContentWidth())
+					? printWeb.getContentWidth() : printWeb.getMeasuredWidth();
+				
+				final Bitmap bitmap = Bitmap.createBitmap(
+					bitmapWidth, bitmapHeight, 
+					Bitmap.Config.ARGB_8888);
 
-				Bitmap bitmap = Bitmap.createBitmap(
-					printWeb.getContentWidth(), bitmapHeight, Bitmap.Config.ARGB_8888);
-
-				Canvas canvas = new Canvas(bitmap);
+				final Canvas canvas = new Canvas(bitmap);
 				printWeb.draw(canvas);
 
 				FileOutputStream fos = null;
 				BufferedOutputStream bos;
                 try {
-                    String savedName = getExternalFilesDir("ScreenShots").getAbsolutePath() + savedName(printWeb) + ".webp";
+                    final String savedName = getExternalFilesDir("ScreenShots").getAbsolutePath() + savedName(printWeb) + ".webp";
 					fos = new FileOutputStream(savedName);
 					bos = new BufferedOutputStream(fos);
                     bitmap.compress(Bitmap.CompressFormat.WEBP, 100, bos);
@@ -1904,7 +1925,19 @@ public class MainActivity extends Activity {
 		newTab("");
 		switchToTab(tabs.size() - 1);
 	}
-
+	boolean LOAD_DEFAULT() {
+		return CacheMode == WebSettings.LOAD_DEFAULT;
+	}
+	boolean LOAD_CACHE_ELSE_NETWORK() {
+		return CacheMode == WebSettings.LOAD_CACHE_ELSE_NETWORK;
+	}
+	boolean LOAD_NO_CACHE() {
+		return CacheMode == WebSettings.LOAD_NO_CACHE;
+	}
+	boolean LOAD_CACHE_ONLY() {
+		return CacheMode == WebSettings.LOAD_CACHE_ONLY;
+	}
+	
     private String getUrlFromIntent(Intent intent) {
         if (Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
             return intent.getDataString();
