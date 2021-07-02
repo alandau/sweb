@@ -4,11 +4,11 @@ android {
     buildToolsVersion '27.0.3'
     compileSdkVersion 27
     defaultConfig {
-        applicationId "net.gnu.sweb"
+        applicationId "landau.sweb"
         minSdkVersion 21
-        targetSdkVersion 23
+        targetSdkVersion 24
         versionCode 7
-        versionName "1.5.1"
+        versionName "1.5.2"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         resValue "string", "app_name", "SWeb"
     }
