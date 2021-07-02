@@ -1,4 +1,5 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -8,20 +9,41 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <AutoCompleteTextView
-            android:id="@+id/et"
+		<LinearLayout
+            android:id="@+id/address"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:completionThreshold="1"
-            android:imeActionLabel="Go"
-            android:imeOptions="actionGo"
-            android:inputType="textUri"
-            android:paddingBottom="10dp"
-            android:paddingTop="10dp"
-            android:paddingLeft="10dp"
-            android:paddingRight="10dp"
-            android:selectAllOnFocus="true"
-            android:singleLine="true" />
+            android:layout_alignParentTop="true"
+            android:background="#00000000"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+			<AutoCompleteTextView
+				android:id="@+id/et"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:completionThreshold="1"
+				android:imeActionLabel="Go"
+				android:imeOptions="actionGo"
+				android:inputType="textUri"
+				android:paddingBottom="10dp"
+				android:paddingTop="10dp"
+				android:paddingLeft="10dp"
+				android:paddingRight="0dp"
+				android:selectAllOnFocus="true"
+				android:singleLine="true" />
+			<ImageView
+                android:id="@+id/goStop"
+                android:layout_width="44dp"
+                android:layout_height="24dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+				android:clickable="true"
+				android:focusable="true"
+				android:src="@drawable/stop" />
+		</LinearLayout>
 
         <LinearLayout
             android:id="@+id/toolbar"
@@ -95,7 +117,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_above="@id/searchPane"
-            android:layout_below="@id/et"
+            android:layout_below="@id/address"
             android:background="#00000000" />
 
         <ProgressBar
@@ -108,7 +130,7 @@
             android:layout_centerVertical="true"
             android:max="100"
             android:visibility="gone" />
-		
+
     </RelativeLayout>
 
     <FrameLayout

@@ -118,6 +118,10 @@ import android.print.*;
 import android.support.annotation.*;
 import android.graphics.*;
 import java.io.*;
+import android.widget.ImageButton;
+import android.widget.*;
+import android.content.*;
+import android.os.storage.*;
 
 public class MainActivity extends Activity {
 
@@ -153,7 +157,12 @@ public class MainActivity extends Activity {
     private ArrayList<Tab> tabs = new ArrayList<>();
     private int currentTabIndex;
     private FrameLayout webviews;
-    private AutoCompleteTextView et;
+	private View main_layout;
+	private ViewGroup address;
+	private AutoCompleteTextView et;
+	private ImageView goStop;
+	private ProgressBar progressbar;
+	private ViewGroup toolbar;
     private boolean isNightMode;
     private boolean isFullscreen;
     private SharedPreferences prefs;
@@ -345,12 +354,12 @@ public class MainActivity extends Activity {
 
 		new MenuAction("Back", R.drawable.back, newR("goBack")),
 		new MenuAction("Forward", R.drawable.forward, newR("goForward")),
-		new MenuAction("Reload", R.drawable.reload, newR("reload")),
-		new MenuAction("Stop", R.drawable.stop, newR("stopLoading")),
+		//new MenuAction("Reload", R.drawable.reload, newR("reload")),
+		//new MenuAction("Stop", R.drawable.stop, newR("stopLoading")),
 		new MenuAction("Scroll to top", R.drawable.top, newR("pageUp")),
 		new MenuAction("Scroll to bottom", R.drawable.bottom, newR("pageDown")),
 
-		new MenuAction("Show History", R.drawable.bookmarks, newR("showHistory")),
+		new MenuAction("Show History", android.R.drawable.ic_menu_recent_history, newR("showHistory")),
 		new MenuAction("Show Bookmarks", R.drawable.bookmarks, newR("showBookmarks")),
 		new MenuAction("Add bookmark", R.drawable.bookmark_add, newR("addBookmark")),
 		new MenuAction("Export bookmarks", R.drawable.bookmarks_export, newR("exportBookmarks")),
@@ -367,10 +376,10 @@ public class MainActivity extends Activity {
     final String[][] toolbarActions = {
 		{"Back", "Scroll to top", "Tab history"},
 		{"Forward", "Scroll to bottom", "Ad Blocker"},
-		{"Show Bookmarks", null, "Add bookmark"},
-		{"Night mode", null, "Full screen"},
+		{"Show Bookmarks", "Show History", "Add bookmark"},
+		{"Night mode", "Save Page", "Full screen"},
 		{"Show tabs", "New tab", "Close tab"},
-		{"Menu", "Reload", "Show address bar"},
+		{"Menu", "Find on page", "Show address bar"},//Reload
     };
 
     final String[] shortMenu = {
@@ -502,6 +511,7 @@ public class MainActivity extends Activity {
                     view.requestFocus();
                 }
 				printWeb = null;
+				goStop.setImageResource(R.drawable.stop);
                 //injectCSS(view);
             }
 
@@ -519,14 +529,15 @@ public class MainActivity extends Activity {
 				if (saveHistory) {
 					addHistory();
 				}
-				//injectCSS(view);
+				goStop.setImageResource(R.drawable.reload);
+                //injectCSS(view);
             }
 
             @Override
             public void onReceivedHttpAuthRequest(WebView view, final HttpAuthHandler handler, String host, String realm) {
                 new AlertDialog.Builder(MainActivity.this)
                         .setTitle(host)
-                        .setView(R.layout.login_password)
+                        .setView(R.layout.sweb_login_password)
                         .setCancelable(false)
 					.setPositiveButton("OK", new OnClickListener() {
 						public void onClick(DialogInterface dialog, int which) {
@@ -650,6 +661,7 @@ public class MainActivity extends Activity {
 				}});
         webview.setDownloadListener(new DownloadListener() {
 				public void onDownloadStart(final String url, final String userAgent, final String contentDisposition, final String mimetype, final long contentLength) {
+					ExceptionLogger.log("onDownloadStart", url + ", userAgent " + userAgent + ", contentDisposition" + contentDisposition +", contentLength " + contentLength);
 					final String filename = URLUtil.guessFileName(url, contentDisposition, mimetype);
 					new AlertDialog.Builder(MainActivity.this)
 						.setTitle("Download")
@@ -880,6 +892,10 @@ public class MainActivity extends Activity {
         }
     }
 
+	private void showToast(String st) {
+		Toast.makeText(MainActivity.this, st, Toast.LENGTH_SHORT).show();
+	}
+
 	String mhtmlPath;
 	public static File externalLogFilesDir;
     @Override
@@ -906,7 +922,7 @@ public class MainActivity extends Activity {
         }
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.sweb_activity_main);
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
 				public void onSystemUiVisibilityChange(int p1) {
 					updateFullScreen();}});
@@ -916,9 +932,13 @@ public class MainActivity extends Activity {
 
         webviews = (FrameLayout) findViewById(R.id.webviews);
         currentTabIndex = 0;
-
+		address = (ViewGroup)findViewById(R.id.address);
         et = (AutoCompleteTextView) findViewById(R.id.et);
-
+		goStop = (ImageView) findViewById(R.id.goStop);
+		main_layout = findViewById(R.id.main_layout);
+		toolbar = (ViewGroup)findViewById(R.id.toolbar);
+		progressbar = (ProgressBar) findViewById(R.id.progressbar);
+		
         // setup edit text
         et.setSelected(false);
         String initialUrl = getUrlFromIntent(getIntent());
@@ -934,9 +954,7 @@ public class MainActivity extends Activity {
 					loadUrl(et.getText().toString(), getCurrentWebView());
 				}});
 
-        setupToolbar((ViewGroup)findViewById(R.id.toolbar));
-
-        et.setOnKeyListener(new View.OnKeyListener() {
+		et.setOnKeyListener(new View.OnKeyListener() {
 				public boolean onKey(View v, int keyCode, KeyEvent event) {
 					if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
 						loadUrl(et.getText().toString(), getCurrentWebView());
@@ -946,6 +964,33 @@ public class MainActivity extends Activity {
 						return false;
 					}
 				}});
+		et.addTextChangedListener(new TextWatcher() {
+				@Override
+				public void beforeTextChanged(CharSequence p1, int p2, int p3, int p4) {
+					goStop.setImageResource(R.drawable.forward);
+				}
+				@Override
+				public void onTextChanged(CharSequence p1, int p2, int p3, int p4) {
+				}
+				@Override
+				public void afterTextChanged(Editable p1) {
+				}
+		});
+
+        goStop.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View p1) {
+					WebView currentWebView = getCurrentWebView();
+					if (currentWebView.getProgress() < 100) {
+						currentWebView.stopLoading();
+						goStop.setImageResource(R.drawable.reload);
+					} else {
+						currentWebView.requestFocus();
+						loadUrl(et.getText().toString(), currentWebView);
+					}
+				}
+		});
+        setupToolbar(toolbar);
 
         searchEdit = (EditText) findViewById(R.id.searchEdit);
         searchEdit.addTextChangedListener(new TextWatcher() {
@@ -1086,7 +1131,7 @@ public class MainActivity extends Activity {
 
     private void setupToolbar(ViewGroup parent) {
         for (String[] actions : toolbarActions) {
-            View v = getLayoutInflater().inflate(R.layout.toolbar_button, parent, false);
+            View v = getLayoutInflater().inflate(R.layout.sweb_toolbar_button, parent, false);
             parent.addView(v);
             Runnable a1 = null, a2 = null, a3 = null;
             if (actions[0] != null) {
@@ -1208,6 +1253,7 @@ public class MainActivity extends Activity {
 
     void toggleShowAddressBar() {
         et.setVisibility(et.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+		goStop.setVisibility(goStop.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
     }
 
     void toggleNightMode() {
@@ -1471,12 +1517,12 @@ public class MainActivity extends Activity {
     private void initAdblocker() {
         if (useAdBlocker) {
             File externalFilesDir = getExternalFilesDir("adblock");
-			Log.d(TAG, "adblock " + externalFilesDir.getAbsolutePath());
+			ExceptionLogger.log(TAG, "adblock " + externalFilesDir.getAbsolutePath());
 			adBlocker = new AdBlocker(externalFilesDir);
         } else {
             adBlocker = null;
         }
-		Log.d(TAG, "adBlocker " + adBlocker);
+		ExceptionLogger.log(TAG, "adBlocker " + adBlocker);
     }
 
 	void toggleAdblocker() {
@@ -1507,13 +1553,13 @@ public class MainActivity extends Activity {
         });
     }
 
-    void showHistory() {
+	void showHistory() {
         if (placesDb == null) return;
         final Cursor cursor = placesDb.rawQuery("SELECT title, url, date_created, id as _id FROM history", null);
         final AlertDialog dialog = new AlertDialog.Builder(this)
 			.setTitle("History")
 			.setOnDismissListener(new OnDismissListener() {
-				public void onDismiss(android.content.DialogInterface p1) {
+				public void onDismiss(DialogInterface p1) {
 					cursor.close();}})
 			.setCursor(cursor, new OnClickListener() {
 				public void onClick(DialogInterface dialog, int which) {
@@ -1523,52 +1569,39 @@ public class MainActivity extends Activity {
 					loadUrl(url, getCurrentWebView());
 				}}, "title")
 			.create();
-        dialog.getListView().setOnItemLongClickListener(new OnItemLongClickListener() {
-				public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+        final ListView listView = dialog.getListView();
+		listView.setOnItemLongClickListener(new OnItemLongClickListener() {
+				public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, final long id) {
 					cursor.moveToPosition(position);
 					final int rowid = cursor.getInt(cursor.getColumnIndex("_id"));
 					final String title = cursor.getString(cursor.getColumnIndex("title"));
 					final String url = cursor.getString(cursor.getColumnIndex("url"));
-					dialog.dismiss();
+					//dialog.dismiss();
 					new AlertDialog.Builder(MainActivity.this)
 						.setTitle(title)
-						.setItems(new String[] {"Rename", "Change URL", "Delete"}, new OnClickListener() {
-							public void onClick(DialogInterface dialog, int which) {
+						.setItems(new String[] {"Add bookmark", "Copy link", "Share link", "Delete"}, new OnClickListener() {
+							public void onClick(DialogInterface subDialog, int which) {
 								switch (which) {
 									case 0: {
-											final EditText editView = new EditText(MainActivity.this);
-											editView.setText(title);
-											new AlertDialog.Builder(MainActivity.this)
-												.setTitle("Rename history")
-												.setView(editView)
-												.setPositiveButton("Rename", new OnClickListener() {
-													public void onClick(DialogInterface dialog, int which) {
-														placesDb.execSQL("UPDATE history SET title=? WHERE id=?", new Object[] {editView.getText(), rowid});
-													}})
-												.setNegativeButton("Cancel", new OnClickListener() {
-													public void onClick(DialogInterface dialog, int which) {
-													}})
-												.show();
-											break;
-										}
+										addBookmark();
+										showToast("Added " + title + " to bookmarks");
+										break;
+									}
 									case 1: {
-											final EditText editView = new EditText(MainActivity.this);
-											editView.setText(url);
-											new AlertDialog.Builder(MainActivity.this)
-												.setTitle("Change history URL")
-												.setView(editView)
-												.setPositiveButton("Change URL", new OnClickListener() {
-													public void onClick(DialogInterface dialog, int which) {
-														placesDb.execSQL("UPDATE bookmarks SET url=? WHERE id=?", new Object[] {editView.getText(), rowid});
-													}})
-												.setNegativeButton("Cancel", new OnClickListener() {
-													public void onClick(DialogInterface dialog, int which) {
-													}})
-												.show();
-											break;
-										}
+										ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+										assert clipboard != null;
+										ClipData clipData = ClipData.newPlainText("URL", url);
+										clipboard.setPrimaryClip(clipData);
+										showToast("Copied " + title + " to clipboard");
+										break;
+									}
 									case 2:
+										shareUrl(url);
+										break;
+									case 3:
 										placesDb.execSQL("DELETE FROM history WHERE id = ?", new Object[] {rowid});
+										dialog.dismiss();
+										showHistory();
 										break;
 								}
 							}})
@@ -1600,11 +1633,11 @@ public class MainActivity extends Activity {
 					final int rowid = cursor.getInt(cursor.getColumnIndex("_id"));
 					final String title = cursor.getString(cursor.getColumnIndex("title"));
 					final String url = cursor.getString(cursor.getColumnIndex("url"));
-					dialog.dismiss();
+					//dialog.dismiss();
 					new AlertDialog.Builder(MainActivity.this)
 						.setTitle(title)
-						.setItems(new String[] {"Rename", "Change URL", "Delete"}, new OnClickListener() {
-							public void onClick(DialogInterface dialog, int which) {
+						.setItems(new String[] {"Rename", "Change URL", "Copy link", "Share link", "Delete"}, new OnClickListener() {
+							public void onClick(DialogInterface subDialog, int which) {
 								switch (which) {
 									case 0: {
 											final EditText editView = new EditText(MainActivity.this);
@@ -1638,8 +1671,21 @@ public class MainActivity extends Activity {
 												.show();
 											break;
 										}
-									case 2:
+									case 2: {
+											ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+											assert clipboard != null;
+											ClipData clipData = ClipData.newPlainText("URL", url);
+											clipboard.setPrimaryClip(clipData);
+											showToast("Copied " + title + " to clipboard");
+											break;
+										}
+									case 3:
+										shareUrl(url);
+										break;
+									case 4:
 										placesDb.execSQL("DELETE FROM bookmarks WHERE id = ?", new Object[] {rowid});
+										dialog.dismiss();
+										showBookmarks();
 										break;
 								}
 							}})
@@ -1918,7 +1964,7 @@ public class MainActivity extends Activity {
 	}
 	
 	boolean etVisibility() {
-		return et.getVisibility() == View.VISIBLE;
+		return address.getVisibility() == View.VISIBLE;
 	}
 	
 	void newTab() {
@@ -1939,6 +1985,29 @@ public class MainActivity extends Activity {
 	}
 	
     private String getUrlFromIntent(Intent intent) {
+		ExceptionLogger.log(TAG, "getUrlFromIntent " + intent.getAction());
+		ExceptionLogger.log(TAG, "getDataString " + intent.getDataString());
+		ExceptionLogger.log(TAG, "Intent.EXTRA_TEXT " + intent.getStringExtra(Intent.EXTRA_TEXT));
+		ExceptionLogger.log(TAG, "query " + intent.getStringExtra("query"));
+		if (Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction())
+			|| Intent.ACTION_SEND.equals(intent.getAction())
+			|| Intent.ACTION_VIEW.equals(intent.getAction())
+			|| Intent.ACTION_SENDTO.equals(intent.getAction())) {
+			Uri uri = intent.getData();
+			ExceptionLogger.log(TAG, "URI to open is: " + uri + ", intent " + intent + ", " + intent.getClipData());
+			if (uri != null) {
+				return uri2RawPath(uri);
+			} else {
+				final ClipData clip = intent.getClipData();
+				if (clip != null) {
+					final int itemCount = clip.getItemCount();
+					if (itemCount > 0) {
+						uri = clip.getItemAt(0).getUri();
+						return uri2RawPath(uri);
+					}
+				}
+			}
+		}
         if (Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
             return intent.getDataString();
         } else if (Intent.ACTION_SEND.equals(intent.getAction()) && "text/plain".equals(intent.getType())) {
@@ -1950,6 +2019,41 @@ public class MainActivity extends Activity {
         }
     }
 
+	private String uri2RawPath(Uri uri) {
+		String path = "";
+		String scheme = uri.getScheme();
+		if (ContentResolver.SCHEME_FILE.equals(scheme)) {
+			path = uri.getEncodedPath();
+			ExceptionLogger.log(TAG, "Uri.decode(uri.getEncodedPath()) " + path);
+		} else if (ContentResolver.SCHEME_CONTENT.equals(scheme)) {
+			ContentResolver cr = getContentResolver();
+			Cursor cur = null;
+			try {
+				cur = cr.query(uri, null, null, null, null);
+			} catch (Exception e) {
+				ExceptionLogger.logException(e);
+			}
+			if (cur != null) {
+				cur.moveToFirst();
+				try {
+					path = cur.getString(cur.getColumnIndex("_data"));
+					ExceptionLogger.log(TAG, "cur.getColumnIndex " + path);
+					if (path == null
+						|| !path.startsWith(Environment.getExternalStorageDirectory()
+											.getPath())) {
+						// from content provider
+						path = uri.toString();
+					}
+				} catch (Exception e) {
+					path = uri.toString();
+				}
+			} else {
+				path = uri.toString();
+			}
+		}
+		return path;
+	}
+
     @Override
     protected void onNewIntent(Intent intent) {
         String url = getUrlFromIntent(intent);
@@ -1958,40 +2062,54 @@ public class MainActivity extends Activity {
             switchToTab(tabs.size() - 1);
         }
     }
-
+	
     public void onNightModeChange() {
+		int textColor;
+		int backgroundColor;
         if (isNightMode) {
-            int textColor = Color.rgb(0xa1, 0xa1, 0xa1);
-            int backgroundColor = Color.rgb(0x22, 0x22, 0x22);
-            et.setTextColor(textColor);
-            et.setBackgroundColor(backgroundColor);
-            searchEdit.setTextColor(textColor);
-            searchEdit.setBackgroundColor(backgroundColor);
-            searchCount.setTextColor(textColor);
-            findViewById(R.id.main_layout).setBackgroundColor(Color.BLACK);
-            findViewById(R.id.toolbar).setBackgroundColor(Color.BLACK);
-            ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x66, 0)));
+            textColor = Color.rgb(0xe0, 0xe0, 0xe0);
+            backgroundColor = Color.rgb(0x22, 0x22, 0x22);
+            progressbar.setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x66, 0)));
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             getWindow().setNavigationBarColor(Color.BLACK);
 			for (Tab tab : tabs) {
 				tab.webview.setBackgroundColor(0xffbbbbbb);
 			}
         } else {
-            int textColor = Color.BLACK;
-            int backgroundColor = Color.rgb(0xe0, 0xe0, 0xe0);
-            et.setTextColor(textColor);
-            et.setBackgroundColor(backgroundColor);
-            searchEdit.setTextColor(textColor);
-            searchEdit.setBackgroundColor(backgroundColor);
-            searchCount.setTextColor(textColor);
-            findViewById(R.id.main_layout).setBackgroundColor(Color.WHITE);
-            findViewById(R.id.toolbar).setBackgroundColor(Color.rgb(0xe0, 0xe0, 0xe0));
-            ((ProgressBar) findViewById(R.id.progressbar)).setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0xcc, 0)));
+            textColor = Color.BLACK;
+            backgroundColor = Color.rgb(0xe0, 0xe0, 0xe0);
+            progressbar.setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0xcc, 0)));
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
 			for (Tab tab : tabs) {
-				tab.webview.setBackgroundColor(0xfffff8da);
+				tab.webview.setBackgroundColor(0xfffffff0);
 			}
         }
+		et.setTextColor(textColor);
+		et.setBackgroundColor(backgroundColor);
+		goStop.setColorFilter(textColor);
+		goStop.setBackgroundColor(backgroundColor);
+		searchEdit.setTextColor(textColor);
+		searchEdit.setBackgroundColor(backgroundColor);
+		searchCount.setTextColor(textColor);
+		main_layout.setBackgroundColor(backgroundColor);//Color.BLACK);
+		toolbar.setBackgroundColor(backgroundColor);//Color.BLACK);
+		final int childCount = toolbar.getChildCount();
+		for (int i = 0; i < childCount; i++) {
+			final View v = toolbar.getChildAt(i);
+			final ImageButton btnShortClick = (ImageButton)v.findViewById(R.id.btnShortClick);
+			btnShortClick.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+			
+			final ImageButton btnSwipeUp = (ImageButton)v.findViewById(R.id.btnSwipeUp);
+			btnSwipeUp.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+			
+			final ImageButton btnLongClick = (ImageButton)v.findViewById(R.id.btnLongClick);
+			btnLongClick.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+			
+			final TextView txtText = (TextView)v.findViewById(R.id.txtText);
+			txtText.setTextColor(textColor);
+			
+		}
+		
 //        for (int i = 0; i < tabs.size(); i++) {
 //            tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
 //            injectCSS(tabs.get(i).webview);
@@ -2090,7 +2208,7 @@ public class MainActivity extends Activity {
     }
 
     void showFullMenu() {
-		final MenuAction[] copyOfRange = new MenuAction[menuActions.length + 2 - toolbarActions.length*toolbarActions[0].length];
+		final MenuAction[] copyOfRange = new MenuAction[menuActions.length - toolbarActions.length*toolbarActions[0].length];
 		int i = 0;
 		for (MenuAction ma : menuActions) {
 			boolean exist = false;
@@ -2121,12 +2239,16 @@ public class MainActivity extends Activity {
 			.show();
     }
 
-    void shareUrl() {
+    void shareUrl(String url) {
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
-        intent.putExtra(Intent.EXTRA_TEXT, getCurrentWebView().getUrl());
+        intent.putExtra(Intent.EXTRA_TEXT, url);
         intent.setType("text/plain");
         startActivity(Intent.createChooser(intent, "Share URL"));
+    }
+
+    void shareUrl() {
+        shareUrl(getCurrentWebView().getUrl());
     }
 
     void openUrlInApp() {
@@ -2146,24 +2268,33 @@ public class MainActivity extends Activity {
     }
 
     public void loadUrl(String url, WebView webview) {
+		ExceptionLogger.log("loadUrl ", url);
         url = url.trim();
         if (url.isEmpty()) {
             url = "about:blank";
         }
-        if (url.startsWith("about:") || url.startsWith("javascript:") || url.startsWith("file:") || url.startsWith("data:") ||
-                (url.indexOf(' ') == -1 && Patterns.WEB_URL.matcher(url).matches())) {
+        if (url.startsWith("about:") 
+			|| url.startsWith("javascript:") 
+			|| url.startsWith("file:") 
+			|| url.startsWith("data:") 
+			|| (url.indexOf(' ') == -1 && Patterns.WEB_URL.matcher(url).matches())) {
             int indexOfHash = url.indexOf('#');
             String guess = URLUtil.guessUrl(url);
-            if (indexOfHash != -1 && guess.indexOf('#') == -1) {
+			ExceptionLogger.log("guess1 ", guess);
+			if (indexOfHash != -1 && guess.indexOf('#') == -1) {
                 // Hash exists in original URL but no hash in guessed URL
                 url = guess + url.substring(indexOfHash);
             } else {
                 url = guess;
             }
-        } else {
+			ExceptionLogger.log("guess2 ", guess);
+		} else if (url.startsWith("/")) {
+			url = Uri.fromFile(new File(Uri.decode(url))).toString();
+		} else {
             url = URLUtil.composeSearchUrl(url, searchUrl, "%s");
         }
-
+		ExceptionLogger.log("url2 ", url);
+		
         webview.loadUrl(url);
 
         hideKeyboard();
@@ -2334,13 +2465,7 @@ public class MainActivity extends Activity {
 					}});
         }
         if (swipeUp != null) {
-            final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this) {
-                @Override
-                boolean onFlingUp() {
-                    swipeUp.run();
-                    return true;
-                }
-            });
+            final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this, null, null, swipeUp, null));
             //noinspection AndroidLintClickableViewAccessibility
             view.setOnTouchListener(new OnTouchListener() {
 					public boolean onTouch(View v, MotionEvent event) {
@@ -2355,11 +2480,19 @@ public class MainActivity extends Activity {
         private static final int MIN_DISTANCE_DP = 80;  // 0.5 inch
         private final float MIN_VELOCITY_PX;
         private final float MIN_DISTANCE_PX;
+		final Runnable swipeLeft;
+		final Runnable swipeRight;
+		final Runnable swipeUp;
+		final Runnable swipeDown;
 
-        MyGestureDetector(Context context) {
+		MyGestureDetector(Context context, final Runnable swipeLeft, final Runnable swipeRight, final Runnable swipeUp, final Runnable swipeDown) {
             float density = context.getResources().getDisplayMetrics().density;
             MIN_VELOCITY_PX = MIN_VELOCITY_DP * density;
             MIN_DISTANCE_PX = MIN_DISTANCE_DP * density;
+			this.swipeLeft = swipeLeft;
+			this.swipeRight = swipeRight;
+			this.swipeUp = swipeUp;
+			this.swipeDown = swipeDown;
         }
 
         @Override
@@ -2399,18 +2532,30 @@ public class MainActivity extends Activity {
         }
 
         boolean onFlingRight() {
+            if (swipeRight != null) {
+				swipeRight.run();
+			}
             return true;
         }
 
         boolean onFlingLeft() {
+			if (swipeLeft != null) {
+				swipeLeft.run();
+			}
             return true;
         }
 
         boolean onFlingUp() {
+            if (swipeUp != null) {
+				swipeUp.run();
+			}
             return true;
         }
 
         boolean onFlingDown() {
+            if (swipeDown != null) {
+				swipeDown.run();
+			}
             return true;
         }
     }
