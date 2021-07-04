@@ -321,7 +321,7 @@ public class AdBlocker {
             result |= result2;
             return result;
         } catch (Exception e) {
-            ExceptionLogger.logException(e);
+            ExceptionLogger.e(e);
             return false;
         }
     }
