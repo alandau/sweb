@@ -126,8 +126,14 @@ import android.webkit.*;
 import android.view.*;
 import android.util.*;
 
-public class MainActivity extends Activity {
+class EmptyOnClickListener implements DialogInterface.OnClickListener {
+	@Override
+	public void onClick(DialogInterface p1, int p2) {
+	}
+}
 
+public class MainActivity extends Activity {
+	 
     private static class Tab {
         Tab(WebView w) {
             this.webview = w;
@@ -135,7 +141,9 @@ public class MainActivity extends Activity {
 		boolean loading;
         WebView webview;
         boolean isDesktopUA;
-    }
+		long lastDownload = -1L;
+		String sourceName;
+	}
 
     private static final String TAG = "MainActivity";
 
@@ -211,10 +219,7 @@ public class MainActivity extends Activity {
 	private boolean allowUniversalAccessFromFileURLs;
 	private boolean blockNetworkLoads;
 	private boolean javaScriptCanOpenWindowsAutomatically;
-//	private boolean LOAD_DEFAULT;
-//	private boolean LOAD_CACHE_ELSE_NETWORK;
-//	private boolean LOAD_NO_CACHE;
-//	private boolean LOAD_CACHE_ONLY;
+
 	private int cacheMode;
 	private boolean isDesktopUA;
 	private boolean requestSaveData;
@@ -360,7 +365,8 @@ public class MainActivity extends Activity {
 		new MenuAction("Page info", R.drawable.page_info, newR("pageInfo")),
 		new MenuAction("Share URL", R.drawable.ic_action_share, newR("shareUrl")),
 		new MenuAction("Open URL in app", R.drawable.ic_action_eye_open, newR("openUrlInApp")),
-
+		new MenuAction("View Source", R.drawable.night, newR("viewSource")),
+		
 		new MenuAction("Back", R.drawable.back, newR("goBack")),
 		new MenuAction("Forward", R.drawable.forward, newR("goForward")),
 		//new MenuAction("Reload", R.drawable.reload, newR("reload")),
@@ -580,7 +586,7 @@ public class MainActivity extends Activity {
             final InputStream emptyInputStream = new ByteArrayInputStream(new byte[0]);
 
             String lastMainPage = "";
-			final Pattern IMAGES_PATTERN = Pattern.compile(".*?\\.(gif|jpg|jpeg|png|bmp|webp|tif|tiff|wmf|psd|pic).*?", Pattern.CASE_INSENSITIVE);
+			final Pattern IMAGES_PATTERN = Pattern.compile(".*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico).*?", Pattern.CASE_INSENSITIVE);
 			final Pattern MEDIA_PATTERN = Pattern.compile(".*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram).*?", Pattern.CASE_INSENSITIVE);
 			
             @Override
@@ -710,15 +716,11 @@ public class MainActivity extends Activity {
 									new AlertDialog.Builder(MainActivity.this)
 										.setTitle("Open")
 										.setMessage("Can't open files of this type. Try downloading instead.")
-										.setPositiveButton("OK", new OnClickListener() {
-											public void onClick(DialogInterface dialog, int which) {
-											}})
+										.setPositiveButton("OK", new EmptyOnClickListener())
 										.show();
 								}
 							}})
-						.setNegativeButton("Cancel", new OnClickListener() {
-							public void onClick(DialogInterface dialog, int which) {
-							}})
+						.setNegativeButton("Cancel", new EmptyOnClickListener())
 						.show();
 				}});
         webview.setFindListener(new WebView.FindListener() {
@@ -774,9 +776,7 @@ public class MainActivity extends Activity {
                     new AlertDialog.Builder(MainActivity.this)
                             .setTitle("Full URL")
                             .setMessage(url)
-						.setPositiveButton("OK", new OnClickListener() {
-							public void onClick(DialogInterface dialog, int which) {
-							}})
+						.setPositiveButton("OK", new EmptyOnClickListener())
                             .show();
                     break;
                 case 4:
@@ -795,9 +795,7 @@ public class MainActivity extends Activity {
                     new AlertDialog.Builder(MainActivity.this)
 						.setTitle("Full imageUrl")
 						.setMessage(imageUrl)
-						.setPositiveButton("OK", new OnClickListener() {
-							public void onClick(DialogInterface dialog, int which) {
-							}})
+						.setPositiveButton("OK", new EmptyOnClickListener())
 						.show();
                     break;
                 case 9:
@@ -832,10 +830,10 @@ public class MainActivity extends Activity {
         return s;
     }
 
-    private void startDownload(String url, String filename) {
+	private void startDownload(String url, String filename) {
         if (!hasOrRequestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                null,
-                PERMISSION_REQUEST_DOWNLOAD)) {
+									null,
+									PERMISSION_REQUEST_DOWNLOAD)) {
             return;
         }
         if (filename == null) {
@@ -846,25 +844,102 @@ public class MainActivity extends Activity {
             request = new DownloadManager.Request(Uri.parse(url));
         } catch (IllegalArgumentException e) {
             new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("Can't Download URL")
-                    .setMessage(url)
-				.setPositiveButton("OK", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
-                    .show();
+				.setTitle("Can't Download URL")
+				.setMessage(url)
+				.setPositiveButton("OK", new EmptyOnClickListener())
+				.show();
             return;
         }
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
         request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
-        String cookie = CookieManager.getInstance().getCookie(url);
+        request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI
+									   | DownloadManager.Request.NETWORK_MOBILE)
+			.setAllowedOverRoaming(false)
+			.setTitle("Download")
+			.setDescription("Downloading...");
+		String cookie = CookieManager.getInstance().getCookie(url);
         if (cookie != null) {
             request.addRequestHeader("Cookie", cookie);
         }
         DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
         assert dm != null;
-        dm.enqueue(request);
+        getCurrentTab().lastDownload = dm.enqueue(request);
     }
 
+	private void queryStatus(View v, long lastDownload) {
+		DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+		Cursor c = dm.query(new DownloadManager.Query().setFilterById(lastDownload));
+
+		if (c == null) {
+			showToast("Download Not Found");
+		} else {
+			c.moveToFirst();
+			Log.d(getClass().getName(),
+				  "COLUMN_ID: "
+				  + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_ID)));
+			Log.d(getClass().getName(),
+				  "COLUMN_BYTES_DOWNLOADED_SO_FAR: "
+				  + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)));
+			Log.d(getClass().getName(),
+				  "COLUMN_LAST_MODIFIED_TIMESTAMP: "
+				  + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)));
+			Log.d(getClass().getName(),
+				  "COLUMN_LOCAL_URI: "
+				  + c.getString(c.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)));
+			Log.d(getClass().getName(),
+				  "COLUMN_STATUS: "
+				  + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS)));
+			Log.d(getClass().getName(),
+				  "COLUMN_REASON: "
+				  + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_REASON)));
+			showToast(statusMessage(c));
+
+			c.close();
+		}
+	}
+
+	private String statusMessage(Cursor c) {
+		String msg="???";
+		switch (c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS))) {
+			case DownloadManager.STATUS_FAILED:
+				msg = "download failed";
+				break;
+			case DownloadManager.STATUS_PAUSED:
+				msg="download paused";
+				break;
+			case DownloadManager.STATUS_PENDING:
+				msg= "download pending";
+				break;
+			case DownloadManager.STATUS_RUNNING:
+				msg="download in progress";
+				break;
+			case DownloadManager.STATUS_SUCCESSFUL:
+				msg="download complete";
+				break;
+			default:
+				msg = "download is nowhere in sight";
+				break;
+		}
+		return(msg);
+	}
+  
+	private BroadcastReceiver onEvent = new BroadcastReceiver() {
+		public void onReceive(Context ctxt, Intent i) {
+			if (DownloadManager.ACTION_NOTIFICATION_CLICKED.equals(i.getAction())) {
+				queryStatus(toolbar, i.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0));
+			} else if (getCurrentTab().sourceName != null) {
+				long downloadId = i.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0);
+				Tab currentTab = getCurrentTab();
+				if (currentTab.lastDownload == downloadId) {
+					String toString = Uri.fromFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + currentTab.sourceName)).toString();
+					ExceptionLogger.d(TAG, getCurrentTab().sourceName + ", " + toString);
+					currentTab.webview.loadUrl(toString);
+					currentTab.sourceName = null;
+				}
+			}
+		}
+	};
+	
     private void newTabCommon(WebView webview) {
         //boolean isDesktopUA = !tabs.isEmpty() && getCurrentTab().isDesktopUA;
         WebSettings settings = webview.getSettings();
@@ -926,12 +1001,20 @@ public class MainActivity extends Activity {
     private void switchToTab(int tab) {
         getCurrentWebView().setVisibility(View.GONE);
         currentTabIndex = tab;
-        getCurrentWebView().setVisibility(View.VISIBLE);
-        et.setText(getCurrentWebView().getUrl());
-		if (getCurrentTab().loading) {
-			goStop.setImageResource(R.drawable.stop);
+        Tab currentTab = getCurrentTab();
+		currentTab.webview.setVisibility(View.VISIBLE);
+        et.setText(currentTab.webview.getUrl());
+		if (currentTab.sourceName != null) {
+			String toString = Uri.fromFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + currentTab.sourceName)).toString();
+			ExceptionLogger.d(TAG, getCurrentTab().sourceName + ", " + toString);
+			currentTab.webview.loadUrl(toString);
+			currentTab.sourceName = null;
 		} else {
-			goStop.setImageResource(R.drawable.reload);
+			if (currentTab.loading) {
+				goStop.setImageResource(R.drawable.stop);
+			} else {
+				goStop.setImageResource(R.drawable.reload);
+			}
 		}
         getCurrentWebView().requestFocus();
     }
@@ -967,7 +1050,11 @@ public class MainActivity extends Activity {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 			WebView.enableSlowWholeDocumentDraw();
 		}
-        
+		
+        IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+		f.addAction(DownloadManager.ACTION_NOTIFICATION_CLICKED);
+		registerReceiver(onEvent, f);
+		
         try {
             placesDb = new PlacesDbHelper(this).getWritableDatabase();
         } catch (SQLiteException e) {
@@ -979,8 +1066,7 @@ public class MainActivity extends Activity {
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
 				public void onSystemUiVisibilityChange(int p1) {
 					updateFullScreen();}});
-
-        isFullscreen = false;
+		isFullscreen = false;
         isNightMode = prefs.getBoolean("night_mode", false);
 
         webviews = (FrameLayout) findViewById(R.id.webviews);
@@ -1144,6 +1230,7 @@ public class MainActivity extends Activity {
 	@Override
     protected void onResume() {
         super.onResume();
+        
         if (printJob != null && printBtnPressed) {
             if (printJob.isCompleted()) {
                 Toast.makeText(this, "Printing Completed", Toast.LENGTH_SHORT).show();
@@ -1163,11 +1250,17 @@ public class MainActivity extends Activity {
     }
     @Override
     protected void onDestroy() {
-        if (placesDb != null) {
+        super.onDestroy();
+		unregisterReceiver(onEvent);
+		if (placesDb != null) {
             placesDb.close();
         }
-        super.onDestroy();
-    }
+	}
+
+  @Override
+  public void onPause() {
+    super.onPause();
+  }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -1271,9 +1364,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setTitle("Page info")
                 .setMessage(s)
-			.setPositiveButton("OK", new OnClickListener() {
-				public void onClick(DialogInterface dialog, int which) {
-				}})
+			.setPositiveButton("OK", new EmptyOnClickListener())
                 .show();
     }
 
@@ -1315,9 +1406,7 @@ public class MainActivity extends Activity {
 									new AlertDialog.Builder(MainActivity.this)
 										.setTitle("Remove closed tab?")
 										.setMessage(closedTabs.get(position).title)
-										.setNegativeButton("Cancel", new OnClickListener() {
-											public void onClick(DialogInterface dialog, int which) {
-											}})
+										.setNegativeButton("Cancel", new EmptyOnClickListener())
 										.setPositiveButton("Remove", new OnClickListener() {
 											public void onClick(DialogInterface dialog, int which) {
 												closedTabs.remove(position);
@@ -1762,9 +1851,7 @@ public class MainActivity extends Activity {
 													public void onClick(DialogInterface dialog, int which) {
 														placesDb.execSQL("UPDATE bookmarks SET title=? WHERE _id=?", new Object[] {editView.getText(), rowid});
 													}})
-												.setNegativeButton("Cancel", new OnClickListener() {
-													public void onClick(DialogInterface dialog, int which) {
-													}})
+												.setNegativeButton("Cancel", new EmptyOnClickListener())
 												.show();
 											break;
 										}
@@ -1778,9 +1865,7 @@ public class MainActivity extends Activity {
 													public void onClick(DialogInterface dialog, int which) {
 														placesDb.execSQL("UPDATE bookmarks SET url=? WHERE _id=?", new Object[] {editView.getText(), rowid});
 													}})
-												.setNegativeButton("Cancel", new OnClickListener() {
-													public void onClick(DialogInterface dialog, int which) {
-													}})
+												.setNegativeButton("Cancel", new EmptyOnClickListener())
 												.show();
 											break;
 										}
@@ -1852,9 +1937,7 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Export bookmarks error")
                     .setMessage("Can't open bookmarks database")
-				.setPositiveButton("OK", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
+				.setPositiveButton("OK", new EmptyOnClickListener())
                     .show();
             return;
         }
@@ -1868,9 +1951,7 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Export bookmarks")
                     .setMessage("The file bookmarks.html already exists on SD card. Overwrite?")
-				.setNegativeButton("Cancel", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
+				.setNegativeButton("Cancel", new EmptyOnClickListener())
 			.setPositiveButton("Overwrite", new OnClickListener() {
 					public void onClick(DialogInterface dialog, int which) {
                         //noinspection ResultOfMethodCallIgnored
@@ -1908,9 +1989,7 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Export bookmarks error")
                     .setMessage(e.toString())
-				.setPositiveButton("OK", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
+				.setPositiveButton("OK", new EmptyOnClickListener())
                     .show();
         }
     }
@@ -1921,9 +2000,7 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Import bookmarks error")
                     .setMessage("Can't open bookmarks database")
-				.setPositiveButton("OK", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
+				.setPositiveButton("OK", new EmptyOnClickListener())
                     .show();
             return;
         }
@@ -1947,18 +2024,14 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Import bookmarks error")
                     .setMessage("Bookmarks should be placed in a bookmarks.html file on the SD Card")
-				.setPositiveButton("OK", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
+				.setPositiveButton("OK", new EmptyOnClickListener())
                     .show();
             return;
         } catch (IOException e) {
             new AlertDialog.Builder(this)
                     .setTitle("Import bookmarks error")
                     .setMessage(e.toString())
-				.setPositiveButton("OK", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
+				.setPositiveButton("OK", new EmptyOnClickListener())
                     .show();
             return;
         }
@@ -1979,9 +2052,7 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Import bookmarks")
                     .setMessage("No bookmarks found in bookmarks.html")
-				.setPositiveButton("OK", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
+				.setPositiveButton("OK", new EmptyOnClickListener())
                     .show();
             return;
         }
@@ -2006,18 +2077,14 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Bookmarks error")
                     .setMessage("Can't open bookmarks database")
-				.setPositiveButton("OK", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
+				.setPositiveButton("OK", new EmptyOnClickListener())
                     .show();
             return;
         }
         new AlertDialog.Builder(this)
                 .setTitle("Delete all bookmarks?")
                 .setMessage("This action cannot be undone")
-			.setNegativeButton("Cancel", new OnClickListener() {
-				public void onClick(DialogInterface dialog, int which) {
-				}})
+			.setNegativeButton("Cancel", new EmptyOnClickListener())
 			.setPositiveButton("Delete All", new OnClickListener() {
 				public void onClick(DialogInterface dialog, int which) {
 					placesDb.execSQL("DELETE FROM bookmarks");}})
@@ -2389,6 +2456,12 @@ public class MainActivity extends Activity {
         shareUrl(getCurrentWebView().getUrl());
     }
 
+	void viewSource() {
+        Tab currentTab = getCurrentTab();
+		currentTab.sourceName = savedName(currentTab.webview) + ".txt";
+		startDownload(currentTab.webview.getUrl(), currentTab.sourceName);
+    }
+	
     void openUrlInApp() {
         Intent i = new Intent(Intent.ACTION_VIEW);
         i.setData(Uri.parse(getCurrentWebView().getUrl()));
@@ -2398,9 +2471,7 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(MainActivity.this)
 				.setTitle("Open in app")
 				.setMessage("No app can open this URL.")
-				.setPositiveButton("OK", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-					}})
+				.setPositiveButton("OK", new EmptyOnClickListener())
 				.show();
         }
     }
