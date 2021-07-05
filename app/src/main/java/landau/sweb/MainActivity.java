@@ -336,6 +336,7 @@ public class MainActivity extends Activity {
 		new MenuAction("Block Network Loads", R.drawable.adblocker, newR("toggleBlockNetworkLoads"), newR("blockNetworkLoads")),
 		new MenuAction("Ad Blocker", R.drawable.adblocker, newR("toggleAdblocker"), newR("useAdBlocker")),
 		new MenuAction("Update adblock rules", 0, newR("updateAdblockRules")),
+		new MenuAction("Add Block Rules", R.drawable.adblocker, newR("addBlockRules")),
 		
 		new MenuAction("JavaScript Enabled", 0, newR("toggleJavaScriptEnabled"), newR("javaScriptEnabled")),
 		new MenuAction("App Cache Enabled", 0, newR("toggleAppCacheEnabled"), newR("appCacheEnabled")),
@@ -1724,12 +1725,54 @@ public class MainActivity extends Activity {
     private void initAdblocker() {
         if (useAdBlocker) {
             File externalFilesDir = getExternalFilesDir("adblock");
-			ExceptionLogger.d(TAG, "adblock " + externalFilesDir.getAbsolutePath());
 			adBlocker = new AdBlocker(externalFilesDir);
         } else {
             adBlocker = null;
         }
 		ExceptionLogger.d(TAG, "adBlocker " + adBlocker);
+    }
+	
+	void addBlockRules() {
+        final File customFilterFile = new File(getExternalFilesDir("adblock").getAbsolutePath() + "/customFilter.txt");
+		try {
+			if (!customFilterFile.exists()) {
+				customFilterFile.createNewFile();
+			}
+			FileReader fr = new FileReader(customFilterFile);
+			BufferedReader br = new BufferedReader(fr);
+			String ln;
+			final StringBuilder sb = new StringBuilder();
+			while ((ln = br.readLine()) != null) {
+				sb.append(ln).append("\n");
+			}
+			br.close();
+			fr.close();
+			final EditText editView = new EditText(MainActivity.this);
+			editView.setText(sb);
+			editView.setSelection(sb.length());
+			new AlertDialog.Builder(MainActivity.this)
+				.setTitle("Edit custom filter")
+				.setView(editView)
+				.setPositiveButton("Apply", new OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+						try {
+							FileWriter fr = new FileWriter(customFilterFile);
+							BufferedWriter br = new BufferedWriter(fr);
+							br.write(editView.getText().toString());
+							br.flush();
+							fr.flush();
+							br.close();
+							fr.close();
+						} catch (IOException e) {
+							ExceptionLogger.e(e);
+						}
+						initAdblocker();
+					}})
+				.setNegativeButton("Cancel", new EmptyOnClickListener())
+				.show();
+		} catch (IOException e) {
+			ExceptionLogger.e(e);
+		}
     }
 
 	void toggleAdblocker() {
@@ -2276,7 +2319,7 @@ public class MainActivity extends Activity {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             getWindow().setNavigationBarColor(Color.BLACK);
 			for (Tab tab : tabs) {
-				tab.webview.setBackgroundColor(0xffbbbbbb);
+				tab.webview.setBackgroundColor(0xffc0c0c0);
 			}
         } else {
             textColor = Color.BLACK;
@@ -2294,7 +2337,7 @@ public class MainActivity extends Activity {
 		searchEdit.setTextColor(textColor);
 		searchEdit.setBackgroundColor(backgroundColor);
 		searchCount.setTextColor(textColor);
-		main_layout.setBackgroundColor(backgroundColor);//Color.BLACK);
+		main_layout.setBackgroundColor(0xffc0c0c0);//Color.BLACK);
 		toolbar.setBackgroundColor(backgroundColor);//Color.BLACK);
 		final int childCount = toolbar.getChildCount();
 		for (int i = 0; i < childCount; i++) {
