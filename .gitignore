@@ -19,3 +19,6 @@
 *.jar
 *.aar
 *.bak
+*.class
+*.dex
+
