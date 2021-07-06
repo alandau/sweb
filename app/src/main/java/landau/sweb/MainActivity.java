@@ -125,6 +125,7 @@ import android.os.storage.*;
 import android.webkit.*;
 import android.view.*;
 import android.util.*;
+import landau.sweb.MainActivity.MenuActionArrayAdapter.*;
 
 public class MainActivity extends Activity {
 	 
@@ -2058,6 +2059,20 @@ public class MainActivity extends Activity {
 		return url;
 	}
 	
+	String getUniqueName(String outputFolder, String name, String ext) {
+        int i = 1;
+        File file = new File(outputFolder, name + "." + ext);
+        if(file.exists()) {
+            while (true) {
+                file = new File(outputFolder, name + " (" + i + ")." + ext);
+                if (!file.exists())
+                    return file.getAbsolutePath();
+                i++;
+            }
+        }
+        return file.getAbsolutePath();
+    }
+	
 	void savePageAsImage() {
 		if (printWeb != null) {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -2682,8 +2697,11 @@ public class MainActivity extends Activity {
 //        }
     }
 
-    
+    AlertDialog alertDialog;
     void showMenu() {
+		if (alertDialog != null) {
+			alertDialog.dismiss();
+		}
 		if (isFullMenu) {
 			showFullMenu();
 		} else {
@@ -2692,24 +2710,43 @@ public class MainActivity extends Activity {
 	}
 
     void showShortMenu() {
-        final MenuAction[] shortMenuActions = new MenuAction[shortMenu.length];
+        final ArrayList<MenuAction> shortMenuActions = new ArrayList<>(shortMenu.length);
         for (int i = 0; i < shortMenu.length; i++) {
-            shortMenuActions[i] = getAction(shortMenu[i]);
+            shortMenuActions.add(getAction(shortMenu[i]));
         }
-        MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
-                MainActivity.this,
-                android.R.layout.simple_list_item_1,
-                shortMenuActions);
-        new AlertDialog.Builder(MainActivity.this)
-			.setTitle("Actions")
-			.setAdapter(adapter, new OnClickListener() {
+		
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		ListView tv = new ListView(this);
+		MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+			MainActivity.this,
+			android.R.layout.simple_list_item_1,
+			shortMenuActions);
+        tv.setAdapter(adapter);
+		builder.setTitle("Actions")
+			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+				@Override
 				public void onClick(DialogInterface dialog, int which) {
-					shortMenuActions[which].action.run();}})
-			.show();
+					dialog.dismiss();
+					alertDialog = null;
+				}
+			});
+		builder.setView(tv);
+		alertDialog = builder.create();
+		alertDialog.show();
+		
+		
+//        final AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+//			.setTitle("Actions")
+//			.setPositiveButton(android.R.string.ok, null)
+//			.setAdapter(adapter, new OnClickListener() {
+//				public void onClick(DialogInterface dialog, int which) {
+//					shortMenuActions[which].action.run();}})
+//			.create();
+//			dialog.show();
     }
 
     void showFullMenu() {
-		final MenuAction[] copyOfRange = new MenuAction[menuActions.length - toolbarActions.length*toolbarActions[0].length];
+		final ArrayList<MenuAction> copyOfRange = new ArrayList<MenuAction>(menuActions.length - toolbarActions.length*toolbarActions[0].length);
 		int i = 0;
 		for (MenuAction ma : menuActions) {
 			boolean exist = false;
@@ -2724,20 +2761,39 @@ public class MainActivity extends Activity {
 					break;
 			}
 			if (!exist) {
-				copyOfRange[i++] = ma;
+				copyOfRange.add(ma);
 			}
 		}
-		
-        MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		ListView tv = new ListView(this);
+		MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
 			MainActivity.this,
 			android.R.layout.simple_list_item_1,
 			copyOfRange);
-		new AlertDialog.Builder(MainActivity.this)
-			.setTitle("Full menu")
-			.setAdapter(adapter, new OnClickListener() {
+        tv.setAdapter(adapter);
+		builder.setTitle("Full menu")
+			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+				@Override
 				public void onClick(DialogInterface dialog, int which) {
-					copyOfRange[which].action.run();}})
-			.show();
+					dialog.dismiss();
+					alertDialog = null;
+				}
+			});
+		builder.setView(tv);
+		alertDialog = builder.create();
+		alertDialog.show();
+		
+//        MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+//			MainActivity.this,
+//			android.R.layout.simple_list_item_1,
+//			copyOfRange);
+//		new AlertDialog.Builder(MainActivity.this)
+//			.setTitle("Full menu")
+//			.setAdapter(adapter, new OnClickListener() {
+//				public void onClick(DialogInterface dialog, int which) {
+//					copyOfRange[which].action.run();}})
+//			.show();
     }
 
     void shareUrl(String url) {
@@ -3075,24 +3131,65 @@ public class MainActivity extends Activity {
         }
     }
 
-    static class MenuActionArrayAdapter extends ArrayAdapter<MenuAction> {
+    static class MenuActionArrayAdapter extends ArrayAdapter<MenuAction> implements View.OnClickListener {
+		DisplayMetrics m;
+		int size;
+		class Holder {
+			final TextView textView;
+			MenuAction item;
+			Holder(View convertView) {
+				textView = (TextView) convertView.findViewById(android.R.id.text1);
+				textView.setOnClickListener(MenuActionArrayAdapter.this);
+				convertView.setOnClickListener(MenuActionArrayAdapter.this);
+				textView.setTag(this);
+				convertView.setTag(this);
+			}
+		}
+		@Override
+		public void onClick(View p1) {
+			Holder tag = (Holder) p1.getTag();
+			final MenuAction item = (tag).item;
+			item.action.run();
+			Drawable right = null;
+            if (item.getState != null) {
+                int icon = item.getState.getAsBoolean() ? android.R.drawable.checkbox_on_background :
+					android.R.drawable.checkbox_off_background;
+                right = getContext().getResources().getDrawable(icon, null);
+                right.setBounds(0, 0, size, size);
+            }
 
-        MenuActionArrayAdapter(@NonNull Context context, int resource, @NonNull MenuAction[] objects) {
+            tag.textView.setCompoundDrawables(tag.textView.getCompoundDrawables()[0], null, right, null);
+            tag.textView.setCompoundDrawablePadding(
+				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, m));
+			
+		}
+		
+        MenuActionArrayAdapter(@NonNull Context context, int resource, @NonNull ArrayList<MenuAction> objects) {
             super(context, resource, objects);
-        }
+			m = getContext().getResources().getDisplayMetrics();
+			size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, m);
+		}
 
         @NonNull
         @Override
         public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-            View view = super.getView(position, convertView, parent);
-            TextView textView = (TextView) view.findViewById(android.R.id.text1);
-            DisplayMetrics m = getContext().getResources().getDisplayMetrics();
+            final Holder holder;
+			if (convertView == null) {
+				convertView = super.getView(position, convertView, parent);//getLayoutInflater().inflate(R.layout.list_item, parent, false);
+				holder = new Holder(convertView);
+			} else {
+				holder = (Holder) convertView.getTag();
+			}
 
-            MenuAction item = getItem(position);
+			final TextView textView = holder.textView;
+			final MenuAction item = getItem(position);
             assert item != null;
-
+			holder.item = item;
+			textView.setText(item.title);
+//View view = super.getView(position, convertView, parent);
+//			TextView textView = (TextView) view.findViewById(android.R.id.text1);
+            
             Drawable left = getContext().getResources().getDrawable(item.icon != 0 ? item.icon : R.drawable.empty, null);
-            int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, m);
             left.setBounds(0, 0, size, size);
             left.setTint(0xffeeeeee);
 
@@ -3108,7 +3205,7 @@ public class MainActivity extends Activity {
             textView.setCompoundDrawablePadding(
                     (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, m));
 
-            return view;
+            return convertView;
         }
     }
 
