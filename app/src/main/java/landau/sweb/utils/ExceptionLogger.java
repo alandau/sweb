@@ -32,6 +32,14 @@ public class ExceptionLogger {
 		e.printStackTrace();
     }
 	
+	@SuppressLint("SimpleDateFormat")
+    public static void e(final String msg, final Throwable e) {
+        printWriter.println("Exception on " + simpleDateFormat.format(new Date()));
+		e.printStackTrace(printWriter);
+		printWriter.flush();
+		e.printStackTrace();
+    }
+
 	public static void d(final CharSequence tag, final CharSequence st) {
         printWriter.println(simpleDateFormat.format(new Date()) + ": " + tag + ": " + st);
 		printWriter.flush();

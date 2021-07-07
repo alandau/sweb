@@ -147,8 +147,13 @@ public class MainActivity extends Activity {
 		long lastDownload = -1L;
 		String sourceName;
 		boolean textChanged;
+		boolean isIncognito;
 	}
-
+	
+	private boolean FULL_INCOGNITO = Build.VERSION.SDK_INT >= 28;
+	private boolean WEB_RTC = Build.VERSION.SDK_INT >= 21;
+	private boolean THIRD_PARTY_COOKIE_BLOCKING = Build.VERSION.SDK_INT >= 21;
+	
     static final String searchUrl = "https://www.google.com/search?q=%s";
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
     static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36";
@@ -204,6 +209,7 @@ public class MainActivity extends Activity {
 	private boolean allowContentAccess;
 	private boolean mediaPlaybackRequiresUserGesture;
 	private boolean loadWithOverviewMode;
+	private boolean textReflow;
 	private boolean domStorageEnabled;
 	//private boolean enableSmoothTransition;
 	private boolean geolocationEnabled;
@@ -222,11 +228,15 @@ public class MainActivity extends Activity {
 	private boolean allowUniversalAccessFromFileURLs;
 	private boolean blockNetworkLoads;
 	private boolean javaScriptCanOpenWindowsAutomatically;
-
+	private boolean block3rdResources;
+	private boolean blockCSS;
+	private boolean blockJavaScript;
+	
 	private int cacheMode;
 	private boolean isDesktopUA;
 	private boolean requestSaveData;
 	private boolean doNotTrack;
+	private Paint paint = new Paint();
 	
     private SQLiteDatabase placesDb;
 	private WebView printWeb;
@@ -487,6 +497,42 @@ public class MainActivity extends Activity {
 					return blockMedia;
 				}
 			}),
+		new MenuAction("Block JavaScript", 0, new Runnable() {
+				@Override
+				public void run() {
+					blockJavaScript = !blockJavaScript;
+					prefs.edit().putBoolean("blockJavaScript", blockJavaScript).apply();
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return blockJavaScript;
+				}
+			}),
+		new MenuAction("Block 3rd Resources", 0, new Runnable() {
+				@Override
+				public void run() {
+					block3rdResources = !block3rdResources;
+					prefs.edit().putBoolean("block3rdResources", block3rdResources).apply();
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return block3rdResources;
+				}
+			}),
+		new MenuAction("Block CSS", 0, new Runnable() {
+				@Override
+				public void run() {
+					blockCSS = !blockCSS;
+					prefs.edit().putBoolean("blockCSS", blockCSS).apply();
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return blockCSS;
+				}
+			}),
 		new MenuAction("Block Network Loads", R.drawable.adblocker, new Runnable() {
 				@Override
 				public void run() {
@@ -602,6 +648,32 @@ public class MainActivity extends Activity {
 				@Override
 				public boolean getAsBoolean() {
 					return loadWithOverviewMode;
+				}
+			}),
+		new MenuAction("Text Reflow", 0, new Runnable() {
+				@Override
+				public void run() {
+					textReflow = !textReflow;
+					prefs.edit().putBoolean("textReflow", textReflow).apply();
+					Tab t = getCurrentTab();
+					WebSettings settings = t.webview.getSettings();
+					if (textReflow) {
+						settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
+						try {
+							settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING);
+						} catch (Exception e) {
+							// This shouldn't be necessary, but there are a number
+							// of KitKat devices that crash trying to set this
+							ExceptionLogger.e("Problem setting LayoutAlgorithm to TEXT_AUTOSIZING", e);
+						}
+					} else {
+						settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return textReflow;
 				}
 			}),
 		new MenuAction("DomStorage Enabled", 0, new Runnable() {
@@ -996,8 +1068,8 @@ public class MainActivity extends Activity {
 										break;
 										}
 									case 2:
-										v.clearFormData();
 										v.clearCache(true);
+										v.clearFormData();
 										break;
 									case 3:
 										v.clearCache(true);
@@ -1079,21 +1151,21 @@ public class MainActivity extends Activity {
 	}
 	
 	@SuppressLint({"SetJavaScriptEnabled", "DefaultLocale"})
-    private WebView createWebView(Bundle bundle) {
+    private WebView createWebView(final Bundle bundle) {
         final ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressbar);
 		final WebView webview = new WebView(this);
         if (bundle != null) {
             webview.restoreState(bundle);
         }
         webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
-        WebSettings settings = webview.getSettings();
-        settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
+        final WebSettings settings = webview.getSettings();
+        settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
         
         webview.setWebChromeClient(new WebChromeClient() {
             @Override
-            public void onProgressChanged(WebView view, int newProgress) {
+            public void onProgressChanged(final WebView view, final int newProgress) {
                 super.onProgressChanged(view, newProgress);
                 //injectCSS(view);
                 if (newProgress == 100) {
@@ -1104,7 +1176,7 @@ public class MainActivity extends Activity {
             }
 
             @Override
-            public void onShowCustomView(View view, CustomViewCallback callback) {
+            public void onShowCustomView(final View view, final CustomViewCallback callback) {
                 fullScreenView[0] = view;
                 fullScreenCallback[0] = callback;
                 MainActivity.this.findViewById(R.id.main_layout).setVisibility(View.INVISIBLE);
@@ -1115,9 +1187,9 @@ public class MainActivity extends Activity {
 
             @Override
             public void onHideCustomView() {
-                if (fullScreenView[0] == null) return;
-
-                ViewGroup fullscreenLayout = (ViewGroup) MainActivity.this.findViewById(R.id.fullScreenVideo);
+                if (fullScreenView[0] == null)
+					return;
+                final ViewGroup fullscreenLayout = (ViewGroup) MainActivity.this.findViewById(R.id.fullScreenVideo);
                 fullscreenLayout.removeView(fullScreenView[0]);
                 fullscreenLayout.setVisibility(View.GONE);
                 fullScreenView[0] = null;
@@ -1126,13 +1198,13 @@ public class MainActivity extends Activity {
             }
 
             @Override
-            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+            public boolean onShowFileChooser(final WebView webView, final ValueCallback<Uri[]> filePathCallback, final FileChooserParams fileChooserParams) {
                 if (fileUploadCallback != null) {
                     fileUploadCallback.onReceiveValue(null);
                 }
 
                 fileUploadCallback = filePathCallback;
-                Intent intent = fileChooserParams.createIntent();
+                final Intent intent = fileChooserParams.createIntent();
                 try {
                     fileUploadCallbackShouldReset = true;
                     startActivityForResult(intent, FORM_FILE_CHOOSER);
@@ -1161,7 +1233,7 @@ public class MainActivity extends Activity {
         });
         webview.setWebViewClient(new WebViewClient() {
             @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            public void onPageStarted(final WebView view, final String url, final Bitmap favicon) {
                 progressBar.setProgress(0);
                 progressBar.setVisibility(View.VISIBLE);
 				if (webview.getSettings().getJavaScriptEnabled()) {
@@ -1180,7 +1252,7 @@ public class MainActivity extends Activity {
             }
 
             @Override
-            public void onPageFinished(final WebView view, String url) {
+            public void onPageFinished(final WebView view, final String url) {
                 printWeb = view;
                 if (view == getCurrentWebView()) {
                     // Don't use the argument url here since navigation to that URL might have been
@@ -1193,7 +1265,7 @@ public class MainActivity extends Activity {
 				if (saveHistory) {
 					addHistory();
 				}
-				Tab currentTab = getCurrentTab();
+				final Tab currentTab = getCurrentTab();
 				currentTab.loading = false;
 				currentTab.textChanged = false;
 				goStop.setImageResource(R.drawable.reload);
@@ -1208,8 +1280,8 @@ public class MainActivity extends Activity {
                         .setCancelable(false)
 					.setPositiveButton("OK", new OnClickListener() {
 						public void onClick(DialogInterface dialog, int which) {
-                            String username = ((EditText) ((Dialog) dialog).findViewById(R.id.username)).getText().toString();
-                            String password = ((EditText) ((Dialog) dialog).findViewById(R.id.password)).getText().toString();
+                            final String username = ((EditText) ((Dialog) dialog).findViewById(R.id.username)).getText().toString();
+                            final String password = ((EditText) ((Dialog) dialog).findViewById(R.id.password)).getText().toString();
                             handler.proceed(username, password);
                         }})
 					.setNegativeButton("Cancel", new OnClickListener() {
@@ -1222,7 +1294,9 @@ public class MainActivity extends Activity {
             String lastMainPage = "";
 			final Pattern IMAGES_PATTERN = Pattern.compile(".*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico).*?", Pattern.CASE_INSENSITIVE);
 			final Pattern MEDIA_PATTERN = Pattern.compile(".*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram).*?", Pattern.CASE_INSENSITIVE);
-			
+			final Pattern CSS_PATTERN = Pattern.compile(".*?\\.css.*?", Pattern.CASE_INSENSITIVE);
+			final Pattern JAVASCRIPT_PATTERN = Pattern.compile(".*?\\.js.*?", Pattern.CASE_INSENSITIVE);
+				
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 final Uri url = request.getUrl();
@@ -1242,12 +1316,18 @@ public class MainActivity extends Activity {
 					if (blockMedia && MEDIA_PATTERN.matcher(path).matches()) {
 						return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 					}
+					if (blockCSS && CSS_PATTERN.matcher(path).matches()) {
+						return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+					}
+					if (blockJavaScript && JAVASCRIPT_PATTERN.matcher(path).matches()) {
+						return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+					}
 				}
                 return super.shouldInterceptRequest(view, request);
             }
 
             @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+            public boolean shouldOverrideUrlLoading(final WebView view, String url) {
                 // For intent:// URLs, redirect to browser_fallback_url if given
                 if (url.startsWith("intent://")) {
                     int start = url.indexOf(";S.browser_fallback_url=");
@@ -1266,7 +1346,7 @@ public class MainActivity extends Activity {
             }
 
             @Override
-            public void onLoadResource(WebView view, String url) {
+            public void onLoadResource(final WebView view, final String url) {
                 if (isLogRequests) {
                     requestsLog.add(url);
                 }
@@ -1275,9 +1355,9 @@ public class MainActivity extends Activity {
             final String[] sslErrors = {"Not yet valid", "Expired", "Hostname mismatch", "Untrusted CA", "Invalid date", "Unknown error"};
 
             @Override
-            public void onReceivedSslError(WebView view, final SslErrorHandler handler, SslError error) {
-                int primaryError = error.getPrimaryError();
-                String errorStr = primaryError >= 0 && primaryError < sslErrors.length ? sslErrors[primaryError] : "Unknown error " + primaryError;
+            public void onReceivedSslError(final WebView view, final SslErrorHandler handler, SslError error) {
+                final int primaryError = error.getPrimaryError();
+                final String errorStr = primaryError >= 0 && primaryError < sslErrors.length ? sslErrors[primaryError] : "Unknown error " + primaryError;
                 new AlertDialog.Builder(MainActivity.this)
 					.setTitle("Insecure connection")
 					.setMessage(String.format("Error: %s\nURL: %s\n\nCertificate:\n%s",
@@ -1294,7 +1374,7 @@ public class MainActivity extends Activity {
         webview.setOnLongClickListener(new View.OnLongClickListener() {
 				public boolean onLongClick(android.view.View v) {
 					String url = null, imageUrl = null;
-					WebView.HitTestResult r = ((WebView) v).getHitTestResult();
+					final WebView.HitTestResult r = ((WebView) v).getHitTestResult();
 					switch (r.getType()) {
 						case WebView.HitTestResult.SRC_ANCHOR_TYPE:
 							url = r.getExtra();
@@ -1305,8 +1385,8 @@ public class MainActivity extends Activity {
 						case WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE:
 						case WebView.HitTestResult.EMAIL_TYPE:
 						case WebView.HitTestResult.UNKNOWN_TYPE:
-							Handler handler = new Handler();
-							Message message = handler.obtainMessage();
+							final Handler handler = new Handler();
+							final Message message = handler.obtainMessage();
 							((WebView)v).requestFocusNodeHref(message);
 							url = message.getData().getString("url");
 							if ("".equals(url)) {
@@ -1358,18 +1438,18 @@ public class MainActivity extends Activity {
 						.show();
 				}});
         webview.setFindListener(new WebView.FindListener() {
-				public void onFindResultReceived(int activeMatchOrdinal, int numberOfMatches, boolean isDoneCounting) {
+				public void onFindResultReceived(final int activeMatchOrdinal, final int numberOfMatches, final boolean isDoneCounting) {
 					searchCount.setText(numberOfMatches == 0 ? "Not found" :
 										String.format("%d / %d", activeMatchOrdinal + 1, numberOfMatches));
 				}});
         return webview;
     }
 
-    void showLongPressMenu(String linkUrl, final String imageUrl) {
+    void showLongPressMenu(final String linkUrl, final String imageUrl) {
         final String url;
-        String title;
+        final String title;
         String[] options = new String[]{"Open in background", "Open in new tab", "Copy URL", "Show full URL", "Download"};
-		String[] imageOptions = new String[]{
+		final String[] imageOptions = new String[]{
 			"Open in background", "Open in new tab", "Copy URL", "Show full URL", "Download",
 			"Open image in background", "Open image in new tab", "Copy image URL", "Show full image URL", "Download image"};
 		
@@ -1393,78 +1473,79 @@ public class MainActivity extends Activity {
                 options = imageOptions;
             }
         }
-        new AlertDialog.Builder(MainActivity.this).setTitle(title).setItems(options, new OnClickListener() {
-				public void onClick(DialogInterface dialog, int which) {
-					
-            switch (which) {
-                case 0:
-                    newBackgroundTab(url);
-                    break;
-                case 1:
-                    newForegroundTab(url);
-                    break;
-                case 2:
-                    copyClipboard("URL", url);
-                    break;
-                case 3:
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("Full URL")
-                            .setMessage(url)
-						.setPositiveButton("OK", new EmptyOnClickListener())
-                            .show();
-                    break;
-                case 4:
-                    startDownload(url, null);
-                    break;
-                case 5:
-                    newBackgroundTab(imageUrl);
-                    break;
-                case 6:
-                    newForegroundTab(imageUrl);
-                    break;
-                case 7:
-                    copyClipboard("URL", imageUrl);
-                    break;
-                case 8:
-                    new AlertDialog.Builder(MainActivity.this)
-						.setTitle("Full imageUrl")
-						.setMessage(imageUrl)
-						.setPositiveButton("OK", new EmptyOnClickListener())
-						.show();
-                    break;
-                case 9:
-                    startDownload(imageUrl, null);
-                    break;
-			}
-        }}).show();
+        new AlertDialog.Builder(MainActivity.this)
+			.setTitle(title)
+			.setItems(options, new OnClickListener() {
+				public void onClick(final DialogInterface dialog, final int which) {
+					switch (which) {
+						case 0:
+							newBackgroundTab(url);
+							break;
+						case 1:
+							newForegroundTab(url);
+							break;
+						case 2:
+							copyClipboard("URL", url);
+							break;
+						case 3:
+							new AlertDialog.Builder(MainActivity.this)
+								.setTitle("Full URL")
+								.setMessage(url)
+								.setPositiveButton("OK", new EmptyOnClickListener())
+								.show();
+							break;
+						case 4:
+							startDownload(url, null);
+							break;
+						case 5:
+							newBackgroundTab(imageUrl);
+							break;
+						case 6:
+							newForegroundTab(imageUrl);
+							break;
+						case 7:
+							copyClipboard("URL", imageUrl);
+							break;
+						case 8:
+							new AlertDialog.Builder(MainActivity.this)
+								.setTitle("Full imageUrl")
+								.setMessage(imageUrl)
+								.setPositiveButton("OK", new EmptyOnClickListener())
+								.show();
+							break;
+						case 9:
+							startDownload(imageUrl, null);
+							break;
+					}
+				}}).show();
     }
 
     @SuppressLint("DefaultLocale")
-    private static String certificateToStr(SslCertificate certificate) {
+    private static String certificateToStr(final SslCertificate certificate) {
         if (certificate == null) {
             return null;
         }
         String s = "";
-        SslCertificate.DName issuedTo = certificate.getIssuedTo();
+        final SslCertificate.DName issuedTo = certificate.getIssuedTo();
         if (issuedTo != null) {
             s += "Issued to: " + issuedTo.getDName() + "\n";
         }
-        SslCertificate.DName issuedBy = certificate.getIssuedBy();
+        final SslCertificate.DName issuedBy = certificate.getIssuedBy();
         if (issuedBy != null) {
             s += "Issued by: " + issuedBy.getDName() + "\n";
         }
-        Date issueDate = certificate.getValidNotBeforeDate();
+        final Date issueDate = certificate.getValidNotBeforeDate();
         if (issueDate != null) {
             s += String.format("Issued on: %tF %tT %tz\n", issueDate, issueDate, issueDate);
         }
-        Date expiryDate = certificate.getValidNotAfterDate();
+        final Date expiryDate = certificate.getValidNotAfterDate();
         if (expiryDate != null) {
             s += String.format("Expires on: %tF %tT %tz\n", expiryDate, expiryDate, expiryDate);
         }
         return s;
     }
 
-	private boolean startDownload(String url, String filename) {
+	private boolean startDownload(final String url, String filename) {
         if (!hasOrRequestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
 									null,
 									PERMISSION_REQUEST_DOWNLOAD)) {
@@ -1473,7 +1554,7 @@ public class MainActivity extends Activity {
         if (filename == null) {
             filename = URLUtil.guessFileName(url, null, null);
         }
-        DownloadManager.Request request;
+        final DownloadManager.Request request;
         try {
             request = new DownloadManager.Request(Uri.parse(url));
         } catch (IllegalArgumentException e) {
@@ -1491,49 +1572,48 @@ public class MainActivity extends Activity {
 			.setAllowedOverRoaming(false)
 			.setTitle("Download")
 			.setDescription("Downloading...");
-		String cookie = CookieManager.getInstance().getCookie(url);
+		final String cookie = CookieManager.getInstance().getCookie(url);
         if (cookie != null) {
             request.addRequestHeader("Cookie", cookie);
         }
-        DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        final DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
         assert dm != null;
         getCurrentTab().lastDownload = dm.enqueue(request);
 		return true;
     }
 
-	private void queryStatus(View v, long lastDownload) {
-		DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-		Cursor c = dm.query(new DownloadManager.Query().setFilterById(lastDownload));
-
+	private void queryStatus(final View v, final long lastDownload) {
+		final DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+		final Cursor c = dm.query(new DownloadManager.Query().setFilterById(lastDownload));
 		if (c == null) {
 			showToast("Download Not Found");
 		} else {
 			c.moveToFirst();
-			Log.d(getClass().getName(),
+			final String name = getClass().getName();
+			Log.d(name,
 				  "COLUMN_ID: "
 				  + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_ID)));
-			Log.d(getClass().getName(),
+			Log.d(name,
 				  "COLUMN_BYTES_DOWNLOADED_SO_FAR: "
 				  + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)));
-			Log.d(getClass().getName(),
+			Log.d(name,
 				  "COLUMN_LAST_MODIFIED_TIMESTAMP: "
 				  + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)));
-			Log.d(getClass().getName(),
+			Log.d(name,
 				  "COLUMN_LOCAL_URI: "
 				  + c.getString(c.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)));
-			Log.d(getClass().getName(),
+			Log.d(name,
 				  "COLUMN_STATUS: "
 				  + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS)));
-			Log.d(getClass().getName(),
+			Log.d(name,
 				  "COLUMN_REASON: "
 				  + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_REASON)));
 			showToast(statusMessage(c));
-
 			c.close();
 		}
 	}
 
-	private String statusMessage(Cursor c) {
+	private String statusMessage(final Cursor c) {
 		String msg="???";
 		switch (c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS))) {
 			case DownloadManager.STATUS_FAILED:
@@ -1558,26 +1638,26 @@ public class MainActivity extends Activity {
 		return msg;
 	}
   
-	private BroadcastReceiver onEvent = new BroadcastReceiver() {
-		public void onReceive(Context ctxt, Intent i) {
+	private final BroadcastReceiver onEvent = new BroadcastReceiver() {
+		public void onReceive(final Context ctxt, final Intent i) {
 			if (DownloadManager.ACTION_NOTIFICATION_CLICKED.equals(i.getAction())) {
 				queryStatus(toolbar, i.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0));
 			} else if (getCurrentTab().sourceName != null) {
-				long downloadId = i.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0);
-				Tab currentTab = getCurrentTab();
+				final long downloadId = i.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0);
+				final Tab currentTab = getCurrentTab();
 				if (currentTab.lastDownload == downloadId) {
-					String toString = Uri.fromFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + currentTab.sourceName)).toString();
+					final String toString = Uri.fromFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + currentTab.sourceName)).toString();
 					ExceptionLogger.d(TAG, getCurrentTab().sourceName + ", " + toString);
-					currentTab.webview.loadUrl(toString);
+					loadUrl(toString, currentTab.webview);
 					currentTab.sourceName = null;
 				}
 			}
 		}
 	};
 	
-    private void newTabCommon(WebView webview) {
+    private void newTabCommon(final WebView webview) {
         //boolean isDesktopUA = !tabs.isEmpty() && getCurrentTab().isDesktopUA;
-        WebSettings settings = webview.getSettings();
+        final WebSettings settings = webview.getSettings();
 		settings.setUserAgentString(isDesktopUA ? desktopUA : null);
         settings.setUseWideViewPort(isDesktopUA);
 		settings.setAcceptThirdPartyCookies(accept3PartyCookies);
@@ -1609,41 +1689,41 @@ public class MainActivity extends Activity {
         
 		webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
-        Tab tab = new Tab(webview);
+        final Tab tab = new Tab(webview);
         tab.isDesktopUA = isDesktopUA;
         tabs.add(tab);
         webviews.addView(webview);
         setTabCountText(tabs.size());
     }
 	
-    private void newBackgroundTab(String url) {
-        WebView webview = createWebView(null);
+    private void newBackgroundTab(final String url) {
+        final WebView webview = createWebView(null);
         newTabCommon(webview);
         loadUrl(url, webview);
     }
 
-    private void newForegroundTab(String url) {
-        WebView webview = createWebView(null);
+    private void newForegroundTab(final String url) {
+        final WebView webview = createWebView(null);
         newTabCommon(webview);
         loadUrl(url, webview);
 		switchToTab(tabs.size() - 1);
     }
 
-    private void newTabFromBundle(Bundle bundle) {
-        WebView webview = createWebView(bundle);
+    private void newTabFromBundle(final Bundle bundle) {
+        final WebView webview = createWebView(bundle);
         newTabCommon(webview);
     }
 
-    private void switchToTab(int tab) {
+    private void switchToTab(final int tab) {
         getCurrentWebView().setVisibility(View.GONE);
         currentTabIndex = tab;
-        Tab currentTab = getCurrentTab();
+        final Tab currentTab = getCurrentTab();
 		currentTab.webview.setVisibility(View.VISIBLE);
         et.setText(currentTab.webview.getUrl());
 		if (currentTab.sourceName != null) {
-			String toString = Uri.fromFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + currentTab.sourceName)).toString();
+			final String toString = Uri.fromFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + currentTab.sourceName)).toString();
 			//ExceptionLogger.d(TAG, getCurrentTab().sourceName + ", " + toString);
-			currentTab.webview.loadUrl(toString);
+			loadUrl(toString, currentTab.webview);
 			currentTab.sourceName = null;
 		} else {
 			if (currentTab.textChanged) {
@@ -1661,26 +1741,26 @@ public class MainActivity extends Activity {
         final int flags = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
                 | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-        boolean fullscreenNow = (getWindow().getDecorView().getSystemUiVisibility() & flags) == flags;
+        final boolean fullscreenNow = (getWindow().getDecorView().getSystemUiVisibility() & flags) == flags;
         if (fullscreenNow != isFullscreen) {
             getWindow().getDecorView().setSystemUiVisibility(isFullscreen ? flags : 0);
         }
     }
 
-	private void showToast(String st) {
+	private void showToast(final String st) {
 		Toast.makeText(MainActivity.this, st, Toast.LENGTH_SHORT).show();
 	}
 	String mhtmlPath;
 	public static File externalLogFilesDir;
     @Override
-    public void onCreate(Bundle savedInstanceState) {
+    public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 		externalLogFilesDir = getExternalFilesDir("logs");
 		mhtmlPath = getExternalFilesDir("mhtml").getAbsolutePath();
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             private Thread.UncaughtExceptionHandler defaultUEH = Thread.getDefaultUncaughtExceptionHandler();
             @Override
-            public void uncaughtException(Thread t, Throwable e) {
+            public void uncaughtException(final Thread t, final Throwable e) {
                 ExceptionLogger.e(e);
                 defaultUEH.uncaughtException(t, e);
             }
@@ -1689,7 +1769,7 @@ public class MainActivity extends Activity {
 			WebView.enableSlowWholeDocumentDraw();
 		}
 		
-        IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+        final IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
 		f.addAction(DownloadManager.ACTION_NOTIFICATION_CLICKED);
 		registerReceiver(onEvent, f);
 		
@@ -1720,21 +1800,21 @@ public class MainActivity extends Activity {
 		registerForContextMenu(et);  
         // setup edit text
         et.setSelected(false);
-        String initialUrl = getUrlFromIntent(getIntent());
+        final String initialUrl = getUrlFromIntent(getIntent());
         et.setText(initialUrl.isEmpty() ? "about:blank" : initialUrl);
         et.setAdapter(new SearchAutocompleteAdapter(this, new SearchAutocompleteAdapter.OnSearchCommitListener() {
-							  public void onSearchCommit(String text) {
+							  public void onSearchCommit(final String text) {
 								  et.setText(text);
 								  et.setSelection(text.length());
 							  }}));
         et.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+				public void onItemClick(final AdapterView<?> parent, final View view, final int position, final long id) {
 					getCurrentWebView().requestFocus();
 					loadUrl(et.getText().toString(), getCurrentWebView());
 				}});
 
 		et.setOnKeyListener(new View.OnKeyListener() {
-				public boolean onKey(View v, int keyCode, KeyEvent event) {
+				public boolean onKey(final View v, final int keyCode, final KeyEvent event) {
 					if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
 						loadUrl(et.getText().toString(), getCurrentWebView());
 						getCurrentWebView().requestFocus();
@@ -1745,23 +1825,23 @@ public class MainActivity extends Activity {
 				}});
 		et.addTextChangedListener(new TextWatcher() {
 				@Override
-				public void beforeTextChanged(CharSequence p1, int p2, int p3, int p4) {
+				public void beforeTextChanged(final CharSequence p1, int p2, int p3, int p4) {
 					goStop.setImageResource(R.drawable.forward);
 				}
 				@Override
-				public void onTextChanged(CharSequence p1, int p2, int p3, int p4) {
+				public void onTextChanged(final CharSequence p1, final int p2, final int p3, final int p4) {
 				}
 				@Override
-				public void afterTextChanged(Editable p1) {
+				public void afterTextChanged(final Editable p1) {
 					getCurrentTab().textChanged = true;
 				}
 		});
 
         goStop.setOnClickListener(new View.OnClickListener() {
 				@Override
-				public void onClick(View p1) {
-					Tab t = getCurrentTab();
-					WebView currentWebView = t.webview;
+				public void onClick(final View p1) {
+					final Tab t = getCurrentTab();
+					final WebView currentWebView = t.webview;
 					if (t.loading) {
 						currentWebView.stopLoading();
 						goStop.setImageResource(R.drawable.forward);
@@ -1781,33 +1861,33 @@ public class MainActivity extends Activity {
         searchEdit = (EditText) findViewById(R.id.searchEdit);
         searchEdit.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void beforeTextChanged(final CharSequence s, final int start, final int count, final int after) {}
 
             @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            public void onTextChanged(final CharSequence s, final int start, final int before, final int count) {
                 getCurrentWebView().findAllAsync(s.toString());
             }
 
             @Override
-            public void afterTextChanged(Editable s) {}
+            public void afterTextChanged(final Editable s) {}
         });
         searchCount = (TextView) findViewById(R.id.searchCount);
         findViewById(R.id.searchFindNext).setOnClickListener(new View.OnClickListener() {
-				public void onClick(View v) {
+				public void onClick(final View v) {
 					hideKeyboard();
 					getCurrentWebView().findNext(true);
 				}});
         findViewById(R.id.searchFindPrev).setOnClickListener(new View.OnClickListener() {
-				public void onClick(View v) {
+				public void onClick(final View v) {
 					hideKeyboard();
 					getCurrentWebView().findNext(false);
 				}});
         findViewById(R.id.searchClose).setOnClickListener(new View.OnClickListener() {
-				public void onClick(View v) {
+				public void onClick(final View v) {
 					getCurrentWebView().clearMatches();
 					searchEdit.setText("");
 					getCurrentWebView().requestFocus();
-					findViewById(R.id.searchPane).setVisibility(View.GONE);
+					searchPane.setVisibility(View.GONE);
 					hideKeyboard();
 				}});
 
@@ -1816,6 +1896,9 @@ public class MainActivity extends Activity {
 		
 		blockImages = prefs.getBoolean("blockImages", false);
         blockMedia = prefs.getBoolean("blockMedia", false);
+        blockCSS = prefs.getBoolean("blockCSS", false);
+        blockJavaScript = prefs.getBoolean("blockJavaScript", false);
+        block3rdResources = prefs.getBoolean("block3rdResources", false);
         isLogRequests = prefs.getBoolean("isLogRequests", true);
 		enableCookies = prefs.getBoolean("enableCookies", true);
 		saveHistory = prefs.getBoolean("saveHistory", true);
@@ -1881,7 +1964,7 @@ public class MainActivity extends Activity {
 	}
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    protected void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
         if (requestCode == FORM_FILE_CHOOSER) {
             if (fileUploadCallback != null) {
                 // When the first file chooser activity fails to start due to an intent type not being a mime-type,
@@ -1896,14 +1979,14 @@ public class MainActivity extends Activity {
         }
     }
 	@Override  
-    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {  
+    public void onCreateContextMenu(final ContextMenu menu, final View v, final ContextMenu.ContextMenuInfo menuInfo) {  
         super.onCreateContextMenu(menu, v, menuInfo);  
-        MenuInflater inflater = getMenuInflater();  
+        final MenuInflater inflater = getMenuInflater();  
         inflater.inflate(R.menu.address, menu);  
         menu.setHeaderTitle("Select an action");  
     }  
     @Override  
-    public boolean onContextItemSelected(MenuItem item){  
+    public boolean onContextItemSelected(final MenuItem item){  
         switch (item.getItemId())  {
 			case R.id.paste:
 				et.setText(getClipboardText());
@@ -1926,13 +2009,13 @@ public class MainActivity extends Activity {
         return true;  
     }
 	
-    private void setTabCountText(int count) {
+    private void setTabCountText(final int count) {
         if (txtTabCount != null) {
             txtTabCount.setText(String.valueOf(count));
         }
     }
 
-    private void maybeSetupTabCountTextView(View view, String name) {
+    private void maybeSetupTabCountTextView(final View view, final String name) {
         if ("Show tabs".equals(name)) {
             txtTabCount = (TextView) view.findViewById(R.id.txtText);
         }
@@ -1946,11 +2029,14 @@ public class MainActivity extends Activity {
 		}
     }
 
-    private void setupToolbar(ViewGroup parent) {
-        for (String[] actions : toolbarActions) {
-            View v = getLayoutInflater().inflate(R.layout.sweb_toolbar_button, parent, false);
+    private void setupToolbar(final ViewGroup parent) {
+        final LayoutInflater layoutInflater = getLayoutInflater();
+		View v;
+		Runnable a1, a2, a3;
+		for (String[] actions : toolbarActions) {
+            v = layoutInflater.inflate(R.layout.sweb_toolbar_button, parent, false);
             parent.addView(v);
-            Runnable a1 = null, a2 = null, a3 = null;
+			a1 = null; a2 = null; a3 = null;
             if (actions[0] != null) {
                 MenuAction action = getAction(actions[0]);
                 ((ImageView) v.findViewById(R.id.btnShortClick)).setImageResource(action.icon);
@@ -1974,24 +2060,24 @@ public class MainActivity extends Activity {
     }
 
     void showOpenTabs() {
-        String[] items = new String[tabs.size()];
+        final String[] items = new String[tabs.size()];
         for (int i = 0; i < tabs.size(); i++) {
             items[i] = tabs.get(i).webview.getTitle();
         }
-        ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<String>(
+        final ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<String>(
                 MainActivity.this,
                 android.R.layout.simple_list_item_1,
                 items,
                 currentTabIndex);
-        AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
-                .setTitle("Tabs")
+        final AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
+			.setTitle("Tabs")
 			.setAdapter(adapter, new OnClickListener() {
 				public void onClick(DialogInterface dialog, int which) {
 					switchToTab(which);}});
         if (!closedTabs.isEmpty()) {
             tabsDialog.setNeutralButton("Undo closed tabs", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-						String[] items1 = new String[closedTabs.size()];
+					public void onClick(final DialogInterface dialog, final int which) {
+						final String[] items1 = new String[closedTabs.size()];
 						for (int i = 0; i < closedTabs.size(); i++) {
 							items1[i] = closedTabs.get(i).title;
 						}
@@ -1999,7 +2085,7 @@ public class MainActivity extends Activity {
 							.setTitle("Undo closed tabs")
 							.setItems(items1, new OnClickListener() {
 								public void onClick(DialogInterface dialog, int which1) {
-									Bundle bundle = closedTabs.get(which1).bundle;
+									final Bundle bundle = closedTabs.get(which1).bundle;
 									closedTabs.remove(which1);
 									newTabFromBundle(bundle);
 									switchToTab(tabs.size() - 1);
@@ -2026,24 +2112,24 @@ public class MainActivity extends Activity {
     }
 
     void showTabHistory() {
-        WebBackForwardList list = getCurrentWebView().copyBackForwardList();
+        final WebBackForwardList list = getCurrentWebView().copyBackForwardList();
         final int size = list.getSize();
         final int idx = size - list.getCurrentIndex() - 1;
-        String[] items = new String[size];
+        final String[] items = new String[size];
         for (int i = 0; i < size; i++) {
             items[size - i - 1] = list.getItemAtIndex(i).getTitle();
         }
-        ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<String>(
+        final ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<String>(
                 this,
                 android.R.layout.simple_list_item_1,
                 items,
                 idx);
         new AlertDialog.Builder(this)
-                .setTitle("Navigation History")
+			.setTitle("Navigation History")
 			.setAdapter(adapter, new OnClickListener() {
 				public void onClick(DialogInterface dialog, int which) {
 					getCurrentWebView().goBackOrForward(idx - which);}})
-                .show();
+			.show();
     }
 	
 	private String savedName(WebView currentWebView) {
@@ -2747,7 +2833,6 @@ public class MainActivity extends Activity {
 
     void showFullMenu() {
 		final ArrayList<MenuAction> copyOfRange = new ArrayList<MenuAction>(menuActions.length - toolbarActions.length*toolbarActions[0].length);
-		int i = 0;
 		for (MenuAction ma : menuActions) {
 			boolean exist = false;
 			for (String[] arr : toolbarActions) {
@@ -2804,7 +2889,7 @@ public class MainActivity extends Activity {
         startActivity(Intent.createChooser(intent, "Share URL"));
     }
 
-    public void loadUrl(String url, WebView webview) {
+    public void loadUrl(String url, final WebView webview) {
 		//ExceptionLogger.log("loadUrl ", url);
         url = url.trim();
         if (url.isEmpty()) {
@@ -2815,8 +2900,8 @@ public class MainActivity extends Activity {
 			|| url.startsWith("file:") 
 			|| url.startsWith("data:") 
 			|| (url.indexOf(' ') == -1 && Patterns.WEB_URL.matcher(url).matches())) {
-            int indexOfHash = url.indexOf('#');
-            String guess = URLUtil.guessUrl(url);
+            final int indexOfHash = url.indexOf('#');
+            final String guess = URLUtil.guessUrl(url);
 			//ExceptionLogger.log("guess1 ", guess);
 			if (indexOfHash != -1 && guess.indexOf('#') == -1) {
                 // Hash exists in original URL but no hash in guessed URL
@@ -2831,7 +2916,7 @@ public class MainActivity extends Activity {
             url = URLUtil.composeSearchUrl(url, searchUrl, "%s");
         }
 		//ExceptionLogger.log("url2 ", url);
-		ArrayMap<String, String> requestHeaders = new ArrayMap<String, String>();
+		final ArrayMap<String, String> requestHeaders = new ArrayMap<String, String>();
 		if (requestSaveData) {
 			requestHeaders.put("Save-Data", "on");
 		} else {
@@ -2841,6 +2926,22 @@ public class MainActivity extends Activity {
 			requestHeaders.put("DNT", "1");
 		} else {
 			requestHeaders.remove("DNT");
+		}
+		final Tab currentTab = getCurrentTab();
+		if (currentTab.webview == webview && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+			if (!currentTab.isIncognito) {
+				mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE;
+			} else {
+				// We're in Incognito mode, reject
+				mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW;
+			}
+		} 
+		if (currentTab.isIncognito) {
+			WebSettings settings = webview.getSettings();
+			settings.setDomStorageEnabled(false);
+			settings.setAppCacheEnabled(false);
+			settings.setDatabaseEnabled(false);
+			settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 		}
         webview.loadUrl(url, requestHeaders);
 
@@ -2873,10 +2974,20 @@ public class MainActivity extends Activity {
 			super.onBackPressed();
 		} else {
 			mBackPressed = System.nanoTime();
-			showToast("Double touch back button to exit");
 		}
     }
 
+	@Override
+	public boolean onKeyLongPress(int keyCode, KeyEvent event) {
+		Log.d(TAG, "onKeyLongPress.keyCode=" + keyCode + ", event=" + event);
+		if (keyCode == KeyEvent.KEYCODE_BACK
+			&& event.getAction() == KeyEvent.ACTION_DOWN) {
+			super.onBackPressed();
+			return true;
+		}
+		return false;
+	}
+	
     private void injectCSS(WebView webview) {
         try {
             String css = "*, :after, :before {background-color: #161a1e !important; color: #61615f !important; border-color: #212a32 !important; background-image:none !important; outline-color: #161a1e !important; z-index: 1 !important} " +
