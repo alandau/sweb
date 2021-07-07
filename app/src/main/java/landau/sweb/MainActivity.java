@@ -126,11 +126,16 @@ import android.webkit.*;
 import android.view.*;
 import android.util.*;
 import landau.sweb.MainActivity.MenuActionArrayAdapter.*;
+import java.lang.ref.*;
+import android.view.GestureDetector.*;
+import android.content.res.*;
 
 public class MainActivity extends Activity {
 	 
     private static final String TAG = "MainActivity";
-
+	private static final int DARK_BACKGROUND = 0xffc0c0c0;
+	private static final int LIGHT_BACKGROUND = 0xfffffff0;
+	
     class EmptyOnClickListener implements DialogInterface.OnClickListener {
 		@Override
 		public void onClick(DialogInterface p1, int p2) {
@@ -228,9 +233,10 @@ public class MainActivity extends Activity {
 	private boolean allowUniversalAccessFromFileURLs;
 	private boolean blockNetworkLoads;
 	private boolean javaScriptCanOpenWindowsAutomatically;
-	private boolean block3rdResources;
+	private boolean blockFonts;
 	private boolean blockCSS;
 	private boolean blockJavaScript;
+	private boolean autoHideToolbar;
 	
 	private int cacheMode;
 	private boolean isDesktopUA;
@@ -244,8 +250,31 @@ public class MainActivity extends Activity {
 	
     private ValueCallback<Uri[]> fileUploadCallback;
     private boolean fileUploadCallbackShouldReset;
-
-    private static class MenuAction {
+	
+	boolean invertPage = false;
+	//private WebViewHandler webViewHandler = new WebViewHandler(this);
+    private int SCROLL_UP_THRESHOLD = 50;//dpToPx(10f);
+	private float maxFling = 50;
+	GestureDetector gestureDetector;// = new GestureDetector(this, new CustomGestureListener());
+	public static int dpToPx(float dp) {
+        DisplayMetrics metrics = Resources.getSystem().getDisplayMetrics();
+        return (int) (dp * metrics.density + 0.5f);
+    }
+	
+	private float[] negativeColorArray = new float[] {
+		-1.0f, 0f, 0f, 0f, 255f, // red
+		0f, -1.0f, 0f, 0f, 255f, // green
+		0f, 0f, -1.0f, 0f, 255f, // blue
+		0f, 0f, 0f, 1.0f, 0f // alpha
+	};
+	private float[] increaseContrastColorArray = new float[] {
+		2.0f, 0f, 0f, 0f, -160f, // red
+		0f, 2.0f, 0f, 0f, -160f, // green
+		0f, 0f, 2.0f, 0f, -160f, // blue
+		0f, 0f, 0f, 1.0f, 0f // alpha
+	};
+	
+	private static class MenuAction {
 
         static HashMap<String, MenuAction> actions = new HashMap<>();
 
@@ -509,16 +538,16 @@ public class MainActivity extends Activity {
 					return blockJavaScript;
 				}
 			}),
-		new MenuAction("Block 3rd Resources", 0, new Runnable() {
+		new MenuAction("Block Fonts", 0, new Runnable() {
 				@Override
 				public void run() {
-					block3rdResources = !block3rdResources;
-					prefs.edit().putBoolean("block3rdResources", block3rdResources).apply();
+					blockFonts = !blockFonts;
+					prefs.edit().putBoolean("blockFonts", blockFonts).apply();
 				}
 			}, new MyBooleanSupplier() {
 				@Override
 				public boolean getAsBoolean() {
-					return block3rdResources;
+					return blockFonts;
 				}
 			}),
 		new MenuAction("Block CSS", 0, new Runnable() {
@@ -779,6 +808,27 @@ public class MainActivity extends Activity {
 				@Override
 				public boolean getAsBoolean() {
 					return allowUniversalAccessFromFileURLs;
+				}
+			}),
+		new MenuAction("Auto Hide Toolbar", 0, new Runnable() {
+				@Override
+				public void run() {
+					autoHideToolbar = !autoHideToolbar;
+					prefs.edit().putBoolean("autoHideToolbar", autoHideToolbar).apply();
+					if (autoHideToolbar) {
+						for (Tab t : tabs) {
+							t.webview.setOnTouchListener(new TouchListener());
+						}
+					} else {
+						for (Tab t : tabs) {
+							t.webview.setOnTouchListener(null);
+						}
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return autoHideToolbar;
 				}
 			}),
 		new MenuAction("Popup Windows", 0, new Runnable() {
@@ -1049,6 +1099,70 @@ public class MainActivity extends Activity {
 					deleteAllBookmarks();
 				}
 			}),
+		/**
+		 * Sets the current rendering color of the WebView instance
+		 * of the current LightningView. The for modes are normal
+		 * rendering, inverted rendering, grayscale rendering,
+		 * and inverted grayscale rendering
+		 *
+		 * @param mode the integer mode to set as the rendering mode.
+		 * see the numbers in documentation above for the
+		 * values this method accepts.
+		 */
+		new MenuAction("Render Mode", 0, new Runnable() {
+				@Override
+				public void run() {
+					new AlertDialog.Builder(MainActivity.this)
+						.setTitle("Render Mode")
+						.setItems(new String[] {"NORMAL", "INVERTED", "GRAYSCALE", "INVERTED GRAYSCALE", "INCREASE CONTRAST"}, new OnClickListener() {
+							public void onClick(DialogInterface subDialog, int which) {
+								switch (which) {
+									case 0: {
+											paint.setColorFilter(null);
+											// setSoftwareRendering(); // Some devices get segfaults
+											// in the WebView with Hardware Acceleration enabled,
+											// the only fix is to disable hardware rendering
+											setNormalRendering();
+											invertPage = false;
+											break;
+										}
+									case 1: {
+											ColorMatrixColorFilter filterInvert = new ColorMatrixColorFilter(
+												negativeColorArray);
+											paint.setColorFilter(filterInvert);
+											setHardwareRendering();
+											invertPage = true;
+											break;
+										}
+									case 2:
+										ColorMatrix cm = new ColorMatrix();
+										cm.setSaturation(0f);
+										ColorMatrixColorFilter filterGray = new ColorMatrixColorFilter(cm);
+										paint.setColorFilter(filterGray);
+										setHardwareRendering();
+										break;
+									case 3:
+										ColorMatrix matrix = new ColorMatrix();
+										matrix.set(negativeColorArray);
+										ColorMatrix matrixGray = new ColorMatrix();
+										matrixGray.setSaturation(0f);
+										ColorMatrix concat = new ColorMatrix();
+										concat.setConcat(matrix, matrixGray);
+										ColorMatrixColorFilter filterInvertGray = new ColorMatrixColorFilter(concat);
+										paint.setColorFilter(filterInvertGray);
+										setHardwareRendering();
+										invertPage = true;
+										break;
+									case 4:
+										ColorMatrixColorFilter increaseHighContrast = new ColorMatrixColorFilter(increaseContrastColorArray);
+										paint.setColorFilter(increaseHighContrast);
+										setHardwareRendering();
+										break;
+								}
+							}})
+						.show();
+				}
+			}),
 
 		new MenuAction("Clear history and cache", 0, new Runnable() {
 				@Override
@@ -1157,12 +1271,11 @@ public class MainActivity extends Activity {
         if (bundle != null) {
             webview.restoreState(bundle);
         }
-        webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
+        webview.setBackgroundColor(isNightMode ? DARK_BACKGROUND : LIGHT_BACKGROUND);
         final WebSettings settings = webview.getSettings();
         settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
-        
         webview.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onProgressChanged(final WebView view, final int newProgress) {
@@ -1296,7 +1409,7 @@ public class MainActivity extends Activity {
 			final Pattern MEDIA_PATTERN = Pattern.compile(".*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram).*?", Pattern.CASE_INSENSITIVE);
 			final Pattern CSS_PATTERN = Pattern.compile(".*?\\.css.*?", Pattern.CASE_INSENSITIVE);
 			final Pattern JAVASCRIPT_PATTERN = Pattern.compile(".*?\\.js.*?", Pattern.CASE_INSENSITIVE);
-				
+			final Pattern FONT_PATTERN = Pattern.compile(".*?\\.(otf|ttf|ttc|woff|woff2).*?", Pattern.CASE_INSENSITIVE);
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 final Uri url = request.getUrl();
@@ -1320,6 +1433,9 @@ public class MainActivity extends Activity {
 						return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 					}
 					if (blockJavaScript && JAVASCRIPT_PATTERN.matcher(path).matches()) {
+						return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+					}
+					if (blockFonts && FONT_PATTERN.matcher(path).matches()) {
 						return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 					}
 				}
@@ -1684,9 +1800,11 @@ public class MainActivity extends Activity {
 		settings.setBlockNetworkImage(blockImages);
 		settings.setLoadsImagesAutomatically(!blockImages);
 		settings.setBlockNetworkLoads(blockNetworkLoads);
-		
 		settings.setCacheMode(cacheMode);
-        
+        if (autoHideToolbar) {
+			webview.setOnTouchListener(new TouchListener());
+		}
+		
 		webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
         final Tab tab = new Tab(webview);
@@ -1898,14 +2016,15 @@ public class MainActivity extends Activity {
         blockMedia = prefs.getBoolean("blockMedia", false);
         blockCSS = prefs.getBoolean("blockCSS", false);
         blockJavaScript = prefs.getBoolean("blockJavaScript", false);
-        block3rdResources = prefs.getBoolean("block3rdResources", false);
+        blockFonts = prefs.getBoolean("blockFonts", false);
         isLogRequests = prefs.getBoolean("isLogRequests", true);
 		enableCookies = prefs.getBoolean("enableCookies", true);
 		saveHistory = prefs.getBoolean("saveHistory", true);
 		accept3PartyCookies = prefs.getBoolean("accept3PartyCookies", false);
 		isFullMenu = prefs.getBoolean("isFullMenu", false);
 		saveFormData = prefs.getBoolean("saveFormData", true);
-		
+		autoHideToolbar = prefs.getBoolean("autoHideToolbar", false);
+        
 		javaScriptEnabled = prefs.getBoolean("javaScriptEnabled", true);
 		appCacheEnabled = prefs.getBoolean("appCacheEnabled", true);
 		allowContentAccess = prefs.getBoolean("allowContentAccess", true);
@@ -1932,6 +2051,7 @@ public class MainActivity extends Activity {
         getCurrentWebView().setVisibility(View.VISIBLE);
         getCurrentWebView().requestFocus();
         onNightModeChange();
+		gestureDetector = new GestureDetector(this, new CustomGestureListener());
     }
 	@Override
     protected void onResume() {
@@ -2468,10 +2588,10 @@ public class MainActivity extends Activity {
     void exportBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
-                    .setTitle("Export bookmarks error")
-                    .setMessage("Can't open bookmarks database")
+				.setTitle("Export bookmarks error")
+				.setMessage("Can't open bookmarks database")
 				.setPositiveButton("OK", new EmptyOnClickListener())
-                    .show();
+				.show();
             return;
         }
         if (!hasOrRequestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -2482,16 +2602,16 @@ public class MainActivity extends Activity {
         final File file = new File(Environment.getExternalStorageDirectory(), "bookmarks.html");
         if (file.exists()) {
             new AlertDialog.Builder(this)
-                    .setTitle("Export bookmarks")
-                    .setMessage("The file bookmarks.html already exists on SD card. Overwrite?")
+				.setTitle("Export bookmarks")
+				.setMessage("The file bookmarks.html already exists on SD card. Overwrite?")
 				.setNegativeButton("Cancel", new EmptyOnClickListener())
-			.setPositiveButton("Overwrite", new OnClickListener() {
+				.setPositiveButton("Overwrite", new OnClickListener() {
 					public void onClick(DialogInterface dialog, int which) {
                         //noinspection ResultOfMethodCallIgnored
                         file.delete();
                         exportBookmarks();
                     }})
-                    .show();
+				.show();
             return;
         }
         try {
@@ -2520,10 +2640,10 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "Bookmarks exported to bookmarks.html on SD card", Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             new AlertDialog.Builder(this)
-                    .setTitle("Export bookmarks error")
-                    .setMessage(e.toString())
+				.setTitle("Export bookmarks error")
+				.setMessage(e.toString())
 				.setPositiveButton("OK", new EmptyOnClickListener())
-                    .show();
+				.show();
         }
     }
 
@@ -2531,10 +2651,10 @@ public class MainActivity extends Activity {
     void importBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
-                    .setTitle("Import bookmarks error")
-                    .setMessage("Can't open bookmarks database")
+				.setTitle("Import bookmarks error")
+				.setMessage("Can't open bookmarks database")
 				.setPositiveButton("OK", new EmptyOnClickListener())
-                    .show();
+				.show();
             return;
         }
         if (!hasOrRequestPermission(Manifest.permission.READ_EXTERNAL_STORAGE,
@@ -2555,17 +2675,17 @@ public class MainActivity extends Activity {
             br.close();
         } catch (FileNotFoundException e) {
             new AlertDialog.Builder(this)
-                    .setTitle("Import bookmarks error")
-                    .setMessage("Bookmarks should be placed in a bookmarks.html file on the SD Card")
+				.setTitle("Import bookmarks error")
+				.setMessage("Bookmarks should be placed in a bookmarks.html file on the SD Card")
 				.setPositiveButton("OK", new EmptyOnClickListener())
-                    .show();
+				.show();
             return;
         } catch (IOException e) {
             new AlertDialog.Builder(this)
-                    .setTitle("Import bookmarks error")
-                    .setMessage(e.toString())
+				.setTitle("Import bookmarks error")
+				.setMessage(e.toString())
 				.setPositiveButton("OK", new EmptyOnClickListener())
-                    .show();
+				.show();
             return;
         }
 
@@ -2583,10 +2703,10 @@ public class MainActivity extends Activity {
 
         if (bookmarks.isEmpty()) {
             new AlertDialog.Builder(this)
-                    .setTitle("Import bookmarks")
-                    .setMessage("No bookmarks found in bookmarks.html")
+				.setTitle("Import bookmarks")
+				.setMessage("No bookmarks found in bookmarks.html")
 				.setPositiveButton("OK", new EmptyOnClickListener())
-                    .show();
+				.show();
             return;
         }
 
@@ -2741,7 +2861,7 @@ public class MainActivity extends Activity {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             getWindow().setNavigationBarColor(Color.BLACK);
 			for (Tab tab : tabs) {
-				tab.webview.setBackgroundColor(0xffc0c0c0);
+				tab.webview.setBackgroundColor(DARK_BACKGROUND);
 			}
         } else {
             textColor = Color.BLACK;
@@ -2749,7 +2869,7 @@ public class MainActivity extends Activity {
             progressbar.setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0xcc, 0)));
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
 			for (Tab tab : tabs) {
-				tab.webview.setBackgroundColor(0xfffffff0);
+				tab.webview.setBackgroundColor(LIGHT_BACKGROUND);
 			}
         }
 		et.setTextColor(textColor);
@@ -2759,7 +2879,7 @@ public class MainActivity extends Activity {
 		searchEdit.setTextColor(textColor);
 		searchEdit.setBackgroundColor(backgroundColor);
 		searchCount.setTextColor(textColor);
-		main_layout.setBackgroundColor(0xffc0c0c0);//Color.BLACK);
+		//main_layout.setBackgroundColor(0xffc0c0c0);//Color.BLACK);
 		toolbar.setBackgroundColor(backgroundColor);//Color.BLACK);
 		final int childCount = toolbar.getChildCount();
 		for (int i = 0; i < childCount; i++) {
@@ -2783,7 +2903,146 @@ public class MainActivity extends Activity {
 //        }
     }
 
-    AlertDialog alertDialog;
+    /**
+     * This method forces the layer type to hardware, which
+     * enables hardware rendering on the WebView instance
+     * of the current LightningView.
+     */
+    private void setHardwareRendering() {
+        getCurrentWebView().setLayerType(View.LAYER_TYPE_HARDWARE, paint);
+    }
+
+    /**
+     * This method sets the layer type to none, which
+     * means that either the GPU and CPU can both compose
+     * the layers when necessary.
+     */
+    private void setNormalRendering() {
+        getCurrentWebView().setLayerType(View.LAYER_TYPE_NONE, null);
+    }
+
+    /**
+     * This method forces the layer type to software, which
+     * disables hardware rendering on the WebView instance
+     * of the current LightningView and makes the CPU render
+     * the view.
+     */
+    void setSoftwareRendering() {
+        getCurrentWebView().setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+    }
+	
+	/**
+     * The OnTouchListener used by the WebView so we can
+     * get scroll events and show/hide the action bar when
+     * the page is scrolled up/down.
+     */
+    private class TouchListener implements View.OnTouchListener {
+
+        float location = 0f;
+        float y = 0f;
+        int action = 0;
+
+        @SuppressLint("ClickableViewAccessibility")
+		@Override
+		public boolean onTouch(View view, MotionEvent arg1) {
+            if (view == null)
+				return false;
+
+            if (!view.hasFocus()) {
+                view.requestFocus();
+            }
+            action = arg1.getAction();
+            y = arg1.getY();
+            if (action == MotionEvent.ACTION_DOWN) {
+                location = y;
+            } else if (action == MotionEvent.ACTION_UP) {
+                float distance = y - location;
+                if (distance > SCROLL_UP_THRESHOLD && view.getScrollY() < SCROLL_UP_THRESHOLD) {
+                    toolbar.setVisibility(View.VISIBLE);
+                } else if (distance < -SCROLL_UP_THRESHOLD) {
+                    toolbar.setVisibility(View.GONE);
+                }
+                location = 0f;
+            }
+            gestureDetector.onTouchEvent(arg1);
+
+            return false;
+        }
+    }
+
+    /**
+     * The SimpleOnGestureListener used by the [TouchListener]
+     * in order to delegate show/hide events to the action bar when
+     * the user flings the page. Also handles long press events so
+     * that we can capture them accurately.
+     */
+    private class CustomGestureListener extends SimpleOnGestureListener {
+
+		/**
+		 * Without this, onLongPress is not called when user is zooming using
+		 * two fingers, but is when using only one.
+		 *
+		 *
+		 * The required behaviour is to not trigger this when the user is
+		 * zooming, it shouldn't matter how much fingers the user's using.
+		 */
+		private boolean canTriggerLongPress = true;
+
+		@Override
+		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+			float power = (int) (velocityY * 100 / maxFling);
+			if (power < -10) {
+				toolbar.setVisibility(View.GONE);
+			} else if (power > 15) {
+				toolbar.setVisibility(View.VISIBLE);
+			}
+			return super.onFling(e1, e2, velocityX, velocityY);
+		}
+
+		/**
+		 * Is called when the user is swiping after the doubletap, which in our
+		 * case means that he is zooming.
+		 */
+		@Override
+		public boolean onDoubleTapEvent(MotionEvent e) {
+			canTriggerLongPress = false;
+			return false;
+		}
+
+		/**
+		 * Is called when something is starting being pressed, always before
+		 * onLongPress.
+		 */
+		@Override
+		public void onShowPress(MotionEvent e) {
+			canTriggerLongPress = true;
+		}
+    }
+
+    /**
+     * A Handler used to get the URL from a long click
+     * event on the WebView. It does not hold a hard
+     * reference to the WebView and therefore will not
+     * leak it if the WebView is garbage collected.
+     */
+//    private class WebViewHandler extends Handler {
+//		WebView view;
+//		public WebViewHandler(WebView view) {
+//			this.view = view;
+//		}
+//
+//		private WeakReference<WebView> reference = new WeakReference<WebView>(view);
+//
+//		@Override 
+//		public void handleMessage(Message msg) {
+//			super.handleMessage(msg);
+//			String url = msg.getData().getString("url");
+//
+//			reference.get().geton(setLongClickPage(url);
+//		}
+//    }
+	
+	AlertDialog alertDialog;
     void showMenu() {
 		if (alertDialog != null) {
 			alertDialog.dismiss();
