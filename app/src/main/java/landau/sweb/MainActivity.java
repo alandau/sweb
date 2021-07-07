@@ -237,6 +237,7 @@ public class MainActivity extends Activity {
 	private boolean blockCSS;
 	private boolean blockJavaScript;
 	private boolean autoHideToolbar;
+	private int renderMode;
 	
 	private int cacheMode;
 	private boolean isDesktopUA;
@@ -1099,16 +1100,12 @@ public class MainActivity extends Activity {
 					deleteAllBookmarks();
 				}
 			}),
-		/**
-		 * Sets the current rendering color of the WebView instance
-		 * of the current LightningView. The for modes are normal
-		 * rendering, inverted rendering, grayscale rendering,
-		 * and inverted grayscale rendering
-		 *
-		 * @param mode the integer mode to set as the rendering mode.
-		 * see the numbers in documentation above for the
-		 * values this method accepts.
-		 */
+		new MenuAction("Delete all history", 0, new Runnable() {
+				@Override
+				public void run() {
+					deleteAllHistory();
+				}
+			}),
 		new MenuAction("Render Mode", 0, new Runnable() {
 				@Override
 				public void run() {
@@ -1116,48 +1113,10 @@ public class MainActivity extends Activity {
 						.setTitle("Render Mode")
 						.setItems(new String[] {"NORMAL", "INVERTED", "GRAYSCALE", "INVERTED GRAYSCALE", "INCREASE CONTRAST"}, new OnClickListener() {
 							public void onClick(DialogInterface subDialog, int which) {
-								switch (which) {
-									case 0: {
-											paint.setColorFilter(null);
-											// setSoftwareRendering(); // Some devices get segfaults
-											// in the WebView with Hardware Acceleration enabled,
-											// the only fix is to disable hardware rendering
-											setNormalRendering();
-											invertPage = false;
-											break;
-										}
-									case 1: {
-											ColorMatrixColorFilter filterInvert = new ColorMatrixColorFilter(
-												negativeColorArray);
-											paint.setColorFilter(filterInvert);
-											setHardwareRendering();
-											invertPage = true;
-											break;
-										}
-									case 2:
-										ColorMatrix cm = new ColorMatrix();
-										cm.setSaturation(0f);
-										ColorMatrixColorFilter filterGray = new ColorMatrixColorFilter(cm);
-										paint.setColorFilter(filterGray);
-										setHardwareRendering();
-										break;
-									case 3:
-										ColorMatrix matrix = new ColorMatrix();
-										matrix.set(negativeColorArray);
-										ColorMatrix matrixGray = new ColorMatrix();
-										matrixGray.setSaturation(0f);
-										ColorMatrix concat = new ColorMatrix();
-										concat.setConcat(matrix, matrixGray);
-										ColorMatrixColorFilter filterInvertGray = new ColorMatrixColorFilter(concat);
-										paint.setColorFilter(filterInvertGray);
-										setHardwareRendering();
-										invertPage = true;
-										break;
-									case 4:
-										ColorMatrixColorFilter increaseHighContrast = new ColorMatrixColorFilter(increaseContrastColorArray);
-										paint.setColorFilter(increaseHighContrast);
-										setHardwareRendering();
-										break;
+								renderMode = which;
+								prefs.edit().putInt("renderMode", renderMode).apply();
+								for (Tab t : tabs) {
+									setRenderMode(t.webview, which);
 								}
 							}})
 						.show();
@@ -1804,7 +1763,7 @@ public class MainActivity extends Activity {
         if (autoHideToolbar) {
 			webview.setOnTouchListener(new TouchListener());
 		}
-		
+		setRenderMode(webview, renderMode);
 		webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
         final Tab tab = new Tab(webview);
@@ -2045,6 +2004,7 @@ public class MainActivity extends Activity {
 		isDesktopUA = prefs.getBoolean("isDesktopUA", false);
 		requestSaveData = prefs.getBoolean("requestSaveData", true);
 		doNotTrack = prefs.getBoolean("doNotTrack", true);
+		renderMode = prefs.getInt("renderMode", 0);
 		
 		setupToolbar(toolbar);
 		newBackgroundTab(et.getText().toString());
@@ -2418,6 +2378,7 @@ public class MainActivity extends Activity {
         final Cursor cursor = placesDb.rawQuery("SELECT title, url, date_created, _id FROM history", null);
         final AlertDialog dialog = new AlertDialog.Builder(this)
 			.setTitle("History")
+			.setPositiveButton("Close", new EmptyOnClickListener())
 			.setOnDismissListener(new OnDismissListener() {
 				public void onDismiss(DialogInterface p1) {
 					cursor.close();}})
@@ -2728,20 +2689,39 @@ public class MainActivity extends Activity {
     void deleteAllBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
-                    .setTitle("Bookmarks error")
-                    .setMessage("Can't open bookmarks database")
+				.setTitle("Bookmarks error")
+				.setMessage("Can't open bookmarks database")
 				.setPositiveButton("OK", new EmptyOnClickListener())
-                    .show();
+				.show();
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("Delete all bookmarks?")
-                .setMessage("This action cannot be undone")
+			.setTitle("Delete all bookmarks?")
+			.setMessage("This action cannot be undone")
 			.setNegativeButton("Cancel", new EmptyOnClickListener())
 			.setPositiveButton("Delete All", new OnClickListener() {
 				public void onClick(DialogInterface dialog, int which) {
 					placesDb.execSQL("DELETE FROM bookmarks");}})
-                .show();
+			.show();
+    }
+
+    void deleteAllHistory() {
+        if (placesDb == null) {
+            new AlertDialog.Builder(this)
+				.setTitle("History error")
+				.setMessage("Can't open history database")
+				.setPositiveButton("OK", new EmptyOnClickListener())
+				.show();
+            return;
+        }
+        new AlertDialog.Builder(this)
+			.setTitle("Delete all history?")
+			.setMessage("This action cannot be undone")
+			.setNegativeButton("Cancel", new EmptyOnClickListener())
+			.setPositiveButton("Delete All", new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					placesDb.execSQL("DELETE FROM history");}})
+			.show();
     }
 
     void closeCurrentTab() {
@@ -2879,8 +2859,7 @@ public class MainActivity extends Activity {
 		searchEdit.setTextColor(textColor);
 		searchEdit.setBackgroundColor(backgroundColor);
 		searchCount.setTextColor(textColor);
-		//main_layout.setBackgroundColor(0xffc0c0c0);//Color.BLACK);
-		toolbar.setBackgroundColor(backgroundColor);//Color.BLACK);
+		toolbar.setBackgroundColor(backgroundColor);
 		final int childCount = toolbar.getChildCount();
 		for (int i = 0; i < childCount; i++) {
 			final View v = toolbar.getChildAt(i);
@@ -2895,7 +2874,6 @@ public class MainActivity extends Activity {
 			
 			final TextView txtText = (TextView)v.findViewById(R.id.txtText);
 			txtText.setTextColor(textColor);
-			
 		}
 //        for (int i = 0; i < tabs.size(); i++) {
 //            tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
@@ -2908,8 +2886,8 @@ public class MainActivity extends Activity {
      * enables hardware rendering on the WebView instance
      * of the current LightningView.
      */
-    private void setHardwareRendering() {
-        getCurrentWebView().setLayerType(View.LAYER_TYPE_HARDWARE, paint);
+    private void setHardwareRendering(WebView webview) {
+        webview.setLayerType(View.LAYER_TYPE_HARDWARE, paint);
     }
 
     /**
@@ -2917,8 +2895,8 @@ public class MainActivity extends Activity {
      * means that either the GPU and CPU can both compose
      * the layers when necessary.
      */
-    private void setNormalRendering() {
-        getCurrentWebView().setLayerType(View.LAYER_TYPE_NONE, null);
+    private void setNormalRendering(WebView webview) {
+        webview.setLayerType(View.LAYER_TYPE_NONE, null);
     }
 
     /**
@@ -2927,9 +2905,65 @@ public class MainActivity extends Activity {
      * of the current LightningView and makes the CPU render
      * the view.
      */
-    void setSoftwareRendering() {
-        getCurrentWebView().setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+    void setSoftwareRendering(WebView webview) {
+        webview.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
     }
+
+	/**
+	 * Sets the current rendering color of the WebView instance
+	 * of the current LightningView. The for modes are normal
+	 * rendering, inverted rendering, grayscale rendering,
+	 * and inverted grayscale rendering
+	 *
+	 * @param mode the integer mode to set as the rendering mode.
+	 * see the numbers in documentation above for the
+	 * values this method accepts.
+	 */
+	private void setRenderMode(WebView webview, int which) {
+		switch (which) {
+			case 0: {
+					paint.setColorFilter(null);
+					// setSoftwareRendering(); // Some devices get segfaults
+					// in the WebView with Hardware Acceleration enabled,
+					// the only fix is to disable hardware rendering
+					setNormalRendering(webview);
+					invertPage = false;
+					break;
+				}
+			case 1: {
+					ColorMatrixColorFilter filterInvert = new ColorMatrixColorFilter(
+						negativeColorArray);
+					paint.setColorFilter(filterInvert);
+					setHardwareRendering(webview);
+					invertPage = true;
+					break;
+				}
+			case 2:
+				ColorMatrix cm = new ColorMatrix();
+				cm.setSaturation(0f);
+				ColorMatrixColorFilter filterGray = new ColorMatrixColorFilter(cm);
+				paint.setColorFilter(filterGray);
+				setHardwareRendering(webview);
+				break;
+			case 3:
+				ColorMatrix matrix = new ColorMatrix();
+				matrix.set(negativeColorArray);
+				ColorMatrix matrixGray = new ColorMatrix();
+				matrixGray.setSaturation(0f);
+				ColorMatrix concat = new ColorMatrix();
+				concat.setConcat(matrix, matrixGray);
+				ColorMatrixColorFilter filterInvertGray = new ColorMatrixColorFilter(concat);
+				paint.setColorFilter(filterInvertGray);
+				setHardwareRendering(webview);
+				invertPage = true;
+				break;
+			case 4:
+				ColorMatrixColorFilter increaseHighContrast = new ColorMatrixColorFilter(increaseContrastColorArray);
+				paint.setColorFilter(increaseHighContrast);
+				setHardwareRendering(webview);
+				break;
+		}
+	}
 	
 	/**
      * The OnTouchListener used by the WebView so we can
@@ -2947,7 +2981,6 @@ public class MainActivity extends Activity {
 		public boolean onTouch(View view, MotionEvent arg1) {
             if (view == null)
 				return false;
-
             if (!view.hasFocus()) {
                 view.requestFocus();
             }
@@ -2965,7 +2998,6 @@ public class MainActivity extends Activity {
                 location = 0f;
             }
             gestureDetector.onTouchEvent(arg1);
-
             return false;
         }
     }
@@ -2978,16 +3010,6 @@ public class MainActivity extends Activity {
      */
     private class CustomGestureListener extends SimpleOnGestureListener {
 
-		/**
-		 * Without this, onLongPress is not called when user is zooming using
-		 * two fingers, but is when using only one.
-		 *
-		 *
-		 * The required behaviour is to not trigger this when the user is
-		 * zooming, it shouldn't matter how much fingers the user's using.
-		 */
-		private boolean canTriggerLongPress = true;
-
 		@Override
 		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
 			float power = (int) (velocityY * 100 / maxFling);
@@ -2998,50 +3020,8 @@ public class MainActivity extends Activity {
 			}
 			return super.onFling(e1, e2, velocityX, velocityY);
 		}
-
-		/**
-		 * Is called when the user is swiping after the doubletap, which in our
-		 * case means that he is zooming.
-		 */
-		@Override
-		public boolean onDoubleTapEvent(MotionEvent e) {
-			canTriggerLongPress = false;
-			return false;
-		}
-
-		/**
-		 * Is called when something is starting being pressed, always before
-		 * onLongPress.
-		 */
-		@Override
-		public void onShowPress(MotionEvent e) {
-			canTriggerLongPress = true;
-		}
     }
 
-    /**
-     * A Handler used to get the URL from a long click
-     * event on the WebView. It does not hold a hard
-     * reference to the WebView and therefore will not
-     * leak it if the WebView is garbage collected.
-     */
-//    private class WebViewHandler extends Handler {
-//		WebView view;
-//		public WebViewHandler(WebView view) {
-//			this.view = view;
-//		}
-//
-//		private WeakReference<WebView> reference = new WeakReference<WebView>(view);
-//
-//		@Override 
-//		public void handleMessage(Message msg) {
-//			super.handleMessage(msg);
-//			String url = msg.getData().getString("url");
-//
-//			reference.get().geton(setLongClickPage(url);
-//		}
-//    }
-	
 	AlertDialog alertDialog;
     void showMenu() {
 		if (alertDialog != null) {
@@ -3068,7 +3048,7 @@ public class MainActivity extends Activity {
 			shortMenuActions);
         tv.setAdapter(adapter);
 		builder.setTitle("Actions")
-			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+			.setPositiveButton("Close", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 					dialog.dismiss();
@@ -3078,16 +3058,6 @@ public class MainActivity extends Activity {
 		builder.setView(tv);
 		alertDialog = builder.create();
 		alertDialog.show();
-		
-		
-//        final AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
-//			.setTitle("Actions")
-//			.setPositiveButton(android.R.string.ok, null)
-//			.setAdapter(adapter, new OnClickListener() {
-//				public void onClick(DialogInterface dialog, int which) {
-//					shortMenuActions[which].action.run();}})
-//			.create();
-//			dialog.show();
     }
 
     void showFullMenu() {
@@ -3117,7 +3087,7 @@ public class MainActivity extends Activity {
 			copyOfRange);
         tv.setAdapter(adapter);
 		builder.setTitle("Full menu")
-			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+			.setPositiveButton("Close", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 					dialog.dismiss();
@@ -3127,17 +3097,6 @@ public class MainActivity extends Activity {
 		builder.setView(tv);
 		alertDialog = builder.create();
 		alertDialog.show();
-		
-//        MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
-//			MainActivity.this,
-//			android.R.layout.simple_list_item_1,
-//			copyOfRange);
-//		new AlertDialog.Builder(MainActivity.this)
-//			.setTitle("Full menu")
-//			.setAdapter(adapter, new OnClickListener() {
-//				public void onClick(DialogInterface dialog, int which) {
-//					copyOfRange[which].action.run();}})
-//			.show();
     }
 
     void shareUrl(String url) {

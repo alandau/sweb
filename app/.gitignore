@@ -19,3 +19,7 @@
 *.jar
 *.aar
 *.bak
+*.class
+*.dex
+*.tar
+*.bin

@@ -21,4 +21,5 @@
 *.bak
 *.class
 *.dex
-
+*.tar
+*.bin
