@@ -143,8 +143,9 @@ public class MainActivity extends Activity {
 	}
 
 	private static class Tab {
-        Tab(WebView w) {
+        Tab(WebView w, boolean isIncognito) {
             this.webview = w;
+			this.isIncognito = isIncognito;
         }
 		boolean loading;
         WebView webview;
@@ -152,7 +153,7 @@ public class MainActivity extends Activity {
 		long lastDownload = -1L;
 		String sourceName;
 		boolean textChanged;
-		boolean isIncognito;
+		boolean isIncognito = false;
 	}
 	
 	private boolean FULL_INCOGNITO = Build.VERSION.SDK_INT >= 28;
@@ -218,7 +219,7 @@ public class MainActivity extends Activity {
 	private boolean domStorageEnabled;
 	//private boolean enableSmoothTransition;
 	private boolean geolocationEnabled;
-	private int mixedContentMode;
+	private int mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW;
 	private boolean databaseEnabled;
 	private boolean offscreenPreRaster;
 	//private boolean savePassword;
@@ -354,6 +355,16 @@ public class MainActivity extends Activity {
 					return isFullMenu;
 				}
 			}),
+		new MenuAction("New Igcognito Tab", R.drawable.ic_notification_incognito, new Runnable() {
+				@Override
+				public void run() {
+					final WebView webview = createWebView(null, true);
+					newTabCommon(webview, true);
+					switchToTab(tabs.size() - 1);
+					loadUrl("", webview);
+					alertDialog.dismiss();
+				}
+			}),
 		new MenuAction("Save Page", R.drawable.ic_action_save, new Runnable() {
 				@Override
 				public void run() {
@@ -401,6 +412,10 @@ public class MainActivity extends Activity {
 				public void run() {
 					saveFormData = !saveFormData;
 					prefs.edit().putBoolean("saveFormData", saveFormData).apply();
+					for (Tab t : tabs) {
+						if (!t.isIncognito)
+							t.webview.getSettings().setSaveFormData(saveFormData);
+					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
@@ -455,7 +470,10 @@ public class MainActivity extends Activity {
 				public void run() {
 					accept3PartyCookies = !accept3PartyCookies;
 					prefs.edit().putBoolean("accept3PartyCookies", accept3PartyCookies).apply();
-					CookieManager.getInstance().setAcceptThirdPartyCookies(getCurrentWebView(), accept3PartyCookies);
+					for (Tab t : tabs) {
+						if (!t.isIncognito)
+							t.webview.getSettings().setAcceptThirdPartyCookies(accept3PartyCookies);
+					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
@@ -626,7 +644,8 @@ public class MainActivity extends Activity {
 					appCacheEnabled = !appCacheEnabled;
 					prefs.edit().putBoolean("appCacheEnabled", appCacheEnabled).apply();
 					for (Tab t : tabs) {
-						t.webview.getSettings().setAppCacheEnabled(appCacheEnabled);
+						if (!t.isIncognito)
+							t.webview.getSettings().setAppCacheEnabled(appCacheEnabled);
 					}
 				}
 			}, new MyBooleanSupplier() {
@@ -712,7 +731,8 @@ public class MainActivity extends Activity {
 					domStorageEnabled = !domStorageEnabled;
 					prefs.edit().putBoolean("domStorageEnabled", domStorageEnabled).apply();
 					for (Tab t : tabs) {
-						t.webview.getSettings().setDomStorageEnabled(domStorageEnabled);
+						if (!t.isIncognito)
+							t.webview.getSettings().setDomStorageEnabled(domStorageEnabled);
 					}
 				}
 			}, new MyBooleanSupplier() {
@@ -727,7 +747,8 @@ public class MainActivity extends Activity {
 					geolocationEnabled = !geolocationEnabled;
 					prefs.edit().putBoolean("geolocationEnabled", geolocationEnabled).apply();
 					for (Tab t : tabs) {
-						t.webview.getSettings().setGeolocationEnabled(geolocationEnabled);
+						if (!t.isIncognito)
+							t.webview.getSettings().setGeolocationEnabled(geolocationEnabled);
 					}
 				}
 			}, new MyBooleanSupplier() {
@@ -742,7 +763,8 @@ public class MainActivity extends Activity {
 					databaseEnabled = !databaseEnabled;
 					prefs.edit().putBoolean("databaseEnabled", databaseEnabled).apply();
 					for (Tab t : tabs) {
-						t.webview.getSettings().setDatabaseEnabled(databaseEnabled);
+						if (!t.isIncognito)
+							t.webview.getSettings().setDatabaseEnabled(databaseEnabled);
 					}
 				}
 			}, new MyBooleanSupplier() {
@@ -853,7 +875,8 @@ public class MainActivity extends Activity {
 					cacheMode = WebSettings.LOAD_DEFAULT;
 					prefs.edit().putInt("cacheMode", WebSettings.LOAD_DEFAULT).apply();
 					for (Tab t : tabs) {
-						t.webview.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
+						if (!t.isIncognito)
+							t.webview.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
 					}
 				}
 			}, new MyBooleanSupplier() {
@@ -868,7 +891,8 @@ public class MainActivity extends Activity {
 					cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK;
 					prefs.edit().putInt("cacheMode", WebSettings.LOAD_CACHE_ELSE_NETWORK).apply();
 					for (Tab t : tabs) {
-						t.webview.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+						if (!t.isIncognito)
+							t.webview.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
 					}
 				}
 			}, new MyBooleanSupplier() {
@@ -898,7 +922,8 @@ public class MainActivity extends Activity {
 					cacheMode = WebSettings.LOAD_CACHE_ONLY;
 					prefs.edit().putInt("cacheMode", WebSettings.LOAD_CACHE_ONLY).apply();
 					for (Tab t : tabs) {
-						t.webview.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ONLY);
+						if (!t.isIncognito)
+							t.webview.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ONLY);
 					}
 				}
 			}, new MyBooleanSupplier() {
@@ -975,7 +1000,7 @@ public class MainActivity extends Activity {
 						sb.append("</a><br><br>");
 					}
 					String base64 = Base64.encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
-					newBackgroundTab("data:text/html;base64," + base64);
+					newBackgroundTab("data:text/html;base64," + base64, false);
 					switchToTab(tabs.size() - 1);
 				}
 			}),
@@ -1166,7 +1191,7 @@ public class MainActivity extends Activity {
 		new MenuAction("New tab", R.drawable.tab_new, new Runnable() {
 				@Override
 				public void run() {
-					newBackgroundTab("");
+					newBackgroundTab("", false);
 					switchToTab(tabs.size() - 1);
 				}
 			}),
@@ -1206,6 +1231,7 @@ public class MainActivity extends Activity {
     static class TitleAndBundle {
         String title;
         Bundle bundle;
+		boolean isIncognito;
     }
 
     private ArrayList<TitleAndBundle> closedTabs = new ArrayList<>();
@@ -1224,10 +1250,19 @@ public class MainActivity extends Activity {
 	}
 	
 	@SuppressLint({"SetJavaScriptEnabled", "DefaultLocale"})
-    private WebView createWebView(final Bundle bundle) {
+    private WebView createWebView(final Bundle bundle, boolean isIncognito) {
         final ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressbar);
-		final WebView webview = new WebView(this);
-        if (bundle != null) {
+		final WebView webview;
+		if (isIncognito) {
+			try {
+				webview = new WebView(this, null, 0, true);
+			} catch (Throwable t) {
+				webview = new WebView(this);
+			}
+		} else {
+			webview = new WebView(this);
+		}
+		if (bundle != null) {
             webview.restoreState(bundle);
         }
         webview.setBackgroundColor(isNightMode ? DARK_BACKGROUND : LIGHT_BACKGROUND);
@@ -1334,7 +1369,7 @@ public class MainActivity extends Activity {
                         view.requestFocus();
                     }
                 }
-				if (saveHistory) {
+				if (saveHistory && !getCurrentTab().isIncognito) {
 					addHistory();
 				}
 				final Tab currentTab = getCurrentTab();
@@ -1554,10 +1589,10 @@ public class MainActivity extends Activity {
 				public void onClick(final DialogInterface dialog, final int which) {
 					switch (which) {
 						case 0:
-							newBackgroundTab(url);
+							newBackgroundTab(url, getCurrentTab().isIncognito);
 							break;
 						case 1:
-							newForegroundTab(url);
+							newForegroundTab(url, getCurrentTab().isIncognito);
 							break;
 						case 2:
 							copyClipboard("URL", url);
@@ -1573,10 +1608,10 @@ public class MainActivity extends Activity {
 							startDownload(url, null);
 							break;
 						case 5:
-							newBackgroundTab(imageUrl);
+							newBackgroundTab(imageUrl, getCurrentTab().isIncognito);
 							break;
 						case 6:
-							newForegroundTab(imageUrl);
+							newForegroundTab(imageUrl, getCurrentTab().isIncognito);
 							break;
 						case 7:
 							copyClipboard("URL", imageUrl);
@@ -1730,7 +1765,7 @@ public class MainActivity extends Activity {
 		}
 	};
 	
-    private void newTabCommon(final WebView webview) {
+    private void newTabCommon(final WebView webview, boolean isIncognito) {
         //boolean isDesktopUA = !tabs.isEmpty() && getCurrentTab().isDesktopUA;
         final WebSettings settings = webview.getSettings();
 		settings.setUserAgentString(isDesktopUA ? desktopUA : null);
@@ -1766,29 +1801,29 @@ public class MainActivity extends Activity {
 		setRenderMode(webview, renderMode);
 		webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
-        final Tab tab = new Tab(webview);
+        final Tab tab = new Tab(webview, isIncognito);
         tab.isDesktopUA = isDesktopUA;
         tabs.add(tab);
         webviews.addView(webview);
         setTabCountText(tabs.size());
     }
 	
-    private void newBackgroundTab(final String url) {
-        final WebView webview = createWebView(null);
-        newTabCommon(webview);
+    private void newBackgroundTab(final String url, boolean isIncognito) {
+        final WebView webview = createWebView(null, isIncognito);
+        newTabCommon(webview, isIncognito);
         loadUrl(url, webview);
     }
 
-    private void newForegroundTab(final String url) {
-        final WebView webview = createWebView(null);
-        newTabCommon(webview);
+    private void newForegroundTab(final String url, boolean isIncognito) {
+        final WebView webview = createWebView(null, isIncognito);
+        newTabCommon(webview, isIncognito);
         loadUrl(url, webview);
 		switchToTab(tabs.size() - 1);
     }
 
-    private void newTabFromBundle(final Bundle bundle) {
-        final WebView webview = createWebView(bundle);
-        newTabCommon(webview);
+    private void newTabFromBundle(final Bundle bundle, boolean isIncognito) {
+        final WebView webview = createWebView(bundle, isIncognito);
+        newTabCommon(webview, isIncognito);
     }
 
     private void switchToTab(final int tab) {
@@ -1796,22 +1831,34 @@ public class MainActivity extends Activity {
         currentTabIndex = tab;
         final Tab currentTab = getCurrentTab();
 		currentTab.webview.setVisibility(View.VISIBLE);
-        et.setText(currentTab.webview.getUrl());
+        final boolean textChanged = currentTab.textChanged;
 		if (currentTab.sourceName != null) {
 			final String toString = Uri.fromFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + currentTab.sourceName)).toString();
 			//ExceptionLogger.d(TAG, getCurrentTab().sourceName + ", " + toString);
 			loadUrl(toString, currentTab.webview);
 			currentTab.sourceName = null;
-		} else {
-			if (currentTab.textChanged) {
-				goStop.setImageResource(R.drawable.forward);
-			} else if (currentTab.loading) {
-				goStop.setImageResource(R.drawable.stop);
-			} else {
-				goStop.setImageResource(R.drawable.reload);
-			}
 		}
-        currentTab.webview.requestFocus();
+		if (textChanged) {
+			goStop.setImageResource(R.drawable.forward);
+		} else if (currentTab.loading) {
+			goStop.setImageResource(R.drawable.stop);
+		} else {
+			goStop.setImageResource(R.drawable.reload);
+		}
+        et.setText(currentTab.webview.getUrl());
+		currentTab.textChanged = textChanged;
+		if (currentTab.isIncognito) {
+			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, displayMetrics);
+            Drawable right = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
+            right.setBounds(0, 0, size, size);
+            et.setCompoundDrawables(right, null, null, null);
+            et.setCompoundDrawablePadding(
+				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
+		} else {
+			et.setCompoundDrawables(null, null, null, null);
+		}
+		currentTab.webview.requestFocus();
     }
 
     private void updateFullScreen() {
@@ -1903,7 +1950,6 @@ public class MainActivity extends Activity {
 		et.addTextChangedListener(new TextWatcher() {
 				@Override
 				public void beforeTextChanged(final CharSequence p1, int p2, int p3, int p4) {
-					goStop.setImageResource(R.drawable.forward);
 				}
 				@Override
 				public void onTextChanged(final CharSequence p1, final int p2, final int p3, final int p4) {
@@ -2007,16 +2053,16 @@ public class MainActivity extends Activity {
 		renderMode = prefs.getInt("renderMode", 0);
 		
 		setupToolbar(toolbar);
-		newBackgroundTab(et.getText().toString());
-        getCurrentWebView().setVisibility(View.VISIBLE);
-        getCurrentWebView().requestFocus();
+		newBackgroundTab(et.getText().toString(), false);
+        final WebView currentWebView = getCurrentWebView();
+		currentWebView.setVisibility(View.VISIBLE);
+        currentWebView.requestFocus();
         onNightModeChange();
 		gestureDetector = new GestureDetector(this, new CustomGestureListener());
     }
 	@Override
     protected void onResume() {
         super.onResume();
-        
         if (printJob != null && printBtnPressed) {
             if (printJob.isCompleted()) {
                 Toast.makeText(this, "Printing Completed", Toast.LENGTH_SHORT).show();
@@ -2165,9 +2211,10 @@ public class MainActivity extends Activity {
 							.setTitle("Undo closed tabs")
 							.setItems(items1, new OnClickListener() {
 								public void onClick(DialogInterface dialog, int which1) {
-									final Bundle bundle = closedTabs.get(which1).bundle;
+									TitleAndBundle get = closedTabs.get(which1);
+									final Bundle bundle = get.bundle;
 									closedTabs.remove(which1);
-									newTabFromBundle(bundle);
+									newTabFromBundle(bundle, get.isIncognito);
 									switchToTab(tabs.size() - 1);
 								}})
 							.create();
@@ -2432,6 +2479,7 @@ public class MainActivity extends Activity {
         final Cursor cursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
         final AlertDialog dialog = new AlertDialog.Builder(this)
 			.setTitle("Bookmarks")
+			.setPositiveButton("Close", new EmptyOnClickListener())
 			.setOnDismissListener(new OnDismissListener() {
 				public void onDismiss(android.content.DialogInterface p1) {
 					cursor.close();}})
@@ -2725,31 +2773,44 @@ public class MainActivity extends Activity {
     }
 
     void closeCurrentTab() {
-        if (getCurrentWebView().getUrl() != null && !getCurrentWebView().getUrl().equals("about:blank")) {
+        WebView currentWebView = getCurrentWebView();
+		String url = currentWebView.getUrl();
+		if (url != null && !url.equals("about:blank")) {
             TitleAndBundle titleAndBundle = new TitleAndBundle();
-            titleAndBundle.title = getCurrentWebView().getTitle();
+            titleAndBundle.title = currentWebView.getTitle();
             titleAndBundle.bundle = new Bundle();
-            getCurrentWebView().saveState(titleAndBundle.bundle);
+			titleAndBundle.isIncognito = getCurrentTab().isIncognito;
+            currentWebView.saveState(titleAndBundle.bundle);
             closedTabs.add(0, titleAndBundle);
             if (closedTabs.size() > 500) {
                 closedTabs.remove(closedTabs.size() - 1);
             }
         }
-        ((FrameLayout) findViewById(R.id.webviews)).removeView(getCurrentWebView());
-        getCurrentWebView().destroy();
+        ((FrameLayout) findViewById(R.id.webviews)).removeView(currentWebView);
+        currentWebView.destroy();
         tabs.remove(currentTabIndex);
         if (currentTabIndex >= tabs.size()) {
             currentTabIndex = tabs.size() - 1;
         }
         if (currentTabIndex == -1) {
             // We just closed the last tab
-            newBackgroundTab("");
+            newBackgroundTab("", false);
             currentTabIndex = 0;
         }
-        getCurrentWebView().setVisibility(View.VISIBLE);
-        et.setText(getCurrentWebView().getUrl());
+        currentWebView = getCurrentWebView();
+		currentWebView.setVisibility(View.VISIBLE);
+		if (getCurrentTab().isIncognito) {
+			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, displayMetrics);
+            Drawable left = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
+            left.setBounds(0, 0, size, size);
+            et.setCompoundDrawables(left, null, null, null);
+            et.setCompoundDrawablePadding(
+				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
+		}
+        et.setText(currentWebView.getUrl());
         setTabCountText(tabs.size());
-        getCurrentWebView().requestFocus();
+        currentWebView.requestFocus();
     }
 
     private String getUrlFromIntent(Intent intent) {
@@ -2826,7 +2887,7 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         String url = getUrlFromIntent(intent);
         if (!url.isEmpty()) {
-            newBackgroundTab(url);
+            newBackgroundTab(url, false);
             switchToTab(tabs.size() - 1);
         }
     }
@@ -3147,11 +3208,11 @@ public class MainActivity extends Activity {
 		}
 		final Tab currentTab = getCurrentTab();
 		if (currentTab.webview == webview && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-			if (!currentTab.isIncognito) {
-				mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE;
+			if (currentTab.isIncognito) {
+				mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW;
 			} else {
 				// We're in Incognito mode, reject
-				mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW;
+				mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE;
 			}
 		} 
 		if (currentTab.isIncognito) {
@@ -3159,7 +3220,17 @@ public class MainActivity extends Activity {
 			settings.setDomStorageEnabled(false);
 			settings.setAppCacheEnabled(false);
 			settings.setDatabaseEnabled(false);
+			settings.setGeolocationEnabled(false);
+			settings.setAcceptThirdPartyCookies(false);
+			settings.setSaveFormData(false);
 			settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, displayMetrics);
+            Drawable right = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
+            right.setBounds(0, 0, size, size);
+            et.setCompoundDrawables(right, null, null, null);
+            et.setCompoundDrawablePadding(
+				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
 		}
         webview.loadUrl(url, requestHeaders);
 
@@ -3490,7 +3561,6 @@ public class MainActivity extends Activity {
             tag.textView.setCompoundDrawables(tag.textView.getCompoundDrawables()[0], null, right, null);
             tag.textView.setCompoundDrawablePadding(
 				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, m));
-			
 		}
 		
         MenuActionArrayAdapter(@NonNull Context context, int resource, @NonNull ArrayList<MenuAction> objects) {
