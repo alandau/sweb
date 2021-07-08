@@ -239,6 +239,7 @@ public class MainActivity extends Activity {
 	private boolean blockJavaScript;
 	private boolean autoHideToolbar;
 	private int renderMode;
+	private boolean removeIdentifyingHeaders;
 	
 	private int cacheMode;
 	private boolean isDesktopUA;
@@ -358,7 +359,7 @@ public class MainActivity extends Activity {
 		new MenuAction("New Igcognito Tab", R.drawable.ic_notification_incognito, new Runnable() {
 				@Override
 				public void run() {
-					final WebView webview = createWebView(null, true);
+					final WebView webview = createWebView(null);
 					newTabCommon(webview, true);
 					switchToTab(tabs.size() - 1);
 					loadUrl("", webview);
@@ -492,6 +493,18 @@ public class MainActivity extends Activity {
 				@Override
 				public boolean getAsBoolean() {
 					return doNotTrack;
+				}
+			}),
+		new MenuAction("Remove Identifying Headers", 0, new Runnable() {
+				@Override
+				public void run() {
+					removeIdentifyingHeaders = !removeIdentifyingHeaders;
+					prefs.edit().putBoolean("removeIdentifyingHeaders", removeIdentifyingHeaders).apply();
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return removeIdentifyingHeaders;
 				}
 			}),
 		new MenuAction("Request 'Save-Data'", 0, new Runnable() {
@@ -869,70 +882,6 @@ public class MainActivity extends Activity {
 					return javaScriptCanOpenWindowsAutomatically;
 				}
 			}),
-		new MenuAction("LOAD DEFAULT", 0, new Runnable() {
-				@Override
-				public void run() {
-					cacheMode = WebSettings.LOAD_DEFAULT;
-					prefs.edit().putInt("cacheMode", WebSettings.LOAD_DEFAULT).apply();
-					for (Tab t : tabs) {
-						if (!t.isIncognito)
-							t.webview.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return cacheMode == WebSettings.LOAD_DEFAULT;
-				}
-			}),
-		new MenuAction("LOAD CACHE ELSE NETWORK", 0, new Runnable() {
-				@Override
-				public void run() {
-					cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK;
-					prefs.edit().putInt("cacheMode", WebSettings.LOAD_CACHE_ELSE_NETWORK).apply();
-					for (Tab t : tabs) {
-						if (!t.isIncognito)
-							t.webview.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return cacheMode == WebSettings.LOAD_CACHE_ELSE_NETWORK;
-				}
-			}),
-		new MenuAction("LOAD NO CACHE", 0, new Runnable() {
-				@Override
-				public void run() {
-					cacheMode = WebSettings.LOAD_NO_CACHE;
-					prefs.edit().putInt("cacheMode", WebSettings.LOAD_NO_CACHE).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return cacheMode == WebSettings.LOAD_NO_CACHE;
-				}
-			}),
-		new MenuAction("LOAD CACHE ONLY", 0, new Runnable() {
-				@Override
-				public void run() {
-					cacheMode = WebSettings.LOAD_CACHE_ONLY;
-					prefs.edit().putInt("cacheMode", WebSettings.LOAD_CACHE_ONLY).apply();
-					for (Tab t : tabs) {
-						if (!t.isIncognito)
-							t.webview.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ONLY);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return cacheMode == WebSettings.LOAD_CACHE_ONLY;
-				}
-			}),
-
 		new MenuAction("Night mode", R.drawable.night, new Runnable() {
 				@Override
 				public void run() {
@@ -1042,7 +991,7 @@ public class MainActivity extends Activity {
 					}
 				}
 			}),
-		new MenuAction("View Source", R.drawable.night, new Runnable() {
+		new MenuAction("View Source", 0, new Runnable() {
 				@Override
 				public void run() {
 					final Tab currentTab = getCurrentTab();
@@ -1062,6 +1011,154 @@ public class MainActivity extends Activity {
 				}
 			}),
 
+		new MenuAction("Cache Mode", 0, new Runnable() {
+				@Override
+				public void run() {
+					ArrayList<MenuAction> actions = new ArrayList<>(4);
+					actions.add(new MenuAction("LOAD DEFAULT", 0, new Runnable() {
+										@Override
+										public void run() {
+											cacheMode(WebSettings.LOAD_DEFAULT);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return cacheMode == WebSettings.LOAD_DEFAULT;
+										}
+									}));
+					actions.add(new MenuAction("LOAD CACHE ELSE NETWORK", 0, new Runnable() {
+										@Override
+										public void run() {
+											cacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return cacheMode == WebSettings.LOAD_CACHE_ELSE_NETWORK;
+										}
+									}));
+					actions.add(new MenuAction("LOAD NO CACHE", 0, new Runnable() {
+										@Override
+										public void run() {
+											cacheMode(WebSettings.LOAD_NO_CACHE);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return cacheMode == WebSettings.LOAD_NO_CACHE;
+										}
+									}));
+					actions.add(new MenuAction("LOAD CACHE ONLY", 0, new Runnable() {
+										@Override
+										public void run() {
+											cacheMode(WebSettings.LOAD_CACHE_ONLY);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return cacheMode == WebSettings.LOAD_CACHE_ONLY;
+										}
+									}));
+					
+					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						})
+						.setTitle("Cache Mode")
+						.create();
+					ListView tv = new ListView(MainActivity.this);
+					MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+						MainActivity.this,
+						android.R.layout.simple_list_item_1,
+						actions);
+					tv.setAdapter(adapter);
+					dialog.setView(tv);
+					dialog.show();
+				}
+			}),
+		new MenuAction("Render Mode", 0, new Runnable() {
+				@Override
+				public void run() {
+					ArrayList<MenuAction> actions = new ArrayList<>(5);
+					actions.add(new MenuAction("NORMAL", 0, new Runnable() {
+										@Override
+										public void run() {
+											renderMode(0);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return renderMode == 0;
+										}
+									}));
+					actions.add(new MenuAction("INVERTED", 0, new Runnable() {
+										@Override
+										public void run() {
+											renderMode(1);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return renderMode == 1;
+										}
+									}));
+					actions.add(new MenuAction("GRAYSCALE", 0, new Runnable() {
+										@Override
+										public void run() {
+											renderMode(2);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return renderMode == 2;
+										}
+									}));
+					actions.add(new MenuAction("INVERTED GRAYSCALE", 0, new Runnable() {
+										@Override
+										public void run() {
+											renderMode(3);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return renderMode == 3;
+										}
+									}));
+					actions.add(new MenuAction("INCREASE CONTRAST", 0, new Runnable() {
+										@Override
+										public void run() {
+											renderMode(4);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return renderMode == 4;
+										}
+									}));
+
+					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						})
+						.setTitle("Render Mode")
+						.create();
+					ListView tv = new ListView(MainActivity.this);
+					MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+						MainActivity.this,
+						android.R.layout.simple_list_item_1,
+						actions);
+					tv.setAdapter(adapter);
+					dialog.setView(tv);
+					dialog.show();
+				}
+			}),
+		
 		new MenuAction("Back", R.drawable.back, new Runnable() {
 				@Override
 				public void run() {
@@ -1131,23 +1228,7 @@ public class MainActivity extends Activity {
 					deleteAllHistory();
 				}
 			}),
-		new MenuAction("Render Mode", 0, new Runnable() {
-				@Override
-				public void run() {
-					new AlertDialog.Builder(MainActivity.this)
-						.setTitle("Render Mode")
-						.setItems(new String[] {"NORMAL", "INVERTED", "GRAYSCALE", "INVERTED GRAYSCALE", "INCREASE CONTRAST"}, new OnClickListener() {
-							public void onClick(DialogInterface subDialog, int which) {
-								renderMode = which;
-								prefs.edit().putInt("renderMode", renderMode).apply();
-								for (Tab t : tabs) {
-									setRenderMode(t.webview, which);
-								}
-							}})
-						.show();
-				}
-			}),
-
+		
 		new MenuAction("Clear history and cache", 0, new Runnable() {
 				@Override
 				public void run() {
@@ -1202,6 +1283,23 @@ public class MainActivity extends Activity {
 				}
 			}),
 	};
+
+	private void cacheMode(int mode) {
+		cacheMode = mode;
+		prefs.edit().putInt("cacheMode", cacheMode).apply();
+		for (Tab t : tabs) {
+			if (!t.isIncognito)
+				t.webview.getSettings().setCacheMode(cacheMode);
+		}
+	}
+
+	private void renderMode(int which) {
+		renderMode = which;
+		prefs.edit().putInt("renderMode", renderMode).apply();
+		for (Tab t : tabs) {
+			setRenderMode(t.webview, which);
+		}
+	}
 	
     final String[][] toolbarActions = {
 		{"Back", "Scroll to top", "Tab history"},
@@ -1250,18 +1348,10 @@ public class MainActivity extends Activity {
 	}
 	
 	@SuppressLint({"SetJavaScriptEnabled", "DefaultLocale"})
-    private WebView createWebView(final Bundle bundle, boolean isIncognito) {
+    private WebView createWebView(final Bundle bundle) {
         final ProgressBar progressBar = (ProgressBar) findViewById(R.id.progressbar);
 		final WebView webview;
-		if (isIncognito) {
-			try {
-				webview = new WebView(this, null, 0, true);
-			} catch (Throwable t) {
-				webview = new WebView(this);
-			}
-		} else {
-			webview = new WebView(this);
-		}
+		webview = new WebView(this);
 		if (bundle != null) {
             webview.restoreState(bundle);
         }
@@ -1809,20 +1899,20 @@ public class MainActivity extends Activity {
     }
 	
     private void newBackgroundTab(final String url, boolean isIncognito) {
-        final WebView webview = createWebView(null, isIncognito);
+        final WebView webview = createWebView(null);
         newTabCommon(webview, isIncognito);
         loadUrl(url, webview);
     }
 
     private void newForegroundTab(final String url, boolean isIncognito) {
-        final WebView webview = createWebView(null, isIncognito);
+        final WebView webview = createWebView(null);
         newTabCommon(webview, isIncognito);
         loadUrl(url, webview);
 		switchToTab(tabs.size() - 1);
     }
 
     private void newTabFromBundle(final Bundle bundle, boolean isIncognito) {
-        final WebView webview = createWebView(bundle, isIncognito);
+        final WebView webview = createWebView(bundle);
         newTabCommon(webview, isIncognito);
     }
 
@@ -2029,7 +2119,8 @@ public class MainActivity extends Activity {
 		isFullMenu = prefs.getBoolean("isFullMenu", false);
 		saveFormData = prefs.getBoolean("saveFormData", true);
 		autoHideToolbar = prefs.getBoolean("autoHideToolbar", false);
-        
+        removeIdentifyingHeaders = prefs.getBoolean("removeIdentifyingHeaders", false);
+		
 		javaScriptEnabled = prefs.getBoolean("javaScriptEnabled", true);
 		appCacheEnabled = prefs.getBoolean("appCacheEnabled", true);
 		allowContentAccess = prefs.getBoolean("allowContentAccess", true);
@@ -3206,7 +3297,11 @@ public class MainActivity extends Activity {
 		} else {
 			requestHeaders.remove("DNT");
 		}
-		final Tab currentTab = getCurrentTab();
+		if (removeIdentifyingHeaders) {
+			requestHeaders.put("X-Requested-With", "");
+			requestHeaders.put("X-Wap-Profile", "");
+		}
+        final Tab currentTab = getCurrentTab();
 		if (currentTab.webview == webview && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 			if (currentTab.isIncognito) {
 				mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW;
@@ -3232,7 +3327,7 @@ public class MainActivity extends Activity {
             et.setCompoundDrawablePadding(
 				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
 		}
-        webview.loadUrl(url, requestHeaders);
+		webview.loadUrl(url, requestHeaders);
 
         hideKeyboard();
     }
@@ -3561,6 +3656,7 @@ public class MainActivity extends Activity {
             tag.textView.setCompoundDrawables(tag.textView.getCompoundDrawables()[0], null, right, null);
             tag.textView.setCompoundDrawablePadding(
 				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, m));
+			MenuActionArrayAdapter.this.notifyDataSetChanged();
 		}
 		
         MenuActionArrayAdapter(@NonNull Context context, int resource, @NonNull ArrayList<MenuAction> objects) {
