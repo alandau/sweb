@@ -240,6 +240,7 @@ public class MainActivity extends Activity {
 	private boolean autoHideToolbar;
 	private int renderMode;
 	private boolean removeIdentifyingHeaders;
+	private String downloadLocation;
 	
 	private int cacheMode;
 	private boolean isDesktopUA;
@@ -371,8 +372,8 @@ public class MainActivity extends Activity {
 				public void run() {
 					final WebView currentWebView = getCurrentWebView();
 					String url = savedName(currentWebView);
-					currentWebView.saveWebArchive(mhtmlPath + url + ".mht");
-					Toast.makeText(MainActivity.this, "Saved " + mhtmlPath + url + ".mht", Toast.LENGTH_LONG).show();
+					currentWebView.saveWebArchive(downloadLocation + url + ".mht");
+					Toast.makeText(MainActivity.this, "Saved " + downloadLocation + url + ".mht", Toast.LENGTH_LONG).show();
 				}
 			}),
 		new MenuAction("Save Page as Pdf", R.drawable.ic_action_save, new Runnable() {
@@ -394,18 +395,6 @@ public class MainActivity extends Activity {
 				@Override
 				public void run() {
 					savePageAsImage();
-				}
-			}),
-		new MenuAction("Keep History", R.drawable.ic_history_black_36dp, new Runnable() {
-				@Override
-				public void run() {
-					saveHistory = !saveHistory;
-					prefs.edit().putBoolean("saveHistory", saveHistory).apply();
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return saveHistory;
 				}
 			}),
 		new MenuAction("Save Form Data", 0, new Runnable() {
@@ -495,6 +484,18 @@ public class MainActivity extends Activity {
 					return doNotTrack;
 				}
 			}),
+		new MenuAction("Request 'Save-Data'", 0, new Runnable() {
+				@Override
+				public void run() {
+					requestSaveData = !requestSaveData;
+					prefs.edit().putBoolean("requestSaveData", requestSaveData).apply();
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return requestSaveData;
+				}
+			}),
 		new MenuAction("Remove Identifying Headers", 0, new Runnable() {
 				@Override
 				public void run() {
@@ -507,16 +508,28 @@ public class MainActivity extends Activity {
 					return removeIdentifyingHeaders;
 				}
 			}),
-		new MenuAction("Request 'Save-Data'", 0, new Runnable() {
+		new MenuAction("Block CSS", 0, new Runnable() {
 				@Override
 				public void run() {
-					requestSaveData = !requestSaveData;
-					prefs.edit().putBoolean("requestSaveData", requestSaveData).apply();
+					blockCSS = !blockCSS;
+					prefs.edit().putBoolean("blockCSS", blockCSS).apply();
 				}
 			}, new MyBooleanSupplier() {
 				@Override
 				public boolean getAsBoolean() {
-					return requestSaveData;
+					return blockCSS;
+				}
+			}),
+		new MenuAction("Block Fonts", 0, new Runnable() {
+				@Override
+				public void run() {
+					blockFonts = !blockFonts;
+					prefs.edit().putBoolean("blockFonts", blockFonts).apply();
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return blockFonts;
 				}
 			}),
 		new MenuAction("Block Images", R.drawable.ic_doc_image, new Runnable() {
@@ -570,30 +583,6 @@ public class MainActivity extends Activity {
 					return blockJavaScript;
 				}
 			}),
-		new MenuAction("Block Fonts", 0, new Runnable() {
-				@Override
-				public void run() {
-					blockFonts = !blockFonts;
-					prefs.edit().putBoolean("blockFonts", blockFonts).apply();
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return blockFonts;
-				}
-			}),
-		new MenuAction("Block CSS", 0, new Runnable() {
-				@Override
-				public void run() {
-					blockCSS = !blockCSS;
-					prefs.edit().putBoolean("blockCSS", blockCSS).apply();
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return blockCSS;
-				}
-			}),
 		new MenuAction("Block Network Loads", R.drawable.adblocker, new Runnable() {
 				@Override
 				public void run() {
@@ -623,32 +612,33 @@ public class MainActivity extends Activity {
 					return useAdBlocker;
 				}
 			}),
-		new MenuAction("Update adblock rules", 0, new Runnable() {
-				@Override
-				public void run() {
-					updateAdblockRules();
-				}
-			}),
 		new MenuAction("Add Block Rules", R.drawable.adblocker, new Runnable() {
 				@Override
 				public void run() {
 					addBlockRules();
 				}
 			}),
-
-		new MenuAction("JavaScript Enabled", 0, new Runnable() {
+		new MenuAction("Update adblock rules", R.drawable.adblocker, new Runnable() {
 				@Override
 				public void run() {
-					javaScriptEnabled = !javaScriptEnabled;
-					prefs.edit().putBoolean("javaScriptEnabled", javaScriptEnabled).apply();
+					updateAdblockRules();
+				}
+			}),
+		
+		new MenuAction("Database Enabled", 0, new Runnable() {
+				@Override
+				public void run() {
+					databaseEnabled = !databaseEnabled;
+					prefs.edit().putBoolean("databaseEnabled", databaseEnabled).apply();
 					for (Tab t : tabs) {
-						t.webview.getSettings().setJavaScriptEnabled(javaScriptEnabled);
+						if (!t.isIncognito)
+							t.webview.getSettings().setDatabaseEnabled(databaseEnabled);
 					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
 				public boolean getAsBoolean() {
-					return javaScriptEnabled;
+					return databaseEnabled;
 				}
 			}),
 		new MenuAction("App Cache Enabled", 0, new Runnable() {
@@ -665,77 +655,6 @@ public class MainActivity extends Activity {
 				@Override
 				public boolean getAsBoolean() {
 					return appCacheEnabled;
-				}
-			}),
-		new MenuAction("Allow Content Access", 0, new Runnable() {
-				@Override
-				public void run() {
-					allowContentAccess = !allowContentAccess;
-					prefs.edit().putBoolean("allowContentAccess", allowContentAccess).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setAllowContentAccess(allowContentAccess);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return allowContentAccess;
-				}
-			}),
-		new MenuAction("Media Playback Requires Gesture", 0, new Runnable() {
-				@Override
-				public void run() {
-					mediaPlaybackRequiresUserGesture = !mediaPlaybackRequiresUserGesture;
-					prefs.edit().putBoolean("mediaPlaybackRequiresUserGesture", mediaPlaybackRequiresUserGesture).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setMediaPlaybackRequiresUserGesture(mediaPlaybackRequiresUserGesture);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return mediaPlaybackRequiresUserGesture;
-				}
-			}),
-		new MenuAction("Load With Overview Mode", 0, new Runnable() {
-				@Override
-				public void run() {
-					loadWithOverviewMode = !loadWithOverviewMode;
-					prefs.edit().putBoolean("loadWithOverviewMode", loadWithOverviewMode).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setLoadWithOverviewMode(loadWithOverviewMode);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return loadWithOverviewMode;
-				}
-			}),
-		new MenuAction("Text Reflow", 0, new Runnable() {
-				@Override
-				public void run() {
-					textReflow = !textReflow;
-					prefs.edit().putBoolean("textReflow", textReflow).apply();
-					Tab t = getCurrentTab();
-					WebSettings settings = t.webview.getSettings();
-					if (textReflow) {
-						settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
-						try {
-							settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING);
-						} catch (Exception e) {
-							// This shouldn't be necessary, but there are a number
-							// of KitKat devices that crash trying to set this
-							ExceptionLogger.e("Problem setting LayoutAlgorithm to TEXT_AUTOSIZING", e);
-						}
-					} else {
-						settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return textReflow;
 				}
 			}),
 		new MenuAction("DomStorage Enabled", 0, new Runnable() {
@@ -770,35 +689,19 @@ public class MainActivity extends Activity {
 					return geolocationEnabled;
 				}
 			}),
-		new MenuAction("Database Enabled", 0, new Runnable() {
+		new MenuAction("JavaScript Enabled", 0, new Runnable() {
 				@Override
 				public void run() {
-					databaseEnabled = !databaseEnabled;
-					prefs.edit().putBoolean("databaseEnabled", databaseEnabled).apply();
+					javaScriptEnabled = !javaScriptEnabled;
+					prefs.edit().putBoolean("javaScriptEnabled", javaScriptEnabled).apply();
 					for (Tab t : tabs) {
-						if (!t.isIncognito)
-							t.webview.getSettings().setDatabaseEnabled(databaseEnabled);
+						t.webview.getSettings().setJavaScriptEnabled(javaScriptEnabled);
 					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
 				public boolean getAsBoolean() {
-					return databaseEnabled;
-				}
-			}),
-		new MenuAction("Offscreen PreRaster", 0, new Runnable() {
-				@Override
-				public void run() {
-					offscreenPreRaster = !offscreenPreRaster;
-					prefs.edit().putBoolean("offscreenPreRaster", offscreenPreRaster).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setOffscreenPreRaster(offscreenPreRaster);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return offscreenPreRaster;
+					return javaScriptEnabled;
 				}
 			}),
 		new MenuAction("Allow File Access", 0, new Runnable() {
@@ -814,6 +717,21 @@ public class MainActivity extends Activity {
 				@Override
 				public boolean getAsBoolean() {
 					return allowFileAccess;
+				}
+			}),
+		new MenuAction("Allow Content Access", 0, new Runnable() {
+				@Override
+				public void run() {
+					allowContentAccess = !allowContentAccess;
+					prefs.edit().putBoolean("allowContentAccess", allowContentAccess).apply();
+					for (Tab t : tabs) {
+						t.webview.getSettings().setAllowContentAccess(allowContentAccess);
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return allowContentAccess;
 				}
 			}),
 		new MenuAction("Allow File Access From File URLs", 0, new Runnable() {
@@ -844,6 +762,86 @@ public class MainActivity extends Activity {
 				@Override
 				public boolean getAsBoolean() {
 					return allowUniversalAccessFromFileURLs;
+				}
+			}),
+		new MenuAction("Media Playback Requires Gesture", 0, new Runnable() {
+				@Override
+				public void run() {
+					mediaPlaybackRequiresUserGesture = !mediaPlaybackRequiresUserGesture;
+					prefs.edit().putBoolean("mediaPlaybackRequiresUserGesture", mediaPlaybackRequiresUserGesture).apply();
+					for (Tab t : tabs) {
+						t.webview.getSettings().setMediaPlaybackRequiresUserGesture(mediaPlaybackRequiresUserGesture);
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return mediaPlaybackRequiresUserGesture;
+				}
+			}),
+		new MenuAction("Download Location", 0, new Runnable() {
+				@Override
+				public void run() {
+					final ArrayList<MenuAction> actions = new ArrayList<>(2);
+					final MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+						MainActivity.this,
+						android.R.layout.simple_list_item_1,
+						actions);
+					actions.add(new MenuAction("Default", 0, new Runnable() {
+										@Override
+										public void run() {
+											downloadLocation = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return downloadLocation.equals(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
+										}
+									}));
+					actions.add(new MenuAction("Custom", 0, new Runnable() {
+										@Override
+										public void run() {
+											final EditText editView = new EditText(MainActivity.this);
+											editView.setText(downloadLocation);
+											editView.setSelection(downloadLocation.length());
+											new AlertDialog.Builder(MainActivity.this)
+												.setTitle("Edit Download Location")
+												.setView(editView)
+												.setPositiveButton("Apply", new OnClickListener() {
+													public void onClick(DialogInterface dialog, int which) {
+														String toString = editView.getText().toString().replaceAll("/{2,}", "/");
+														if (toString.endsWith("/")) {
+															toString = toString.substring(0, toString.lastIndexOf("/"));
+														}
+														File file = new File(toString);
+														if (file.exists() && file.isDirectory() && file.canWrite()) {
+															downloadLocation = toString;
+															prefs.edit().putString("downloadLocation", downloadLocation).apply();
+															adapter.notifyDataSetChanged();
+														}
+													}})
+												.setNegativeButton("Cancel", new EmptyOnClickListener())
+												.show();
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return !downloadLocation.equals(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
+										}
+									}));
+					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						})
+						.setTitle("Download Location")
+						.create();
+					ListView tv = new ListView(MainActivity.this);
+					tv.setAdapter(adapter);
+					dialog.setView(tv);
+					dialog.show();
 				}
 			}),
 		new MenuAction("Auto Hide Toolbar", 0, new Runnable() {
@@ -1011,72 +1009,60 @@ public class MainActivity extends Activity {
 				}
 			}),
 
-		new MenuAction("Cache Mode", 0, new Runnable() {
+		new MenuAction("Text Reflow", 0, new Runnable() {
 				@Override
 				public void run() {
-					ArrayList<MenuAction> actions = new ArrayList<>(4);
-					actions.add(new MenuAction("LOAD DEFAULT", 0, new Runnable() {
-										@Override
-										public void run() {
-											cacheMode(WebSettings.LOAD_DEFAULT);
-										}
-									}, new MyBooleanSupplier() {
-										@Override
-										public boolean getAsBoolean() {
-											return cacheMode == WebSettings.LOAD_DEFAULT;
-										}
-									}));
-					actions.add(new MenuAction("LOAD CACHE ELSE NETWORK", 0, new Runnable() {
-										@Override
-										public void run() {
-											cacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
-										}
-									}, new MyBooleanSupplier() {
-										@Override
-										public boolean getAsBoolean() {
-											return cacheMode == WebSettings.LOAD_CACHE_ELSE_NETWORK;
-										}
-									}));
-					actions.add(new MenuAction("LOAD NO CACHE", 0, new Runnable() {
-										@Override
-										public void run() {
-											cacheMode(WebSettings.LOAD_NO_CACHE);
-										}
-									}, new MyBooleanSupplier() {
-										@Override
-										public boolean getAsBoolean() {
-											return cacheMode == WebSettings.LOAD_NO_CACHE;
-										}
-									}));
-					actions.add(new MenuAction("LOAD CACHE ONLY", 0, new Runnable() {
-										@Override
-										public void run() {
-											cacheMode(WebSettings.LOAD_CACHE_ONLY);
-										}
-									}, new MyBooleanSupplier() {
-										@Override
-										public boolean getAsBoolean() {
-											return cacheMode == WebSettings.LOAD_CACHE_ONLY;
-										}
-									}));
-					
-					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
-						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								dialog.dismiss();
-							}
-						})
-						.setTitle("Cache Mode")
-						.create();
-					ListView tv = new ListView(MainActivity.this);
-					MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
-						MainActivity.this,
-						android.R.layout.simple_list_item_1,
-						actions);
-					tv.setAdapter(adapter);
-					dialog.setView(tv);
-					dialog.show();
+					textReflow = !textReflow;
+					prefs.edit().putBoolean("textReflow", textReflow).apply();
+					Tab t = getCurrentTab();
+					WebSettings settings = t.webview.getSettings();
+					if (textReflow) {
+						settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
+						try {
+							settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING);
+						} catch (Exception e) {
+							// This shouldn't be necessary, but there are a number
+							// of KitKat devices that crash trying to set this
+							ExceptionLogger.e("Problem setting LayoutAlgorithm to TEXT_AUTOSIZING", e);
+						}
+					} else {
+						settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return textReflow;
+				}
+			}),
+		new MenuAction("Offscreen PreRaster", 0, new Runnable() {
+				@Override
+				public void run() {
+					offscreenPreRaster = !offscreenPreRaster;
+					prefs.edit().putBoolean("offscreenPreRaster", offscreenPreRaster).apply();
+					for (Tab t : tabs) {
+						t.webview.getSettings().setOffscreenPreRaster(offscreenPreRaster);
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return offscreenPreRaster;
+				}
+			}),
+		new MenuAction("Load With Overview Mode", 0, new Runnable() {
+				@Override
+				public void run() {
+					loadWithOverviewMode = !loadWithOverviewMode;
+					prefs.edit().putBoolean("loadWithOverviewMode", loadWithOverviewMode).apply();
+					for (Tab t : tabs) {
+						t.webview.getSettings().setLoadWithOverviewMode(loadWithOverviewMode);
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return loadWithOverviewMode;
 				}
 			}),
 		new MenuAction("Render Mode", 0, new Runnable() {
@@ -1158,6 +1144,74 @@ public class MainActivity extends Activity {
 					dialog.show();
 				}
 			}),
+		new MenuAction("Cache Mode", 0, new Runnable() {
+				@Override
+				public void run() {
+					ArrayList<MenuAction> actions = new ArrayList<>(4);
+					actions.add(new MenuAction("LOAD DEFAULT", 0, new Runnable() {
+										@Override
+										public void run() {
+											cacheMode(WebSettings.LOAD_DEFAULT);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return cacheMode == WebSettings.LOAD_DEFAULT;
+										}
+									}));
+					actions.add(new MenuAction("LOAD CACHE ELSE NETWORK", 0, new Runnable() {
+										@Override
+										public void run() {
+											cacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return cacheMode == WebSettings.LOAD_CACHE_ELSE_NETWORK;
+										}
+									}));
+					actions.add(new MenuAction("LOAD NO CACHE", 0, new Runnable() {
+										@Override
+										public void run() {
+											cacheMode(WebSettings.LOAD_NO_CACHE);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return cacheMode == WebSettings.LOAD_NO_CACHE;
+										}
+									}));
+					actions.add(new MenuAction("LOAD CACHE ONLY", 0, new Runnable() {
+										@Override
+										public void run() {
+											cacheMode(WebSettings.LOAD_CACHE_ONLY);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return cacheMode == WebSettings.LOAD_CACHE_ONLY;
+										}
+									}));
+
+					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						})
+						.setTitle("Cache Mode")
+						.create();
+					ListView tv = new ListView(MainActivity.this);
+					MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+						MainActivity.this,
+						android.R.layout.simple_list_item_1,
+						actions);
+					tv.setAdapter(adapter);
+					dialog.setView(tv);
+					dialog.show();
+				}
+			}),
 		
 		new MenuAction("Back", R.drawable.back, new Runnable() {
 				@Override
@@ -1186,6 +1240,24 @@ public class MainActivity extends Activity {
 				}
 			}),
 
+		new MenuAction("Keep History", R.drawable.ic_history_black_36dp, new Runnable() {
+				@Override
+				public void run() {
+					saveHistory = !saveHistory;
+					prefs.edit().putBoolean("saveHistory", saveHistory).apply();
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return saveHistory;
+				}
+			}),
+		new MenuAction("Delete all history", 0, new Runnable() {
+				@Override
+				public void run() {
+					deleteAllHistory();
+				}
+			}),
 		new MenuAction("Show History", R.drawable.ic_history_black_36dp, new Runnable() {
 				@Override
 				public void run() {
@@ -1220,12 +1292,6 @@ public class MainActivity extends Activity {
 				@Override
 				public void run() {
 					deleteAllBookmarks();
-				}
-			}),
-		new MenuAction("Delete all history", 0, new Runnable() {
-				@Override
-				public void run() {
-					deleteAllHistory();
 				}
 			}),
 		
@@ -1459,7 +1525,10 @@ public class MainActivity extends Activity {
                         view.requestFocus();
                     }
                 }
-				if (saveHistory && !getCurrentTab().isIncognito) {
+				if (saveHistory 
+					&& !getCurrentTab().isIncognito
+					&& !url.startsWith("data")
+					&& !url.equals("about:blank")) {
 					addHistory();
 				}
 				final Tab currentTab = getCurrentTab();
@@ -1765,8 +1834,9 @@ public class MainActivity extends Activity {
 				.show();
             return false;
         }
+		ExceptionLogger.d(TAG, downloadLocation+filename);
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+        request.setDestinationUri(Uri.fromFile(new File(downloadLocation, filename)));//setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
         request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI
 									   | DownloadManager.Request.NETWORK_MOBILE)
 			.setAllowedOverRoaming(false)
@@ -1964,13 +2034,13 @@ public class MainActivity extends Activity {
 	private void showToast(final String st) {
 		Toast.makeText(MainActivity.this, st, Toast.LENGTH_SHORT).show();
 	}
-	String mhtmlPath;
+	
 	public static File externalLogFilesDir;
     @Override
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 		externalLogFilesDir = getExternalFilesDir("logs");
-		mhtmlPath = getExternalFilesDir("mhtml").getAbsolutePath();
+		
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             private Thread.UncaughtExceptionHandler defaultUEH = Thread.getDefaultUncaughtExceptionHandler();
             @Override
@@ -2142,6 +2212,7 @@ public class MainActivity extends Activity {
 		requestSaveData = prefs.getBoolean("requestSaveData", true);
 		doNotTrack = prefs.getBoolean("doNotTrack", true);
 		renderMode = prefs.getInt("renderMode", 0);
+		downloadLocation = prefs.getString("downloadLocation", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
 		
 		setupToolbar(toolbar);
 		newBackgroundTab(et.getText().toString(), false);
