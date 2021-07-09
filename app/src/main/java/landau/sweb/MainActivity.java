@@ -615,7 +615,7 @@ public class MainActivity extends Activity {
 		new MenuAction("Add Block Rules", R.drawable.adblocker, new Runnable() {
 				@Override
 				public void run() {
-					addBlockRules();
+					addBlockRules(null);
 				}
 			}),
 		new MenuAction("Update adblock rules", R.drawable.adblocker, new Runnable() {
@@ -1717,9 +1717,9 @@ public class MainActivity extends Activity {
     void showLongPressMenu(final String linkUrl, final String imageUrl) {
         final String url;
         final String title;
-        String[] options = new String[]{"Open in background", "Open in new tab", "Copy URL", "Show full URL", "Download"};
+        String[] options = new String[]{"Open in background", "Open in new tab", "Add Bookmark", "Copy URL", "Show URL", "Download", "Block"};
 		final String[] imageOptions = new String[]{
-			"Open in background", "Open in new tab", "Copy URL", "Show full URL", "Download",
+			"Open in background", "Open in new tab", "Add Bookmark", "Copy URL", "Show URL", "Download", "Block",
 			"Open image in background", "Open image in new tab", "Copy image URL", "Show full image URL", "Download image"};
 		
         if (imageUrl == null) {
@@ -1754,35 +1754,45 @@ public class MainActivity extends Activity {
 							newForegroundTab(url, getCurrentTab().isIncognito);
 							break;
 						case 2:
-							copyClipboard("URL", url);
+							addBookmark(url);
 							break;
 						case 3:
+							copyClipboard("URL", url);
+							break;
+						case 4:
 							new AlertDialog.Builder(MainActivity.this)
 								.setTitle("Full URL")
 								.setMessage(url)
 								.setPositiveButton("OK", new EmptyOnClickListener())
 								.show();
 							break;
-						case 4:
+						case 5:
 							startDownload(url, null);
 							break;
-						case 5:
-							newBackgroundTab(imageUrl, getCurrentTab().isIncognito);
-							break;
 						case 6:
-							newForegroundTab(imageUrl, getCurrentTab().isIncognito);
+							if (!url.startsWith("/") && !url.startsWith("file")) {
+								final Uri parse = Uri.parse(url);
+								//ExceptionLogger.d(TAG, url + ", Authority " + parse.getAuthority() + ", Host " + parse.getHost() + ", LastPathSegment " + parse.getLastPathSegment() + ", Fragment " + parse.getFragment() + ", Path " + parse.getPath());
+								addBlockRules(parse.getHost());
+							}
 							break;
 						case 7:
-							copyClipboard("URL", imageUrl);
+							newBackgroundTab(imageUrl, getCurrentTab().isIncognito);
 							break;
 						case 8:
+							newForegroundTab(imageUrl, getCurrentTab().isIncognito);
+							break;
+						case 9:
+							copyClipboard("URL", imageUrl);
+							break;
+						case 10:
 							new AlertDialog.Builder(MainActivity.this)
 								.setTitle("Full imageUrl")
 								.setMessage(imageUrl)
 								.setPositiveButton("OK", new EmptyOnClickListener())
 								.show();
 							break;
-						case 9:
+						case 11:
 							startDownload(imageUrl, null);
 							break;
 					}
@@ -2518,46 +2528,58 @@ public class MainActivity extends Activity {
 		ExceptionLogger.d(TAG, "adBlocker " + adBlocker);
     }
 	
-	void addBlockRules() {
-        final File customFilterFile = new File(getExternalFilesDir("adblock").getAbsolutePath() + "/customFilter.txt");
-		try {
-			if (!customFilterFile.exists()) {
-				customFilterFile.createNewFile();
+	void addBlockRules(String address) {
+		final File customFilterFile = new File(getExternalFilesDir("adblock").getAbsolutePath() + "/customFilter.txt");
+		if (address == null || address.isEmpty()) {
+			try {
+				FileReader fr = new FileReader(customFilterFile);
+				BufferedReader br = new BufferedReader(fr);
+				String ln;
+				final StringBuilder sb = new StringBuilder();
+				while ((ln = br.readLine()) != null) {
+					sb.append(ln).append("\n");
+				}
+				br.close();
+				fr.close();
+				final EditText editView = new EditText(MainActivity.this);
+				editView.setText(sb);
+				editView.setSelection(sb.length());
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Edit custom filter")
+					.setView(editView)
+					.setPositiveButton("Apply", new OnClickListener() {
+						public void onClick(DialogInterface dialog, int which) {
+							try {
+								FileWriter fr = new FileWriter(customFilterFile);
+								BufferedWriter br = new BufferedWriter(fr);
+								br.write(editView.getText().toString());
+								br.flush();
+								fr.flush();
+								br.close();
+								fr.close();
+							} catch (IOException e) {
+								ExceptionLogger.e(e);
+							}
+							initAdblocker();
+						}})
+					.setNegativeButton("Cancel", new EmptyOnClickListener())
+					.show();
+			} catch (IOException e) {
+				ExceptionLogger.e(e);
 			}
-			FileReader fr = new FileReader(customFilterFile);
-			BufferedReader br = new BufferedReader(fr);
-			String ln;
-			final StringBuilder sb = new StringBuilder();
-			while ((ln = br.readLine()) != null) {
-				sb.append(ln).append("\n");
+		} else {
+			try {
+				FileWriter fr = new FileWriter(customFilterFile, true);
+				BufferedWriter br = new BufferedWriter(fr);
+				br.append("127.0.0.1 " + address);
+				br.flush();
+				fr.flush();
+				br.close();
+				fr.close();
+			} catch (IOException e) {
+				ExceptionLogger.e(e);
 			}
-			br.close();
-			fr.close();
-			final EditText editView = new EditText(MainActivity.this);
-			editView.setText(sb);
-			editView.setSelection(sb.length());
-			new AlertDialog.Builder(MainActivity.this)
-				.setTitle("Edit custom filter")
-				.setView(editView)
-				.setPositiveButton("Apply", new OnClickListener() {
-					public void onClick(DialogInterface dialog, int which) {
-						try {
-							FileWriter fr = new FileWriter(customFilterFile);
-							BufferedWriter br = new BufferedWriter(fr);
-							br.write(editView.getText().toString());
-							br.flush();
-							fr.flush();
-							br.close();
-							fr.close();
-						} catch (IOException e) {
-							ExceptionLogger.e(e);
-						}
-						initAdblocker();
-					}})
-				.setNegativeButton("Cancel", new EmptyOnClickListener())
-				.show();
-		} catch (IOException e) {
-			ExceptionLogger.e(e);
+			initAdblocker();
 		}
     }
 
@@ -2747,10 +2769,13 @@ public class MainActivity extends Activity {
     }
 
     void addBookmark() {
+        addBookmark(getCurrentWebView().getUrl());
+	}
+
+    void addBookmark(String url) {
         if (placesDb == null) return;
         ContentValues values = new ContentValues(2);
         values.put("title", getCurrentWebView().getTitle());
-        String url = getCurrentWebView().getUrl();
 		values.put("url", url);
         placesDb.insert("bookmarks", null, values);
 		showToast("Copied " + url + " to clipboard");
