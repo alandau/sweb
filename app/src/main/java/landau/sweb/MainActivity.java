@@ -791,7 +791,7 @@ public class MainActivity extends Activity {
 										}
 									}));
 					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
-						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+						.setPositiveButton("OK", new DialogInterface.OnClickListener() {
 							@Override
 							public void onClick(DialogInterface dialog, int which) {
 								dialog.dismiss();
@@ -1071,7 +1071,7 @@ public class MainActivity extends Activity {
 									}));
 					
 					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
-						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+						.setPositiveButton("OK", new DialogInterface.OnClickListener() {
 							@Override
 							public void onClick(DialogInterface dialog, int which) {
 								dialog.dismiss();
@@ -1150,7 +1150,7 @@ public class MainActivity extends Activity {
 									}));
 
 					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
-						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+						.setPositiveButton("OK", new DialogInterface.OnClickListener() {
 							@Override
 							public void onClick(DialogInterface dialog, int which) {
 								dialog.dismiss();
@@ -1218,7 +1218,7 @@ public class MainActivity extends Activity {
 									}));
 
 					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
-						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+						.setPositiveButton("OK", new DialogInterface.OnClickListener() {
 							@Override
 							public void onClick(DialogInterface dialog, int which) {
 								dialog.dismiss();
@@ -1744,7 +1744,7 @@ public class MainActivity extends Activity {
         String[] options = new String[]{"Open in background", "Open in new tab", "Add Bookmark", "Copy URL", "Show URL", "Download", "Block"};
 		final String[] imageOptions = new String[]{
 			"Open in background", "Open in new tab", "Add Bookmark", "Copy URL", "Show URL", "Download", "Block",
-			"Open image in background", "Open image in new tab", "Copy image URL", "Show full image URL", "Download image"};
+			"Open image in background", "Open image in new tab", "Copy image URL", "Show image URL", "Download image"};
 		
         if (imageUrl == null) {
             if (linkUrl == null) {
@@ -2595,7 +2595,7 @@ public class MainActivity extends Activity {
 			try {
 				FileWriter fr = new FileWriter(customFilterFile, true);
 				BufferedWriter br = new BufferedWriter(fr);
-				br.append("127.0.0.1 " + address);
+				br.append("127.0.0.1 " + address + "\n");
 				br.flush();
 				fr.flush();
 				br.close();
@@ -2633,7 +2633,7 @@ public class MainActivity extends Activity {
         final Cursor cursor = placesDb.rawQuery("SELECT title, url, date_created, _id FROM history", null);
         final AlertDialog dialog = new AlertDialog.Builder(this)
 			.setTitle("History")
-			.setPositiveButton("Close", new EmptyOnClickListener())
+			.setPositiveButton("OK", new EmptyOnClickListener())
 			.setOnDismissListener(new OnDismissListener() {
 				public void onDismiss(DialogInterface p1) {
 					cursor.close();}})
@@ -2655,7 +2655,7 @@ public class MainActivity extends Activity {
 					//dialog.dismiss();
 					new AlertDialog.Builder(MainActivity.this)
 						.setTitle(title)
-						.setItems(new String[] {"Add bookmark", "Copy link", "Share link", "Delete"}, new OnClickListener() {
+						.setItems(new String[] {"Add bookmark", "Copy link", "Show URL", "Share link", "Delete"}, new OnClickListener() {
 							public void onClick(DialogInterface subDialog, int which) {
 								switch (which) {
 									case 0: {
@@ -2667,9 +2667,16 @@ public class MainActivity extends Activity {
 										break;
 									}
 									case 2:
-										shareUrl(url);
+										new AlertDialog.Builder(MainActivity.this)
+											.setTitle(title)
+											.setMessage(url)
+											.setPositiveButton("OK", new EmptyOnClickListener())
+											.show();
 										break;
 									case 3:
+										shareUrl(url);
+										break;
+									case 4:
 										placesDb.execSQL("DELETE FROM history WHERE _id = ?", new Object[] {rowid});
 										dialog.dismiss();
 										showHistory();
@@ -2687,7 +2694,7 @@ public class MainActivity extends Activity {
         final Cursor cursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
         final AlertDialog dialog = new AlertDialog.Builder(this)
 			.setTitle("Bookmarks")
-			.setPositiveButton("Close", new EmptyOnClickListener())
+			.setPositiveButton("OK", new EmptyOnClickListener())
 			.setOnDismissListener(new OnDismissListener() {
 				public void onDismiss(android.content.DialogInterface p1) {
 					cursor.close();}})
@@ -2765,11 +2772,9 @@ public class MainActivity extends Activity {
 			return clipboard.getText();
 		} else { //Android 3.0 and higher
 			final android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-			ClipDescription description = cm.getPrimaryClipDescription();
+			//ClipDescription description = cm.getPrimaryClipDescription();
             ClipData clipData = cm.getPrimaryClip();
-            if (clipData != null
-				&& description != null
-				&& description.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN))
+            if (clipData != null)
                 return clipData.getItemAt(0).getText();
             else
                 return null;
@@ -2797,7 +2802,8 @@ public class MainActivity extends Activity {
 	}
 
     void addBookmark(String url) {
-        if (placesDb == null) return;
+        if (placesDb == null || url.isEmpty() || url.equalsIgnoreCase("about:blank"))
+			return;
         ContentValues values = new ContentValues(2);
         values.put("title", getCurrentWebView().getTitle());
 		values.put("url", url);
@@ -3320,7 +3326,7 @@ public class MainActivity extends Activity {
 			shortMenuActions);
         tv.setAdapter(adapter);
 		builder.setTitle("Actions")
-			.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 					dialog.dismiss();
