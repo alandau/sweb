@@ -496,7 +496,7 @@ public class MainActivity extends Activity {
 					return requestSaveData;
 				}
 			}),
-		new MenuAction("Remove Identifying Headers", 0, new Runnable() {
+		new MenuAction("Remove Identifying Headers", R.drawable.ic_delete_white_36dp, new Runnable() {
 				@Override
 				public void run() {
 					removeIdentifyingHeaders = !removeIdentifyingHeaders;
@@ -704,19 +704,40 @@ public class MainActivity extends Activity {
 					return javaScriptEnabled;
 				}
 			}),
-		new MenuAction("Media Playback Requires Gesture", 0, new Runnable() {
+		new MenuAction("Popup Windows", 0, new Runnable() {
 				@Override
 				public void run() {
-					mediaPlaybackRequiresUserGesture = !mediaPlaybackRequiresUserGesture;
-					prefs.edit().putBoolean("mediaPlaybackRequiresUserGesture", mediaPlaybackRequiresUserGesture).apply();
+					javaScriptCanOpenWindowsAutomatically = !javaScriptCanOpenWindowsAutomatically;
+					prefs.edit().putBoolean("javaScriptCanOpenWindowsAutomatically", javaScriptCanOpenWindowsAutomatically).apply();
 					for (Tab t : tabs) {
-						t.webview.getSettings().setMediaPlaybackRequiresUserGesture(mediaPlaybackRequiresUserGesture);
+						t.webview.getSettings().setJavaScriptCanOpenWindowsAutomatically(javaScriptCanOpenWindowsAutomatically);
 					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
 				public boolean getAsBoolean() {
-					return mediaPlaybackRequiresUserGesture;
+					return javaScriptCanOpenWindowsAutomatically;
+				}
+			}),
+		new MenuAction("Auto Hide Toolbar", 0, new Runnable() {
+				@Override
+				public void run() {
+					autoHideToolbar = !autoHideToolbar;
+					prefs.edit().putBoolean("autoHideToolbar", autoHideToolbar).apply();
+					if (autoHideToolbar) {
+						for (Tab t : tabs) {
+							t.webview.setOnTouchListener(new TouchListener());
+						}
+					} else {
+						for (Tab t : tabs) {
+							t.webview.setOnTouchListener(null);
+						}
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return autoHideToolbar;
 				}
 			}),
 		new MenuAction("Download Location", 0, new Runnable() {
@@ -782,42 +803,6 @@ public class MainActivity extends Activity {
 					tv.setAdapter(adapter);
 					dialog.setView(tv);
 					dialog.show();
-				}
-			}),
-		new MenuAction("Auto Hide Toolbar", 0, new Runnable() {
-				@Override
-				public void run() {
-					autoHideToolbar = !autoHideToolbar;
-					prefs.edit().putBoolean("autoHideToolbar", autoHideToolbar).apply();
-					if (autoHideToolbar) {
-						for (Tab t : tabs) {
-							t.webview.setOnTouchListener(new TouchListener());
-						}
-					} else {
-						for (Tab t : tabs) {
-							t.webview.setOnTouchListener(null);
-						}
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return autoHideToolbar;
-				}
-			}),
-		new MenuAction("Popup Windows", 0, new Runnable() {
-				@Override
-				public void run() {
-					javaScriptCanOpenWindowsAutomatically = !javaScriptCanOpenWindowsAutomatically;
-					prefs.edit().putBoolean("javaScriptCanOpenWindowsAutomatically", javaScriptCanOpenWindowsAutomatically).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setJavaScriptCanOpenWindowsAutomatically(javaScriptCanOpenWindowsAutomatically);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return javaScriptCanOpenWindowsAutomatically;
 				}
 			}),
 		new MenuAction("Night mode", R.drawable.night, new Runnable() {
@@ -891,7 +876,22 @@ public class MainActivity extends Activity {
 					switchToTab(tabs.size() - 1);
 				}
 			}),
-
+		new MenuAction("Media Playback Requires Gesture", 0, new Runnable() {
+				@Override
+				public void run() {
+					mediaPlaybackRequiresUserGesture = !mediaPlaybackRequiresUserGesture;
+					prefs.edit().putBoolean("mediaPlaybackRequiresUserGesture", mediaPlaybackRequiresUserGesture).apply();
+					for (Tab t : tabs) {
+						t.webview.getSettings().setMediaPlaybackRequiresUserGesture(mediaPlaybackRequiresUserGesture);
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return mediaPlaybackRequiresUserGesture;
+				}
+			}),
+		
 		new MenuAction("Page info", R.drawable.page_info, new Runnable() {
 				@Override
 				public void run() {
@@ -1276,7 +1276,7 @@ public class MainActivity extends Activity {
 					return saveHistory;
 				}
 			}),
-		new MenuAction("Delete all history", 0, new Runnable() {
+		new MenuAction("Delete all history", R.drawable.ic_delete_white_36dp, new Runnable() {
 				@Override
 				public void run() {
 					deleteAllHistory();
@@ -1312,14 +1312,14 @@ public class MainActivity extends Activity {
 					importBookmarks();
 				}
 			}),
-		new MenuAction("Delete all bookmarks", 0, new Runnable() {
+		new MenuAction("Delete all bookmarks", R.drawable.ic_delete_white_36dp, new Runnable() {
 				@Override
 				public void run() {
 					deleteAllBookmarks();
 				}
 			}),
 		
-		new MenuAction("Clear history and cache", 0, new Runnable() {
+		new MenuAction("Clear history and cache", R.drawable.ic_delete_white_36dp, new Runnable() {
 				@Override
 				public void run() {
 					new AlertDialog.Builder(MainActivity.this)
