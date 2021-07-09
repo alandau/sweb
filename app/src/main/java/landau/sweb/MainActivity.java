@@ -508,7 +508,7 @@ public class MainActivity extends Activity {
 					return removeIdentifyingHeaders;
 				}
 			}),
-		new MenuAction("Block CSS", 0, new Runnable() {
+		new MenuAction("Block CSS", R.drawable.adblocker, new Runnable() {
 				@Override
 				public void run() {
 					blockCSS = !blockCSS;
@@ -520,7 +520,7 @@ public class MainActivity extends Activity {
 					return blockCSS;
 				}
 			}),
-		new MenuAction("Block Fonts", 0, new Runnable() {
+		new MenuAction("Block Fonts", R.drawable.adblocker, new Runnable() {
 				@Override
 				public void run() {
 					blockFonts = !blockFonts;
@@ -559,7 +559,7 @@ public class MainActivity extends Activity {
 					return blockImages;
 				}
 			}),
-		new MenuAction("Block Media", R.drawable.default_video, new Runnable() {
+		new MenuAction("Block Media", R.drawable.adblocker, new Runnable() {
 				@Override
 				public void run() {
 					blockMedia = !blockMedia;
@@ -571,7 +571,7 @@ public class MainActivity extends Activity {
 					return blockMedia;
 				}
 			}),
-		new MenuAction("Block JavaScript", 0, new Runnable() {
+		new MenuAction("Block JavaScript", R.drawable.adblocker, new Runnable() {
 				@Override
 				public void run() {
 					blockJavaScript = !blockJavaScript;
@@ -702,66 +702,6 @@ public class MainActivity extends Activity {
 				@Override
 				public boolean getAsBoolean() {
 					return javaScriptEnabled;
-				}
-			}),
-		new MenuAction("Allow File Access", 0, new Runnable() {
-				@Override
-				public void run() {
-					allowFileAccess = !allowFileAccess;
-					prefs.edit().putBoolean("allowFileAccess", allowFileAccess).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setAllowFileAccess(allowFileAccess);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return allowFileAccess;
-				}
-			}),
-		new MenuAction("Allow Content Access", 0, new Runnable() {
-				@Override
-				public void run() {
-					allowContentAccess = !allowContentAccess;
-					prefs.edit().putBoolean("allowContentAccess", allowContentAccess).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setAllowContentAccess(allowContentAccess);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return allowContentAccess;
-				}
-			}),
-		new MenuAction("Allow File Access From File URLs", 0, new Runnable() {
-				@Override
-				public void run() {
-					allowFileAccessFromFileURLs = !allowFileAccessFromFileURLs;
-					prefs.edit().putBoolean("allowFileAccessFromFileURLs", allowFileAccessFromFileURLs).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setAllowFileAccessFromFileURLs(allowFileAccessFromFileURLs);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return allowFileAccessFromFileURLs;
-				}
-			}),
-		new MenuAction("Allow Universal Access From File URLs", 0, new Runnable() {
-				@Override
-				public void run() {
-					allowUniversalAccessFromFileURLs = !allowUniversalAccessFromFileURLs;
-					prefs.edit().putBoolean("allowUniversalAccessFromFileURLs", allowUniversalAccessFromFileURLs).apply();
-					for (Tab t : tabs) {
-						t.webview.getSettings().setAllowUniversalAccessFromFileURLs(allowUniversalAccessFromFileURLs);
-					}
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return allowUniversalAccessFromFileURLs;
 				}
 			}),
 		new MenuAction("Media Playback Requires Gesture", 0, new Runnable() {
@@ -1063,6 +1003,90 @@ public class MainActivity extends Activity {
 				@Override
 				public boolean getAsBoolean() {
 					return loadWithOverviewMode;
+				}
+			}),
+		new MenuAction("Access Mode", 0, new Runnable() {
+				@Override
+				public void run() {
+					ArrayList<MenuAction> actions = new ArrayList<>(5);
+					actions.add(new MenuAction("Allow File Access", 0, new Runnable() {
+										@Override
+										public void run() {
+											allowFileAccess = !allowFileAccess;
+											prefs.edit().putBoolean("allowFileAccess", allowFileAccess).apply();
+											for (Tab t : tabs) {
+												t.webview.getSettings().setAllowFileAccess(allowFileAccess);
+											}
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return allowFileAccess;
+										}
+									}));
+					actions.add(new MenuAction("Allow Content Access", 0, new Runnable() {
+										@Override
+										public void run() {
+											allowContentAccess = !allowContentAccess;
+											prefs.edit().putBoolean("allowContentAccess", allowContentAccess).apply();
+											for (Tab t : tabs) {
+												t.webview.getSettings().setAllowContentAccess(allowContentAccess);
+											}
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return allowContentAccess;
+										}
+									}));
+					actions.add(new MenuAction("Allow File Access From File URLs", 0, new Runnable() {
+										@Override
+										public void run() {
+											allowFileAccessFromFileURLs = !allowFileAccessFromFileURLs;
+											prefs.edit().putBoolean("allowFileAccessFromFileURLs", allowFileAccessFromFileURLs).apply();
+											for (Tab t : tabs) {
+												t.webview.getSettings().setAllowFileAccessFromFileURLs(allowFileAccessFromFileURLs);
+											}
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return allowFileAccessFromFileURLs;
+										}
+									}));
+					actions.add(new MenuAction("Allow Universal Access From File URLs", 0, new Runnable() {
+										@Override
+										public void run() {
+											allowUniversalAccessFromFileURLs = !allowUniversalAccessFromFileURLs;
+											prefs.edit().putBoolean("allowUniversalAccessFromFileURLs", allowUniversalAccessFromFileURLs).apply();
+											for (Tab t : tabs) {
+												t.webview.getSettings().setAllowUniversalAccessFromFileURLs(allowUniversalAccessFromFileURLs);
+											}
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return allowUniversalAccessFromFileURLs;
+										}
+									}));
+					
+					AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+						.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						})
+						.setTitle("Access Mode")
+						.create();
+					ListView tv = new ListView(MainActivity.this);
+					MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+						MainActivity.this,
+						android.R.layout.simple_list_item_1,
+						actions);
+					tv.setAdapter(adapter);
+					dialog.setView(tv);
+					dialog.show();
 				}
 			}),
 		new MenuAction("Render Mode", 0, new Runnable() {
