@@ -1,4 +1,5 @@
 package landau.sweb;
+import landau.sweb.MainActivity.*;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -201,6 +202,9 @@ public class MainActivity extends Activity {
     private TextView searchCount;
     private TextView txtTabCount;
 	private ImageView blockImagesImageView;
+	private ImageView searchFindPrev;
+	private ImageView searchFindNext;
+	private ImageView searchClose;
 	
 	private boolean blockImages;
     private boolean blockMedia;
@@ -1369,7 +1373,12 @@ public class MainActivity extends Activity {
 		new MenuAction("Close tab", R.drawable.tab_close, new Runnable() {
 				@Override
 				public void run() {
-					closeCurrentTab();
+					if (tabs.size() > 1) {
+						closeCurrentTab();
+					} else {
+						newBackgroundTab("about:blank", false);
+						closeCurrentTab();
+					}
 				}
 			}),
 	};
@@ -1557,8 +1566,11 @@ public class MainActivity extends Activity {
 				}
 				final Tab currentTab = getCurrentTab();
 				currentTab.loading = false;
-				currentTab.textChanged = false;
 				goStop.setImageResource(R.drawable.reload);
+				if (!currentTab.textChanged) {
+					et.setText(currentTab.webview.getTitle());
+					currentTab.textChanged = false;
+				}
 				//injectCSS(view);
             }
 
@@ -1588,7 +1600,7 @@ public class MainActivity extends Activity {
 			final Pattern JAVASCRIPT_PATTERN = Pattern.compile(".*?\\.js.*?", Pattern.CASE_INSENSITIVE);
 			final Pattern FONT_PATTERN = Pattern.compile(".*?\\.(otf|ttf|ttc|woff|woff2).*?", Pattern.CASE_INSENSITIVE);
             @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            public WebResourceResponse shouldInterceptRequest(final WebView view, final WebResourceRequest request) {
                 final Uri url = request.getUrl();
 				if (adBlocker != null) {
                     if (request.isForMainFrame()) {
@@ -1614,6 +1626,24 @@ public class MainActivity extends Activity {
 					}
 					if (blockFonts && FONT_PATTERN.matcher(path).matches()) {
 						return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+					}
+					final Map<String, String> requestHeaders = request.getRequestHeaders();
+					if (requestSaveData) {
+						requestHeaders.put("Save-Data", "on");
+					} else {
+						requestHeaders.remove("Save-Data");
+					}
+					if (doNotTrack) {
+						requestHeaders.put("DNT", "1");
+					} else {
+						requestHeaders.remove("DNT");
+					}
+					if (removeIdentifyingHeaders) {
+						requestHeaders.put("X-Requested-With", "");
+						requestHeaders.put("X-Wap-Profile", "");
+					} else {
+						requestHeaders.remove("X-Requested-With");
+						requestHeaders.remove("X-Wap-Profile");
 					}
 				}
                 return super.shouldInterceptRequest(view, request);
@@ -2069,7 +2099,7 @@ public class MainActivity extends Activity {
 		Toast.makeText(MainActivity.this, st, Toast.LENGTH_SHORT).show();
 	}
 	
-	public static File externalLogFilesDir;
+	public static File externalLogFilesDir = null;
     @Override
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -2151,9 +2181,29 @@ public class MainActivity extends Activity {
 				@Override
 				public void afterTextChanged(final Editable p1) {
 					getCurrentTab().textChanged = true;
+					goStop.setImageResource(R.drawable.forward);
 				}
 		});
-
+		et.setOnFocusChangeListener(new OnFocusChangeListener() {          
+				@Override
+				public void onFocusChange(View v, boolean hasFocus) {
+					final Tab currentTab = getCurrentTab();
+					if (hasFocus) {
+						if (!currentTab.loading) {
+							et.setText(getCurrentWebView().getUrl());
+						}
+					} else {
+						if (currentTab.loading) {
+							et.setText(getCurrentWebView().getUrl());
+							goStop.setImageResource(R.drawable.stop);
+						} else {
+							et.setText(getCurrentWebView().getTitle());
+							goStop.setImageResource(R.drawable.reload);
+						}
+					}
+					currentTab.textChanged = false;
+				}
+			});
         goStop.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(final View p1) {
@@ -2166,12 +2216,12 @@ public class MainActivity extends Activity {
 						if (t.textChanged) {
 							currentWebView.requestFocus();
 							loadUrl(et.getText().toString(), currentWebView);
-							t.textChanged = false;
 						} else {
 							currentWebView.requestFocus();
 							currentWebView.reload();
 						}
 					}
+					t.textChanged = false;
 				}
 		});
         
@@ -2189,17 +2239,17 @@ public class MainActivity extends Activity {
             public void afterTextChanged(final Editable s) {}
         });
         searchCount = (TextView) findViewById(R.id.searchCount);
-        findViewById(R.id.searchFindNext).setOnClickListener(new View.OnClickListener() {
+        (searchFindNext = (ImageView) findViewById(R.id.searchFindNext)).setOnClickListener(new View.OnClickListener() {
 				public void onClick(final View v) {
 					hideKeyboard();
 					getCurrentWebView().findNext(true);
 				}});
-        findViewById(R.id.searchFindPrev).setOnClickListener(new View.OnClickListener() {
+        (searchFindPrev = (ImageView) findViewById(R.id.searchFindPrev)).setOnClickListener(new View.OnClickListener() {
 				public void onClick(final View v) {
 					hideKeyboard();
 					getCurrentWebView().findNext(false);
 				}});
-        findViewById(R.id.searchClose).setOnClickListener(new View.OnClickListener() {
+        (searchClose = (ImageView) findViewById(R.id.searchClose)).setOnClickListener(new View.OnClickListener() {
 				public void onClick(final View v) {
 					getCurrentWebView().clearMatches();
 					searchEdit.setText("");
@@ -2311,10 +2361,17 @@ public class MainActivity extends Activity {
     public boolean onContextItemSelected(final MenuItem item){  
         switch (item.getItemId())  {
 			case R.id.paste:
-				et.setText(getClipboardText());
+				String clipboardText = getClipboardText().toString();
+				et.setText(clipboardText);
+				et.setSelection(clipboardText.length());
+				goStop.setImageResource(R.drawable.forward);
+				InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+				assert imm != null;
+				imm.toggleSoftInput(InputMethodManager.SHOW_IMPLICIT, 0);
+				et.requestFocus();
 				break;
 			case R.id.pasteOpen:
-				final String clipboardText = getClipboardText() + "";
+				clipboardText = getClipboardText() + "";
 				et.setText(clipboardText);
 				loadUrl(clipboardText, getCurrentWebView());
 				break;
@@ -3040,7 +3097,7 @@ public class MainActivity extends Activity {
 			|| Intent.ACTION_VIEW.equals(intent.getAction())
 			|| Intent.ACTION_SENDTO.equals(intent.getAction())) {
 			Uri uri = intent.getData();
-			//ExceptionLogger.log(TAG, "URI to open is: " + uri + ", intent " + intent + ", " + intent.getClipData());
+				ExceptionLogger.d(TAG, "URI to open is: " + uri + ", intent " + intent + ", " + intent.getClipData());
 			if (uri != null) {
 				return uri2RawPath(uri);
 			} else {
@@ -3096,6 +3153,8 @@ public class MainActivity extends Activity {
 			} else {
 				path = uri.toString();
 			}
+		} else{
+			path = uri.toString();
 		}
 		return path;
 	}
@@ -3137,6 +3196,11 @@ public class MainActivity extends Activity {
 		searchEdit.setTextColor(textColor);
 		searchEdit.setBackgroundColor(backgroundColor);
 		searchCount.setTextColor(textColor);
+		searchCount.setBackgroundColor(backgroundColor);
+		searchPane.setBackgroundColor(backgroundColor);
+		searchFindPrev.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+		searchFindNext.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+		searchClose.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 		toolbar.setBackgroundColor(backgroundColor);
 		final int childCount = toolbar.getChildCount();
 		for (int i = 0; i < childCount; i++) {
@@ -3454,9 +3518,9 @@ public class MainActivity extends Activity {
 				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
 		}
 		webview.loadUrl(url, requestHeaders);
-
-        hideKeyboard();
-    }
+		hideKeyboard();
+		currentTab.textChanged = false;
+	}
 
     private void hideKeyboard() {
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
