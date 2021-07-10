@@ -155,6 +155,7 @@ public class MainActivity extends Activity {
 		String sourceName;
 		boolean textChanged;
 		boolean isIncognito = false;
+		boolean skipTextChange = false;
 	}
 	
 	private boolean FULL_INCOGNITO = Build.VERSION.SDK_INT >= 28;
@@ -1568,8 +1569,8 @@ public class MainActivity extends Activity {
 				currentTab.loading = false;
 				goStop.setImageResource(R.drawable.reload);
 				if (!currentTab.textChanged) {
+					currentTab.skipTextChange = true;
 					et.setText(currentTab.webview.getTitle());
-					currentTab.textChanged = false;
 				}
 				//injectCSS(view);
             }
@@ -2180,18 +2181,23 @@ public class MainActivity extends Activity {
 				}
 				@Override
 				public void afterTextChanged(final Editable p1) {
-					getCurrentTab().textChanged = true;
-					goStop.setImageResource(R.drawable.forward);
+					Tab currentTab = getCurrentTab();
+					if (!currentTab.skipTextChange) {
+						currentTab.textChanged = true;
+						goStop.setImageResource(R.drawable.forward);
+					}
 				}
 		});
 		et.setOnFocusChangeListener(new OnFocusChangeListener() {          
 				@Override
 				public void onFocusChange(View v, boolean hasFocus) {
 					final Tab currentTab = getCurrentTab();
+					currentTab.skipTextChange = true;
 					if (hasFocus) {
 						if (!currentTab.loading) {
 							et.setText(getCurrentWebView().getUrl());
 						}
+						et.setSelection(0, et.getText().length());
 					} else {
 						if (currentTab.loading) {
 							et.setText(getCurrentWebView().getUrl());
@@ -2201,7 +2207,6 @@ public class MainActivity extends Activity {
 							goStop.setImageResource(R.drawable.reload);
 						}
 					}
-					currentTab.textChanged = false;
 				}
 			});
         goStop.setOnClickListener(new View.OnClickListener() {
