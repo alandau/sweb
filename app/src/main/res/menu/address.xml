@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:id="@+id/paste"
+		android:title="Paste" />
+
+    <item android:id="@+id/pasteOpen"
+		android:title="Paste &amp; Open" />
+		
+	<item android:id="@+id/selectAll"
+		android:title="Select All" />
+
+    <item android:id="@+id/copyAll"
+		android:title="Copy All" />
+		
+	<item android:id="@+id/clear"
+		android:title="Clear" />
+
+
+
+</menu>

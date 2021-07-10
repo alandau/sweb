@@ -15,7 +15,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class AdblockRulesLoader extends AsyncTaskLoader<Integer> {
-    private static final String TAG = AdblockRulesLoader.class.getSimpleName();
+    private static final String TAG = "AdblockRulesLoader";
     private static final int MAX_FILE_SIZE = 10*1024*1024;
 
     private String[] urlList;

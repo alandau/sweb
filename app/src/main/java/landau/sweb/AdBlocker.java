@@ -20,7 +20,7 @@ import landau.sweb.utils.ExceptionLogger;
 @SuppressWarnings({"StatementWithEmptyBody", "WeakerAccess"})
 public class AdBlocker {
 
-    static final String TAG = AdBlocker.class.getSimpleName();
+    static final String TAG = "AdBlocker";
 
     static class RuleWithDomain {
         boolean matchAllPaths;
@@ -321,7 +321,7 @@ public class AdBlocker {
             result |= result2;
             return result;
         } catch (Exception e) {
-            ExceptionLogger.logException(e);
+            ExceptionLogger.e(e);
             return false;
         }
     }

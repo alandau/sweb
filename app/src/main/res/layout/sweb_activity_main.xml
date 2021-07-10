@@ -1,0 +1,139 @@
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/main_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+		android:orientation="vertical"
+		android:background="#ffc0c0c0">
+
+		<LinearLayout
+            android:id="@+id/address"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#00000000"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+			<AutoCompleteTextView
+				android:id="@+id/et"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:textSize="14sp"
+                android:completionThreshold="1"
+				android:imeActionLabel="Go"
+				android:imeOptions="actionGo"
+				android:inputType="textUri"
+				android:paddingBottom="10dp"
+				android:paddingTop="10dp"
+				android:paddingLeft="10dp"
+				android:paddingRight="0dp"
+				android:selectAllOnFocus="true"
+				android:singleLine="true" />
+			<ImageView
+                android:id="@+id/goStop"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+				android:clickable="true"
+				android:focusable="true"
+				android:src="@drawable/stop" />
+		</LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/progressbar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:max="100"
+            android:visibility="gone" />
+		
+        <FrameLayout
+            android:id="@+id/webviews"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            />
+
+        <LinearLayout
+            android:id="@+id/searchPane"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/searchEdit"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="13sp"
+                android:paddingEnd="4dp"
+                android:paddingStart="4dp" />
+
+            <TextView
+                android:id="@+id/searchCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:paddingEnd="8dp"
+                android:paddingStart="8dp" />
+
+            <ImageView
+                android:id="@+id/searchFindNext"
+                android:layout_width="44dp"
+                android:layout_height="24dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/bottom"
+                android:tint="#61615f" />
+
+            <ImageView
+                android:id="@+id/searchFindPrev"
+                android:layout_width="44dp"
+                android:layout_height="24dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/top"
+                android:tint="#61615f" />
+
+            <ImageView
+                android:id="@+id/searchClose"
+                android:layout_width="34dp"
+                android:layout_height="24dp"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/stop"
+                android:tint="#61615f" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="#00000000"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingBottom="4dp"
+            android:paddingTop="4dp"/>
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/fullScreenVideo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"/>
+
+</FrameLayout>
