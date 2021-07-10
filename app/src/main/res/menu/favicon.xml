@@ -1,0 +1,48 @@
+<menu
+	xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/pageInfo"
+        android:title="Page Info"/>
+	
+    <item
+		android:id="@+id/imageLog"
+		android:title="Image Log" />
+	
+    <item
+        android:id="@+id/videoInfo"
+        android:title="Video Log"/>
+
+    <item
+        android:id="@+id/jsInfo"
+        android:title="JavaScript Log"/>
+
+    <item
+        android:id="@+id/cssInfo"
+        android:title="CSS Log"/>
+
+    <item
+        android:id="@+id/allInfo"
+        android:title="All Log"/>
+
+    <item
+        android:id="@+id/closeLog"
+        android:title="Close Log"/>
+	
+	<item
+        android:id="@+id/shareUrl"
+        android:title="Share URL"/>
+	
+	<item
+        android:id="@+id/viewSource"
+        android:title="View Source"/>
+
+	<item
+        android:id="@+id/openInApp"
+        android:title="Open In App"/>
+
+	<item
+        android:id="@+id/destopUA"
+        android:title="Desktop User Agent"/>
+	
+</menu>

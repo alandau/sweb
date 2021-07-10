@@ -50,7 +50,7 @@ repositories {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:support-annotations:24.1.1'
+    //compile 'com.android.support:support-annotations:24.1.1'
     //testImplementation 'junit:junit:4.12'
     //androidTestImplementation 'com.android.support.test:runner:1.0.1'
     //androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'

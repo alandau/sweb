@@ -136,7 +136,17 @@ public class MainActivity extends Activity {
     private static final String TAG = "MainActivity";
 	private static final int DARK_BACKGROUND = 0xffc0c0c0;
 	private static final int LIGHT_BACKGROUND = 0xfffffff0;
-	
+	private static final String IMAGE_PAT = ".*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico).*?";
+
+	static final Pattern IMAGES_PATTERN = Pattern.compile(IMAGE_PAT, Pattern.CASE_INSENSITIVE);
+	static final String MEDIA_PAT = ".*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram).*?";
+	static final String CSS_PAT = ".*?css.*?";
+	static final String JAVASCRIPT_PAT = ".*?\\.js.*?";
+	static final String FONT_PAT = ".*?\\.(otf|ttf|ttc|woff|woff2).*?";
+	final Pattern MEDIA_PATTERN = Pattern.compile(MEDIA_PAT, Pattern.CASE_INSENSITIVE);
+	final Pattern CSS_PATTERN = Pattern.compile(CSS_PAT, Pattern.CASE_INSENSITIVE);
+	final Pattern JAVASCRIPT_PATTERN = Pattern.compile(JAVASCRIPT_PAT, Pattern.CASE_INSENSITIVE);
+	final Pattern FONT_PATTERN = Pattern.compile(FONT_PAT, Pattern.CASE_INSENSITIVE);
     class EmptyOnClickListener implements DialogInterface.OnClickListener {
 		@Override
 		public void onClick(DialogInterface p1, int p2) {
@@ -156,7 +166,9 @@ public class MainActivity extends Activity {
 		boolean textChanged;
 		boolean isIncognito = false;
 		boolean skipTextChange = false;
-	}
+		ArrayList<String> requestsLog = new ArrayList<>();
+		String favicon;
+    }
 	
 	private boolean FULL_INCOGNITO = Build.VERSION.SDK_INT >= 28;
 	private boolean WEB_RTC = Build.VERSION.SDK_INT >= 21;
@@ -185,6 +197,8 @@ public class MainActivity extends Activity {
     private FrameLayout webviews;
 	private View main_layout;
 	private ViewGroup address;
+	private ListView requestList;
+	private ImageView faviconImage;
 	private AutoCompleteTextView et;
 	private View searchPane;
 	private ImageView goStop;
@@ -196,7 +210,6 @@ public class MainActivity extends Activity {
     private boolean useAdBlocker;
     private AdBlocker adBlocker;
     private boolean isLogRequests;
-    private ArrayList<String> requestsLog = new ArrayList<>();
     private final View[] fullScreenView = new View[1];
     private final WebChromeClient.CustomViewCallback[] fullScreenCallback = new WebChromeClient.CustomViewCallback[1];
     private EditText searchEdit;
@@ -246,6 +259,8 @@ public class MainActivity extends Activity {
 	private int renderMode;
 	private boolean removeIdentifyingHeaders;
 	private String downloadLocation;
+	private int textColor;
+	private int backgroundColor;
 	
 	private int cacheMode;
 	private boolean isDesktopUA;
@@ -868,17 +883,18 @@ public class MainActivity extends Activity {
 		new MenuAction("Show Log Requests", R.drawable.log_requests, new Runnable() {
 				@Override
 				public void run() {
-					StringBuilder sb = new StringBuilder("<title>Request Log</title><h1>Request Log</h1>");
-					for (String url : requestsLog) {
-						sb.append("<a href=\"");
-						sb.append(url);
-						sb.append("\">");
-						sb.append(url);
-						sb.append("</a><br><br>");
-					}
-					String base64 = Base64.encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
-					newBackgroundTab("data:text/html;base64," + base64, false);
-					switchToTab(tabs.size() - 1);
+//					StringBuilder sb = new StringBuilder("<title>Request Log</title><h1>Request Log</h1>");
+//					for (String url : getCurrentTab().requestsLog) {
+//						sb.append("<a href=\"");
+//						sb.append(url);
+//						sb.append("\">");
+//						sb.append(url);
+//						sb.append("</a><br><br>");
+//					}
+//					String base64 = Base64.encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
+//					newBackgroundTab("data:text/html;base64," + base64, false);
+//					switchToTab(tabs.size() - 1);
+					
 				}
 			}),
 		new MenuAction("Media Playback Requires Gesture", 0, new Runnable() {
@@ -897,62 +913,62 @@ public class MainActivity extends Activity {
 				}
 			}),
 		
-		new MenuAction("Page info", R.drawable.page_info, new Runnable() {
-				@Override
-				public void run() {
-					String s = "URL: " + getCurrentWebView().getUrl() + "\n";
-					s += "Title: " + getCurrentWebView().getTitle() + "\n\n";
-					SslCertificate certificate = getCurrentWebView().getCertificate();
-					s += certificate == null ? "Not secure" : "Certificate:\n" + certificateToStr(certificate);
-
-					new AlertDialog.Builder(MainActivity.this)
-						.setTitle("Page info")
-						.setMessage(s)
-						.setPositiveButton("OK", new EmptyOnClickListener())
-						.show();
-				}
-			}),
-		new MenuAction("Share URL", R.drawable.ic_action_share, new Runnable() {
-				@Override
-				public void run() {
-					shareUrl(getCurrentWebView().getUrl());
-				}
-			}),
-		new MenuAction("Open URL in app", R.drawable.ic_action_eye_open, new Runnable() {
-				@Override
-				public void run() {
-					Intent i = new Intent(Intent.ACTION_VIEW);
-					i.setData(Uri.parse(getCurrentWebView().getUrl()));
-					try {
-						startActivity(i);
-					} catch (ActivityNotFoundException e) {
-						new AlertDialog.Builder(MainActivity.this)
-							.setTitle("Open in app")
-							.setMessage("No app can open this URL.")
-							.setPositiveButton("OK", new EmptyOnClickListener())
-							.show();
-					}
-				}
-			}),
-		new MenuAction("View Source", 0, new Runnable() {
-				@Override
-				public void run() {
-					final Tab currentTab = getCurrentTab();
-					currentTab.sourceName = savedName(currentTab.webview) + ".txt";
-					boolean ret = startDownload(currentTab.webview.getUrl(), currentTab.sourceName);
-					if (!ret && currentTab.webview.getSettings().getJavaScriptEnabled()) {
-						if (Build.VERSION.SDK_INT >= 19) {
-							currentTab.webview.evaluateJavascript("javascript:(function(){return '<html>'+document.getElementsByTagName('html')[0].innerHTML+'</html>';})()", new ValueCallback<String>() {
-									@Override
-									public void onReceiveValue(String s) {
-										currentTab.webview.loadData(fixCharCode(s.replaceAll("\\\\n", "\n").replaceAll("\\\\\"", "\"").replaceAll("\\\\b", "\b").replaceAll("\\\\t", "\t").replaceAll("\\\\r", "\r")), "text/txt", "utf-8");
-									}
-								});
-						} else {
-						}
-					} else {}
-				}
-			}),
+//		new MenuAction("Page info", R.drawable.page_info, new Runnable() {
+//				@Override
+//				public void run() {
+//					String s = "URL: " + getCurrentWebView().getUrl() + "\n";
+//					s += "Title: " + getCurrentWebView().getTitle() + "\n\n";
+//					SslCertificate certificate = getCurrentWebView().getCertificate();
+//					s += certificate == null ? "Not secure" : "Certificate:\n" + certificateToStr(certificate);
+//
+//					new AlertDialog.Builder(MainActivity.this)
+//						.setTitle("Page info")
+//						.setMessage(s)
+//						.setPositiveButton("OK", new EmptyOnClickListener())
+//						.show();
+//				}
+//			}),
+//		new MenuAction("Share URL", R.drawable.ic_action_share, new Runnable() {
+//				@Override
+//				public void run() {
+//					shareUrl(getCurrentWebView().getUrl());
+//				}
+//			}),
+//		new MenuAction("Open URL in app", R.drawable.ic_action_eye_open, new Runnable() {
+//				@Override
+//				public void run() {
+//					Intent i = new Intent(Intent.ACTION_VIEW);
+//					i.setData(Uri.parse(getCurrentWebView().getUrl()));
+//					try {
+//						startActivity(i);
+//					} catch (ActivityNotFoundException e) {
+//						new AlertDialog.Builder(MainActivity.this)
+//							.setTitle("Open in app")
+//							.setMessage("No app can open this URL.")
+//							.setPositiveButton("OK", new EmptyOnClickListener())
+//							.show();
+//					}
+//				}
+//			}),
+//		new MenuAction("View Source", 0, new Runnable() {
+//				@Override
+//				public void run() {
+//					final Tab currentTab = getCurrentTab();
+//					currentTab.sourceName = savedName(currentTab.webview) + ".txt";
+//					boolean ret = startDownload(currentTab.webview.getUrl(), currentTab.sourceName);
+//					if (!ret && currentTab.webview.getSettings().getJavaScriptEnabled()) {
+//						if (Build.VERSION.SDK_INT >= 19) {
+//							currentTab.webview.evaluateJavascript("javascript:(function(){return '<html>'+document.getElementsByTagName('html')[0].innerHTML+'</html>';})()", new ValueCallback<String>() {
+//									@Override
+//									public void onReceiveValue(String s) {
+//										currentTab.webview.loadData(fixCharCode(s.replaceAll("\\\\n", "\n").replaceAll("\\\\\"", "\"").replaceAll("\\\\b", "\b").replaceAll("\\\\t", "\t").replaceAll("\\\\r", "\r")), "text/txt", "utf-8");
+//									}
+//								});
+//						} else {
+//						}
+//					} else {}
+//				}
+//			}),
 
 		new MenuAction("Text Reflow", 0, new Runnable() {
 				@Override
@@ -1529,90 +1545,98 @@ public class MainActivity extends Activity {
             }
         });
         webview.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageStarted(final WebView view, final String url, final Bitmap favicon) {
-                progressBar.setProgress(0);
-                progressBar.setVisibility(View.VISIBLE);
-				if (webview.getSettings().getJavaScriptEnabled()) {
-					webview.removeJavascriptInterface("HTMLOUT");
-					webview.addJavascriptInterface(this, "HTMLOUT");
-				}
-                if (view == getCurrentWebView()) {
-                    et.setText(url);
-                    et.setSelection(0);
-                    view.requestFocus();
-                }
-				printWeb = null;
-				goStop.setImageResource(R.drawable.stop);
-				Tab currentTab = null;
-				for(Tab t : tabs) {
-					if (t.webview == view) {
-						currentTab = t;
+				@Override
+				public void onPageStarted(final WebView view, final String url, final Bitmap favicon)
+				{
+					progressBar.setProgress(0);
+					progressBar.setVisibility(View.VISIBLE);
+					if (webview.getSettings().getJavaScriptEnabled())
+					{
+						webview.removeJavascriptInterface("HTMLOUT");
+						webview.addJavascriptInterface(this, "HTMLOUT");
 					}
-				}
-				currentTab.loading = true;
-				currentTab.textChanged = false;
-                //injectCSS(view);
-            }
-
-            @Override
-            public void onPageFinished(final WebView view, final String url) {
-                printWeb = view;
-                if (view == getCurrentWebView()) {
-                    // Don't use the argument url here since navigation to that URL might have been
-                    // cancelled due to SSL error
-                    if (et.getSelectionStart() == 0 && et.getSelectionEnd() == 0 && et.getText().toString().equals(view.getUrl())) {
-                        // If user haven't started typing anything, focus on webview
-                        view.requestFocus();
-                    }
-                }
-				if (saveHistory 
-					&& !getCurrentTab().isIncognito
-					&& !url.startsWith("data")
-					&& !url.equals("about:blank")) {
-					addHistory();
-				}
-				Tab currentTab = null;
-				for(Tab t : tabs) {
-					if (t.webview == view) {
-						currentTab = t;
+					if (view == getCurrentWebView())
+					{
+						et.setText(url);
+						et.setSelection(0);
+						view.requestFocus();
 					}
+					printWeb = null;
+					goStop.setImageResource(R.drawable.stop);
+					Tab currentTab = null;
+					for(Tab t : tabs) {
+						if (t.webview == view) {
+							currentTab = t;
+						}
+					}
+					currentTab.loading = true;
+					currentTab.textChanged = false;
+					//injectCSS(view);
 				}
-				currentTab.loading = false;
-				goStop.setImageResource(R.drawable.reload);
-				if (!currentTab.textChanged) {
-					currentTab.skipTextChange = true;
-					et.setText(currentTab.webview.getTitle());
-					currentTab.skipTextChange = false;
-				}
-				//injectCSS(view);
-            }
 
-            @Override
-            public void onReceivedHttpAuthRequest(WebView view, final HttpAuthHandler handler, String host, String realm) {
-                new AlertDialog.Builder(MainActivity.this)
+				@Override
+				public void onPageFinished(final WebView view, final String url)
+				{
+					printWeb = view;
+					if (view == getCurrentWebView())
+					{
+						// Don't use the argument url here since navigation to that URL might have been
+						// cancelled due to SSL error
+						if (et.getSelectionStart() == 0 && et.getSelectionEnd() == 0 && et.getText().toString().equals(view.getUrl()))
+						{
+							// If user haven't started typing anything, focus on webview
+							view.requestFocus();
+						}
+					}
+					if (saveHistory 
+						&& !getCurrentTab().isIncognito
+						&& !url.startsWith("data")
+						&& !url.equals("about:blank")) {
+						addHistory();
+					}
+					Tab currentTab = null;
+					for(Tab t : tabs) {
+						if (t.webview == view) {
+							currentTab = t;
+						}
+					}
+					currentTab.loading = false;
+					goStop.setImageResource(R.drawable.reload);
+					if (!currentTab.textChanged) {
+						currentTab.skipTextChange = true;
+						et.setText(currentTab.webview.getTitle());
+						currentTab.skipTextChange = false;
+					}
+					if (requestList.getVisibility() == View.VISIBLE
+						&& view.getVisibility() == View.VISIBLE) {
+						log("");
+					}
+					//injectCSS(view);
+				}
+
+				@Override
+				public void onReceivedHttpAuthRequest(WebView view, final HttpAuthHandler handler, String host, String realm)
+				{
+					new AlertDialog.Builder(MainActivity.this)
                         .setTitle(host)
                         .setView(R.layout.sweb_login_password)
                         .setCancelable(false)
-					.setPositiveButton("OK", new OnClickListener() {
-						public void onClick(DialogInterface dialog, int which) {
-                            final String username = ((EditText) ((Dialog) dialog).findViewById(R.id.username)).getText().toString();
-                            final String password = ((EditText) ((Dialog) dialog).findViewById(R.id.password)).getText().toString();
-                            handler.proceed(username, password);
-                        }})
-					.setNegativeButton("Cancel", new OnClickListener() {
-						public void onClick(DialogInterface dialog, int which) {
-							handler.cancel();}}).show();
-            }
+						.setPositiveButton("OK", new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which)
+							{
+								final String username = ((EditText) ((Dialog) dialog).findViewById(R.id.username)).getText().toString();
+								final String password = ((EditText) ((Dialog) dialog).findViewById(R.id.password)).getText().toString();
+								handler.proceed(username, password);
+							}})
+						.setNegativeButton("Cancel", new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which)
+							{
+								handler.cancel();}}).show();
+				}
 
-            final InputStream emptyInputStream = new ByteArrayInputStream(new byte[0]);
+				final InputStream emptyInputStream = new ByteArrayInputStream(new byte[0]);
 
-            String lastMainPage = "";
-			final Pattern IMAGES_PATTERN = Pattern.compile(".*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico).*?", Pattern.CASE_INSENSITIVE);
-			final Pattern MEDIA_PATTERN = Pattern.compile(".*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram).*?", Pattern.CASE_INSENSITIVE);
-			final Pattern CSS_PATTERN = Pattern.compile(".*?\\.css.*?", Pattern.CASE_INSENSITIVE);
-			final Pattern JAVASCRIPT_PATTERN = Pattern.compile(".*?\\.js.*?", Pattern.CASE_INSENSITIVE);
-			final Pattern FONT_PATTERN = Pattern.compile(".*?\\.(otf|ttf|ttc|woff|woff2).*?", Pattern.CASE_INSENSITIVE);
+				String lastMainPage = "";
             @Override
             public WebResourceResponse shouldInterceptRequest(final WebView view, final WebResourceRequest request) {
                 final Uri url = request.getUrl();
@@ -1685,7 +1709,13 @@ public class MainActivity extends Activity {
             @Override
             public void onLoadResource(final WebView view, final String url) {
                 if (isLogRequests) {
-                    requestsLog.add(url);
+                    Tab currentTab = null;
+					for(Tab t : tabs) {
+						if (t.webview == view) {
+							currentTab = t;
+						}
+					}
+					currentTab.requestsLog.add(url);
                 }
             }
 
@@ -2098,6 +2128,9 @@ public class MainActivity extends Activity {
 			et.setCompoundDrawables(null, null, null, null);
 		}
 		currentTab.webview.requestFocus();
+		if (requestList.getVisibility() == View.VISIBLE) {
+			log("");
+		}
 		currentTab.textChanged = false;
 		currentTab.skipTextChange = false;
     }
@@ -2155,14 +2188,109 @@ public class MainActivity extends Activity {
         webviews = (FrameLayout) findViewById(R.id.webviews);
         currentTabIndex = 0;
 		address = (ViewGroup)findViewById(R.id.address);
+		faviconImage = (ImageView) findViewById(R.id.favicon);
         et = (AutoCompleteTextView) findViewById(R.id.et);
 		goStop = (ImageView) findViewById(R.id.goStop);
 		main_layout = findViewById(R.id.main_layout);
 		toolbar = (ViewGroup)findViewById(R.id.toolbar);
 		searchPane = findViewById(R.id.searchPane);
-		
+		requestList = (ListView)findViewById(R.id.requestList);
 		progressbar = (ProgressBar) findViewById(R.id.progressbar);
-		registerForContextMenu(et);  
+		
+		faviconImage.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View button) {
+					PopupMenu popup = new PopupMenu(MainActivity.this, button);
+					//Inflating the Popup using xml file
+					popup.getMenuInflater().inflate(R.menu.favicon, popup.getMenu());
+
+					//registering popup with OnMenuItemClickListener
+					popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+							public boolean onMenuItemClick(MenuItem item) {
+								switch (item.getItemId())  {
+									case R.id.pageInfo:
+										String s = "URL: " + getCurrentWebView().getUrl() + "\n\n";
+										s += "Title: " + getCurrentWebView().getTitle() + "\n\n";
+										SslCertificate certificate = getCurrentWebView().getCertificate();
+										s += certificate == null ? "Not secure" : "Certificate:\n" + certificateToStr(certificate);
+
+										new AlertDialog.Builder(MainActivity.this)
+											.setTitle("Page info")
+											.setMessage(s)
+											.setPositiveButton("OK", new EmptyOnClickListener())
+											.show();
+										break;
+									case R.id.imageLog:
+										log(IMAGE_PAT);
+										break;
+									case R.id.videoInfo:
+										log(MEDIA_PAT);
+										break;
+									case R.id.jsInfo:
+										log(JAVASCRIPT_PAT);
+										break;
+									case R.id.cssInfo:
+										log(CSS_PAT);
+										break;
+									case R.id.allInfo:
+										log(null);
+										break;
+									case R.id.closeLog:
+										requestList.setVisibility(View.GONE);
+										break;
+									case R.id.shareUrl:
+										shareUrl(getCurrentWebView().getUrl());
+										break;
+									case R.id.viewSource:
+										final Tab currentTab = getCurrentTab();
+										currentTab.sourceName = savedName(currentTab.webview) + ".txt";
+										boolean ret = startDownload(currentTab.webview.getUrl(), currentTab.sourceName);
+										if (!ret && currentTab.webview.getSettings().getJavaScriptEnabled()) {
+											if (Build.VERSION.SDK_INT >= 19) {
+												currentTab.webview.evaluateJavascript("javascript:(function(){return '<html>'+document.getElementsByTagName('html')[0].innerHTML+'</html>';})()", new ValueCallback<String>() {
+														@Override
+														public void onReceiveValue(String s) {
+															currentTab.webview.loadData(fixCharCode(s.replaceAll("\\\\n", "\n").replaceAll("\\\\\"", "\"").replaceAll("\\\\b", "\b").replaceAll("\\\\t", "\t").replaceAll("\\\\r", "\r")), "text/txt", "utf-8");
+														}
+													});
+											} else {
+											}
+										} else {}
+										break;
+									case R.id.openInApp:
+										Intent i = new Intent(Intent.ACTION_VIEW);
+										i.setData(Uri.parse(getCurrentWebView().getUrl()));
+										try {
+											startActivity(i);
+										} catch (ActivityNotFoundException e) {
+											new AlertDialog.Builder(MainActivity.this)
+												.setTitle("Open in app")
+												.setMessage("No app can open this URL.")
+												.setPositiveButton("OK", new EmptyOnClickListener())
+												.show();
+										}
+										break;
+									case R.id.destopUA:
+										Tab tab = getCurrentTab();
+										tab.isDesktopUA = !tab.isDesktopUA;
+										//tab.isDesktopUA = isDesktopUA;
+										//prefs.edit().putBoolean("isDesktopUA", isDesktopUA).apply();
+										WebView currentWebView = getCurrentWebView();
+										WebSettings settings = currentWebView.getSettings();
+										settings.setUserAgentString(tab.isDesktopUA ? desktopUA : null);
+										settings.setUseWideViewPort(tab.isDesktopUA);
+										currentWebView.reload();
+										break;
+								}
+								return true;
+							}
+						});
+
+					popup.show();//showing popup menu
+				}
+		});
+		
+        registerForContextMenu(et);  
         // setup edit text
         et.setSelected(false);
         final String initialUrl = getUrlFromIntent(getIntent());
@@ -2372,9 +2500,14 @@ public class MainActivity extends Activity {
 	@Override  
     public void onCreateContextMenu(final ContextMenu menu, final View v, final ContextMenu.ContextMenuInfo menuInfo) {  
         super.onCreateContextMenu(menu, v, menuInfo);  
-        final MenuInflater inflater = getMenuInflater();  
-        inflater.inflate(R.menu.address, menu);  
-        menu.setHeaderTitle("Select an action");  
+        final MenuInflater inflater = getMenuInflater();
+		if (v == et) {
+			inflater.inflate(R.menu.address, menu);  
+			menu.setHeaderTitle("Select an action");
+		} else if (v == faviconImage) {
+			inflater.inflate(R.menu.favicon, menu);  
+			//menu.setHeaderTitle("Select an action");
+		}
     }  
     @Override  
     public boolean onContextItemSelected(final MenuItem item){  
@@ -2407,6 +2540,22 @@ public class MainActivity extends Activity {
 		}
         return true;  
     }
+
+	private void log(String pat) {
+		if (requestList.getVisibility() == View.GONE) {
+			LogArrayAdapter adapter = (LogArrayAdapter) requestList.getAdapter();
+			if (adapter == null) {
+				adapter = new LogArrayAdapter(MainActivity.this,
+														 android.R.layout.simple_list_item_1,
+														 getCurrentTab().requestsLog);
+				requestList.setAdapter(adapter);
+			} 
+			adapter.getFilter().filter(pat);
+			requestList.setVisibility(View.VISIBLE);
+		} else {
+			((LogArrayAdapter) requestList.getAdapter()).getFilter().filter(pat);
+		}
+	}
 	
     private void setTabCountText(final int count) {
         if (txtTabCount != null) {
@@ -3199,9 +3348,7 @@ public class MainActivity extends Activity {
     }
 	
     public void onNightModeChange() {
-		int textColor;
-		int backgroundColor;
-        if (isNightMode) {
+		if (isNightMode) {
             textColor = Color.rgb(0xe0, 0xe0, 0xe0);
             backgroundColor = Color.rgb(0x22, 0x22, 0x22);
             progressbar.setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x66, 0)));
@@ -3223,10 +3370,13 @@ public class MainActivity extends Activity {
 		et.setBackgroundColor(backgroundColor);
 		goStop.setColorFilter(textColor);
 		goStop.setBackgroundColor(backgroundColor);
+		faviconImage.setColorFilter(textColor);
+		faviconImage.setBackgroundColor(backgroundColor);
 		searchEdit.setTextColor(textColor);
 		searchEdit.setBackgroundColor(backgroundColor);
 		searchCount.setTextColor(textColor);
 		searchCount.setBackgroundColor(backgroundColor);
+		requestList.setBackgroundColor(backgroundColor);
 		searchPane.setBackgroundColor(backgroundColor);
 		searchFindPrev.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 		searchFindNext.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
@@ -3522,7 +3672,7 @@ public class MainActivity extends Activity {
 			requestHeaders.put("X-Wap-Profile", "");
 		}
 		Tab currentTab = null;
-		for(Tab t : tabs) {
+		for (Tab t : tabs) {
 			if (t.webview == webview) {
 				currentTab = t;
 			}
@@ -3830,7 +3980,91 @@ public class MainActivity extends Activity {
             return true;
         }
     }
-
+	class LogArrayAdapter extends ArrayAdapter<String> implements View.OnClickListener {
+		CharSequence recentConstraint;
+		class Holder {
+			final TextView textView;
+			String item;
+			Holder(View convertView) {
+				textView = (TextView) convertView.findViewById(android.R.id.text1);
+				textView.setOnClickListener(LogArrayAdapter.this);
+				convertView.setOnClickListener(LogArrayAdapter.this);
+				textView.setTag(this);
+				convertView.setTag(this);
+				textView.setTextColor(textColor);
+				textView.setBackgroundColor(backgroundColor);
+				textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13.f);
+			}
+		}
+		public LogArrayAdapter(@NonNull Context context, int resource, @NonNull ArrayList<String> objects) {
+            super(context, resource);
+		}
+		@Override
+		public void onClick(View p1) {
+			Holder tag = (Holder) p1.getTag();
+			final String item = (tag).item;
+			newForegroundTab(item, getCurrentTab().isIncognito);
+		}
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            final Holder holder;
+			if (convertView == null) {
+				convertView = super.getView(position, convertView, parent);//getLayoutInflater().inflate(R.layout.list_item, parent, false);
+				holder = new Holder(convertView);
+			} else {
+				holder = (Holder) convertView.getTag();
+			}
+			final TextView textView = holder.textView;
+			final String item = getItem(position);
+            assert item != null;
+			holder.item = item;
+			textView.setText(item);
+			return convertView;
+        }
+		@Override
+		public Filter getFilter() {
+			Filter filter = new Filter() {
+				@SuppressWarnings("unchecked")
+				@Override
+				protected void publishResults(CharSequence constraint, FilterResults results) {
+					LogArrayAdapter.this.clear();
+					LogArrayAdapter.this.addAll((ArrayList<String>) results.values);
+					if (results.count == 0 ) {
+						LogArrayAdapter.this.notifyDataSetInvalidated();
+					} else {
+						LogArrayAdapter.this.notifyDataSetChanged();
+					}
+				}
+				@Override
+				protected FilterResults performFiltering(CharSequence constraint) {
+					if (constraint != null && constraint.length() == 0) {
+						constraint = recentConstraint;
+					}
+					recentConstraint = constraint;
+					FilterResults results = new FilterResults();
+					ArrayList<String> FilteredArrayNames = new ArrayList<String>();
+					if (constraint == null) {
+						FilteredArrayNames.addAll(getCurrentTab().requestsLog);
+					} else {
+						// perform your search here using the searchConstraint String.
+						constraint = constraint.toString().toLowerCase();
+						Pattern pattern = Pattern.compile(constraint.toString(), Pattern.CASE_INSENSITIVE);
+						for (String s : getCurrentTab().requestsLog) {
+							if (pattern.matcher(s.toLowerCase()).matches())  {
+								FilteredArrayNames.add(s);
+							}
+						}
+					}
+					results.count = FilteredArrayNames.size();
+					results.values = FilteredArrayNames;
+					//Log.e("VALUES", results.values.toString());
+					return results;
+				}
+			};
+			return filter;
+		}
+    }
     static class ArrayAdapterWithCurrentItem<T> extends ArrayAdapter<T> {
         int currentIndex;
 
