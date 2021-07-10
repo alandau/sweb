@@ -43,7 +43,7 @@
                 android:paddingEnd="10dp"
                 android:scaleType="fitCenter"
 				android:clickable="true"
-				android:focusable="true"
+				android:focusable="false"
 				android:src="@drawable/stop" />
 		</LinearLayout>
 

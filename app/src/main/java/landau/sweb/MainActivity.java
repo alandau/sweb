@@ -155,6 +155,7 @@ public class MainActivity extends Activity {
 		String sourceName;
 		boolean textChanged;
 		boolean isIncognito = false;
+		boolean skipTextChange = false;
 	}
 	
 	private boolean FULL_INCOGNITO = Build.VERSION.SDK_INT >= 28;
@@ -1543,7 +1544,14 @@ public class MainActivity extends Activity {
                 }
 				printWeb = null;
 				goStop.setImageResource(R.drawable.stop);
-				getCurrentTab().loading = true;
+				Tab currentTab = null;
+				for(Tab t : tabs) {
+					if (t.webview == view) {
+						currentTab = t;
+					}
+				}
+				currentTab.loading = true;
+				currentTab.textChanged = false;
                 //injectCSS(view);
             }
 
@@ -1564,12 +1572,18 @@ public class MainActivity extends Activity {
 					&& !url.equals("about:blank")) {
 					addHistory();
 				}
-				final Tab currentTab = getCurrentTab();
+				Tab currentTab = null;
+				for(Tab t : tabs) {
+					if (t.webview == view) {
+						currentTab = t;
+					}
+				}
 				currentTab.loading = false;
 				goStop.setImageResource(R.drawable.reload);
 				if (!currentTab.textChanged) {
+					currentTab.skipTextChange = true;
 					et.setText(currentTab.webview.getTitle());
-					currentTab.textChanged = false;
+					currentTab.skipTextChange = false;
 				}
 				//injectCSS(view);
             }
@@ -2055,22 +2069,23 @@ public class MainActivity extends Activity {
         currentTabIndex = tab;
         final Tab currentTab = getCurrentTab();
 		currentTab.webview.setVisibility(View.VISIBLE);
-        final boolean textChanged = currentTab.textChanged;
-		if (currentTab.sourceName != null) {
+        if (currentTab.sourceName != null) {
 			final String toString = Uri.fromFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + currentTab.sourceName)).toString();
 			//ExceptionLogger.d(TAG, getCurrentTab().sourceName + ", " + toString);
 			loadUrl(toString, currentTab.webview);
 			currentTab.sourceName = null;
+			return;
 		}
-		if (textChanged) {
-			goStop.setImageResource(R.drawable.forward);
-		} else if (currentTab.loading) {
+		currentTab.skipTextChange = true;
+		if (currentTab.loading)
+      		et.setText(currentTab.webview.getUrl());
+		else
+			et.setText(currentTab.webview.getTitle());
+		if (currentTab.loading) {
 			goStop.setImageResource(R.drawable.stop);
 		} else {
 			goStop.setImageResource(R.drawable.reload);
 		}
-        et.setText(currentTab.webview.getUrl());
-		currentTab.textChanged = textChanged;
 		if (currentTab.isIncognito) {
 			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
 			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, displayMetrics);
@@ -2083,6 +2098,8 @@ public class MainActivity extends Activity {
 			et.setCompoundDrawables(null, null, null, null);
 		}
 		currentTab.webview.requestFocus();
+		currentTab.textChanged = false;
+		currentTab.skipTextChange = false;
     }
 
     private void updateFullScreen() {
@@ -2157,7 +2174,6 @@ public class MainActivity extends Activity {
 							  }}));
         et.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 				public void onItemClick(final AdapterView<?> parent, final View view, final int position, final long id) {
-					getCurrentWebView().requestFocus();
 					loadUrl(et.getText().toString(), getCurrentWebView());
 				}});
 
@@ -2165,7 +2181,6 @@ public class MainActivity extends Activity {
 				public boolean onKey(final View v, final int keyCode, final KeyEvent event) {
 					if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
 						loadUrl(et.getText().toString(), getCurrentWebView());
-						getCurrentWebView().requestFocus();
 						return true;
 					} else {
 						return false;
@@ -2177,21 +2192,26 @@ public class MainActivity extends Activity {
 				}
 				@Override
 				public void onTextChanged(final CharSequence p1, final int p2, final int p3, final int p4) {
+					final Tab currentTab = getCurrentTab();
+					if (!currentTab.skipTextChange) {
+						currentTab.textChanged = true;
+						goStop.setImageResource(R.drawable.forward);
+					}
 				}
 				@Override
 				public void afterTextChanged(final Editable p1) {
-					getCurrentTab().textChanged = true;
-					goStop.setImageResource(R.drawable.forward);
 				}
 		});
 		et.setOnFocusChangeListener(new OnFocusChangeListener() {          
 				@Override
 				public void onFocusChange(View v, boolean hasFocus) {
 					final Tab currentTab = getCurrentTab();
+					currentTab.skipTextChange = true;
 					if (hasFocus) {
 						if (!currentTab.loading) {
 							et.setText(getCurrentWebView().getUrl());
 						}
+						et.setSelection(0, et.getText().length());
 					} else {
 						if (currentTab.loading) {
 							et.setText(getCurrentWebView().getUrl());
@@ -2202,6 +2222,7 @@ public class MainActivity extends Activity {
 						}
 					}
 					currentTab.textChanged = false;
+					currentTab.skipTextChange = false;
 				}
 			});
         goStop.setOnClickListener(new View.OnClickListener() {
@@ -2212,12 +2233,12 @@ public class MainActivity extends Activity {
 					if (t.loading) {
 						currentWebView.stopLoading();
 						goStop.setImageResource(R.drawable.forward);
+						t.loading = false;
 					} else {
 						if (t.textChanged) {
-							currentWebView.requestFocus();
 							loadUrl(et.getText().toString(), currentWebView);
 						} else {
-							currentWebView.requestFocus();
+							t.loading = true;
 							currentWebView.reload();
 						}
 					}
@@ -2253,7 +2274,6 @@ public class MainActivity extends Activity {
 				public void onClick(final View v) {
 					getCurrentWebView().clearMatches();
 					searchEdit.setText("");
-					getCurrentWebView().requestFocus();
 					searchPane.setVisibility(View.GONE);
 					hideKeyboard();
 				}});
@@ -2302,7 +2322,6 @@ public class MainActivity extends Activity {
 		newBackgroundTab(et.getText().toString(), false);
         final WebView currentWebView = getCurrentWebView();
 		currentWebView.setVisibility(View.VISIBLE);
-        currentWebView.requestFocus();
         onNightModeChange();
 		gestureDetector = new GestureDetector(this, new CustomGestureListener());
     }
@@ -2362,16 +2381,17 @@ public class MainActivity extends Activity {
         switch (item.getItemId())  {
 			case R.id.paste:
 				String clipboardText = getClipboardText().toString();
+				et.requestFocus();
 				et.setText(clipboardText);
 				et.setSelection(clipboardText.length());
 				goStop.setImageResource(R.drawable.forward);
 				InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
 				assert imm != null;
 				imm.toggleSoftInput(InputMethodManager.SHOW_IMPLICIT, 0);
-				et.requestFocus();
 				break;
 			case R.id.pasteOpen:
 				clipboardText = getClipboardText() + "";
+				et.requestFocus();
 				et.setText(clipboardText);
 				loadUrl(clipboardText, getCurrentWebView());
 				break;
@@ -2698,6 +2718,7 @@ public class MainActivity extends Activity {
 				public void onClick(DialogInterface dialog, int which) {
 					cursor.moveToPosition(which);
 					String url = cursor.getString(cursor.getColumnIndex("url"));
+					et.requestFocus();
 					et.setText(url);
 					loadUrl(url, getCurrentWebView());
 				}}, "title")
@@ -2759,6 +2780,7 @@ public class MainActivity extends Activity {
 				public void onClick(DialogInterface dialog, int which) {
 					cursor.moveToPosition(which);
 					String url = cursor.getString(cursor.getColumnIndex("url"));
+					et.requestFocus();
 					et.setText(url);
 					loadUrl(url, getCurrentWebView());
 				}}, "title")
@@ -3073,7 +3095,8 @@ public class MainActivity extends Activity {
         }
         currentWebView = getCurrentWebView();
 		currentWebView.setVisibility(View.VISIBLE);
-		if (getCurrentTab().isIncognito) {
+		Tab currentTab = getCurrentTab();
+		if (currentTab.isIncognito) {
 			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
 			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, displayMetrics);
             Drawable left = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
@@ -3082,10 +3105,17 @@ public class MainActivity extends Activity {
             et.setCompoundDrawablePadding(
 				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
 		}
-        et.setText(currentWebView.getUrl());
-        setTabCountText(tabs.size());
-        currentWebView.requestFocus();
-    }
+		currentTab.skipTextChange = true;
+		if (currentTab.loading)
+     		et.setText(currentWebView.getUrl());
+		else
+			et.setText(currentWebView.getTitle());
+		setTabCountText(tabs.size());
+
+		currentTab.webview.requestFocus();
+		currentTab.textChanged = false;
+		currentTab.skipTextChange = false;
+	}
 
     private String getUrlFromIntent(Intent intent) {
 //		ExceptionLogger.log(TAG, "getUrlFromIntent " + intent.getAction());
@@ -3491,7 +3521,12 @@ public class MainActivity extends Activity {
 			requestHeaders.put("X-Requested-With", "");
 			requestHeaders.put("X-Wap-Profile", "");
 		}
-        final Tab currentTab = getCurrentTab();
+		Tab currentTab = null;
+		for(Tab t : tabs) {
+			if (t.webview == webview) {
+				currentTab = t;
+			}
+		}
 		if (currentTab.webview == webview && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 			if (currentTab.isIncognito) {
 				mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW;
@@ -3517,9 +3552,13 @@ public class MainActivity extends Activity {
             et.setCompoundDrawablePadding(
 				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
 		}
-		webview.loadUrl(url, requestHeaders);
-		hideKeyboard();
+		currentTab.loading = true;
 		currentTab.textChanged = false;
+		webview.loadUrl(url, requestHeaders);
+		if (currentTab == getCurrentTab()) {
+			goStop.setImageResource(R.drawable.stop);
+		}
+		hideKeyboard();
 	}
 
     private void hideKeyboard() {
