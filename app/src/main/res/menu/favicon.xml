@@ -2,6 +2,18 @@
 	xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
+        android:id="@+id/newIgcognitoTab"
+        android:title="New Igcognito Tab"/>
+
+    <item
+        android:id="@+id/savePageAsPdf"
+        android:title="Save Page As Pdf"/>
+
+    <item
+        android:id="@+id/savePageAsImage"
+        android:title="Save Page As Image"/>
+	
+    <item
         android:id="@+id/pageInfo"
         android:title="Page Info"/>
 	

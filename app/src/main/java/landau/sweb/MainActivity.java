@@ -377,46 +377,47 @@ public class MainActivity extends Activity {
 					return isFullMenu;
 				}
 			}),
-		new MenuAction("New Igcognito Tab", R.drawable.ic_notification_incognito, new Runnable() {
-				@Override
-				public void run() {
-					final WebView webview = createWebView(null);
-					newTabCommon(webview, true);
-					switchToTab(tabs.size() - 1);
-					loadUrl("", webview);
-					alertDialog.dismiss();
-				}
-			}),
+//		new MenuAction("New Igcognito Tab", R.drawable.ic_notification_incognito, new Runnable() {
+//				@Override
+//				public void run() {
+//					final WebView webview = createWebView(null);
+//					newTabCommon(webview, true);
+//					switchToTab(tabs.size() - 1);
+//					loadUrl("", webview);
+//					alertDialog.dismiss();
+//				}
+//			}),
 		new MenuAction("Save Page", R.drawable.ic_action_save, new Runnable() {
 				@Override
 				public void run() {
 					final WebView currentWebView = getCurrentWebView();
 					String url = savedName(currentWebView);
-					currentWebView.saveWebArchive(downloadLocation + url + ".mht");
-					Toast.makeText(MainActivity.this, "Saved " + downloadLocation + url + ".mht", Toast.LENGTH_LONG).show();
+					String uniqueName = getUniqueName(downloadLocation, url, ".mht");
+					currentWebView.saveWebArchive(uniqueName);
+					Toast.makeText(MainActivity.this, "Saved " + uniqueName, Toast.LENGTH_LONG).show();
 				}
 			}),
-		new MenuAction("Save Page as Pdf", R.drawable.ic_action_save, new Runnable() {
-				@Override
-				public void run() {
-					if (printWeb != null) {
-						if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-							// Calling createWebPrintJob()
-							printTheWebPage(printWeb);
-						} else {
-							Toast.makeText(MainActivity.this, "Not available for device below Android LOLLIPOP", Toast.LENGTH_SHORT).show();
-						}
-					} else {
-						Toast.makeText(MainActivity.this, "WebPage not fully loaded", Toast.LENGTH_SHORT).show();
-					}
-				}
-			}),
-		new MenuAction("Save Page as Image", R.drawable.ic_action_save, new Runnable() {
-				@Override
-				public void run() {
-					savePageAsImage();
-				}
-			}),
+//		new MenuAction("Save Page as Pdf", R.drawable.ic_action_save, new Runnable() {
+//				@Override
+//				public void run() {
+//					if (printWeb != null) {
+//						if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//							// Calling createWebPrintJob()
+//							printTheWebPage(printWeb);
+//						} else {
+//							Toast.makeText(MainActivity.this, "Not available for device below Android LOLLIPOP", Toast.LENGTH_SHORT).show();
+//						}
+//					} else {
+//						Toast.makeText(MainActivity.this, "WebPage not fully loaded", Toast.LENGTH_SHORT).show();
+//					}
+//				}
+//			}),
+//		new MenuAction("Save Page as Image", R.drawable.ic_action_save, new Runnable() {
+//				@Override
+//				public void run() {
+//					savePageAsImage();
+//				}
+//			}),
 		new MenuAction("Save Form Data", 0, new Runnable() {
 				@Override
 				public void run() {
@@ -880,23 +881,23 @@ public class MainActivity extends Activity {
 					return isLogRequests;
 				}
 			}),
-		new MenuAction("Show Log Requests", R.drawable.log_requests, new Runnable() {
-				@Override
-				public void run() {
-//					StringBuilder sb = new StringBuilder("<title>Request Log</title><h1>Request Log</h1>");
-//					for (String url : getCurrentTab().requestsLog) {
-//						sb.append("<a href=\"");
-//						sb.append(url);
-//						sb.append("\">");
-//						sb.append(url);
-//						sb.append("</a><br><br>");
-//					}
-//					String base64 = Base64.encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
-//					newBackgroundTab("data:text/html;base64," + base64, false);
-//					switchToTab(tabs.size() - 1);
-					
-				}
-			}),
+//		new MenuAction("Show Log Requests", R.drawable.log_requests, new Runnable() {
+//				@Override
+//				public void run() {
+////					StringBuilder sb = new StringBuilder("<title>Request Log</title><h1>Request Log</h1>");
+////					for (String url : getCurrentTab().requestsLog) {
+////						sb.append("<a href=\"");
+////						sb.append(url);
+////						sb.append("\">");
+////						sb.append(url);
+////						sb.append("</a><br><br>");
+////					}
+////					String base64 = Base64.encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
+////					newBackgroundTab("data:text/html;base64," + base64, false);
+////					switchToTab(tabs.size() - 1);
+//					
+//				}
+//			}),
 		new MenuAction("Media Playback Requires Gesture", 0, new Runnable() {
 				@Override
 				public void run() {
@@ -1423,12 +1424,12 @@ public class MainActivity extends Activity {
 		{"Show Bookmarks", "Show History", "Add bookmark"},
 		{"Save Page", "Night mode", "Full screen"},
 		{"Show tabs", "New tab", "Close tab"},
-		{"Menu", "Find on page", "Show address bar"},//Reload
+		{"Menu", "Find on page", "Show address bar"},
     };
 
     final String[] shortMenu = {
-		"Full menu", "Desktop UA", "Log requests", "Find on page", "Page info", "Share URL",
-            "Open URL in app"
+		"Full menu", "New tab", "Desktop UA", "Show History", "Tab history", "Show address bar", 
+		"Find on page", "Block Images", "Add bookmark", "Full screen", "Close tab"
     };
 
     MenuAction getAction(String name) {
@@ -2208,6 +2209,27 @@ public class MainActivity extends Activity {
 					popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
 							public boolean onMenuItemClick(MenuItem item) {
 								switch (item.getItemId())  {
+									case R.id.newIgcognitoTab:
+										final WebView webview = createWebView(null);
+										newTabCommon(webview, true);
+										switchToTab(tabs.size() - 1);
+										loadUrl("", webview);
+										break;
+									case R.id.savePageAsPdf:
+										if (printWeb != null) {
+											if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+												// Calling createWebPrintJob()
+												printTheWebPage(printWeb);
+											} else {
+												Toast.makeText(MainActivity.this, "Not available for device below Android LOLLIPOP", Toast.LENGTH_SHORT).show();
+											}
+										} else {
+											Toast.makeText(MainActivity.this, "WebPage not fully loaded", Toast.LENGTH_SHORT).show();
+										}
+										break;
+									case R.id.savePageAsImage:
+										savePageAsImage();
+										break;
 									case R.id.pageInfo:
 										String s = "URL: " + getCurrentWebView().getUrl() + "\n\n";
 										s += "Title: " + getCurrentWebView().getTitle() + "\n\n";
@@ -2696,10 +2718,10 @@ public class MainActivity extends Activity {
 	
 	String getUniqueName(String outputFolder, String name, String ext) {
         int i = 1;
-        File file = new File(outputFolder, name + "." + ext);
+        File file = new File(outputFolder, name + ext);
         if(file.exists()) {
             while (true) {
-                file = new File(outputFolder, name + " (" + i + ")." + ext);
+                file = new File(outputFolder, name + " (" + i + ")" + ext);
                 if (!file.exists())
                     return file.getAbsolutePath();
                 i++;
@@ -2726,7 +2748,7 @@ public class MainActivity extends Activity {
 				FileOutputStream fos = null;
 				BufferedOutputStream bos;
                 try {
-                    final String savedName = getExternalFilesDir("ScreenShots").getAbsolutePath() + savedName(printWeb) + ".webp";
+                    final String savedName = getUniqueName(downloadLocation, savedName(printWeb), ".webp");
 					fos = new FileOutputStream(savedName);
 					bos = new BufferedOutputStream(fos);
                     bitmap.compress(Bitmap.CompressFormat.WEBP, 100, bos);
@@ -3036,7 +3058,7 @@ public class MainActivity extends Activity {
         values.put("title", getCurrentWebView().getTitle());
 		values.put("url", url);
         placesDb.insert("bookmarks", null, values);
-		showToast("Copied " + url + " to clipboard");
+		showToast("Added " + url + " to bookmarks");
 	}
 
     void exportBookmarks() {
@@ -3609,7 +3631,7 @@ public class MainActivity extends Activity {
 			copyOfRange);
         tv.setAdapter(adapter);
 		builder.setTitle("Full menu")
-			.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 					dialog.dismiss();
