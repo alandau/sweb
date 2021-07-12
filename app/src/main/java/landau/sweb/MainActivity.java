@@ -261,6 +261,7 @@ public class MainActivity extends Activity {
 	private String downloadLocation;
 	private int textColor;
 	private int backgroundColor;
+	private String textEncoding;
 	
 	private int cacheMode;
 	private boolean isDesktopUA;
@@ -377,16 +378,12 @@ public class MainActivity extends Activity {
 					return isFullMenu;
 				}
 			}),
-//		new MenuAction("New Igcognito Tab", R.drawable.ic_notification_incognito, new Runnable() {
-//				@Override
-//				public void run() {
-//					final WebView webview = createWebView(null);
-//					newTabCommon(webview, true);
-//					switchToTab(tabs.size() - 1);
-//					loadUrl("", webview);
-//					alertDialog.dismiss();
-//				}
-//			}),
+		new MenuAction("Default Encoding", 0, new Runnable() {
+				@Override
+				public void run() {
+					encodingDialog(true);
+				}
+			}),
 		new MenuAction("Save Page", R.drawable.ic_action_save, new Runnable() {
 				@Override
 				public void run() {
@@ -397,27 +394,7 @@ public class MainActivity extends Activity {
 					Toast.makeText(MainActivity.this, "Saved " + uniqueName, Toast.LENGTH_LONG).show();
 				}
 			}),
-//		new MenuAction("Save Page as Pdf", R.drawable.ic_action_save, new Runnable() {
-//				@Override
-//				public void run() {
-//					if (printWeb != null) {
-//						if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-//							// Calling createWebPrintJob()
-//							printTheWebPage(printWeb);
-//						} else {
-//							Toast.makeText(MainActivity.this, "Not available for device below Android LOLLIPOP", Toast.LENGTH_SHORT).show();
-//						}
-//					} else {
-//						Toast.makeText(MainActivity.this, "WebPage not fully loaded", Toast.LENGTH_SHORT).show();
-//					}
-//				}
-//			}),
-//		new MenuAction("Save Page as Image", R.drawable.ic_action_save, new Runnable() {
-//				@Override
-//				public void run() {
-//					savePageAsImage();
-//				}
-//			}),
+
 		new MenuAction("Save Form Data", 0, new Runnable() {
 				@Override
 				public void run() {
@@ -914,63 +891,6 @@ public class MainActivity extends Activity {
 				}
 			}),
 		
-//		new MenuAction("Page info", R.drawable.page_info, new Runnable() {
-//				@Override
-//				public void run() {
-//					String s = "URL: " + getCurrentWebView().getUrl() + "\n";
-//					s += "Title: " + getCurrentWebView().getTitle() + "\n\n";
-//					SslCertificate certificate = getCurrentWebView().getCertificate();
-//					s += certificate == null ? "Not secure" : "Certificate:\n" + certificateToStr(certificate);
-//
-//					new AlertDialog.Builder(MainActivity.this)
-//						.setTitle("Page info")
-//						.setMessage(s)
-//						.setPositiveButton("OK", new EmptyOnClickListener())
-//						.show();
-//				}
-//			}),
-//		new MenuAction("Share URL", R.drawable.ic_action_share, new Runnable() {
-//				@Override
-//				public void run() {
-//					shareUrl(getCurrentWebView().getUrl());
-//				}
-//			}),
-//		new MenuAction("Open URL in app", R.drawable.ic_action_eye_open, new Runnable() {
-//				@Override
-//				public void run() {
-//					Intent i = new Intent(Intent.ACTION_VIEW);
-//					i.setData(Uri.parse(getCurrentWebView().getUrl()));
-//					try {
-//						startActivity(i);
-//					} catch (ActivityNotFoundException e) {
-//						new AlertDialog.Builder(MainActivity.this)
-//							.setTitle("Open in app")
-//							.setMessage("No app can open this URL.")
-//							.setPositiveButton("OK", new EmptyOnClickListener())
-//							.show();
-//					}
-//				}
-//			}),
-//		new MenuAction("View Source", 0, new Runnable() {
-//				@Override
-//				public void run() {
-//					final Tab currentTab = getCurrentTab();
-//					currentTab.sourceName = savedName(currentTab.webview) + ".txt";
-//					boolean ret = startDownload(currentTab.webview.getUrl(), currentTab.sourceName);
-//					if (!ret && currentTab.webview.getSettings().getJavaScriptEnabled()) {
-//						if (Build.VERSION.SDK_INT >= 19) {
-//							currentTab.webview.evaluateJavascript("javascript:(function(){return '<html>'+document.getElementsByTagName('html')[0].innerHTML+'</html>';})()", new ValueCallback<String>() {
-//									@Override
-//									public void onReceiveValue(String s) {
-//										currentTab.webview.loadData(fixCharCode(s.replaceAll("\\\\n", "\n").replaceAll("\\\\\"", "\"").replaceAll("\\\\b", "\b").replaceAll("\\\\t", "\t").replaceAll("\\\\r", "\r")), "text/txt", "utf-8");
-//									}
-//								});
-//						} else {
-//						}
-//					} else {}
-//				}
-//			}),
-
 		new MenuAction("Text Reflow", 0, new Runnable() {
 				@Override
 				public void run() {
@@ -1401,6 +1321,65 @@ public class MainActivity extends Activity {
 			}),
 	};
 
+	private void encodingDialog(boolean all) {
+		ArrayList<MenuAction> actions = new ArrayList<>(8);
+		textEncoding(actions, all);
+
+		AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+			.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					dialog.dismiss();
+				}
+			})
+			.setTitle("Default Encoding")
+			.create();
+		ListView tv = new ListView(MainActivity.this);
+		MenuActionArrayAdapter adapter = new MenuActionArrayAdapter(
+			MainActivity.this,
+			android.R.layout.simple_list_item_1,
+			actions);
+		tv.setAdapter(adapter);
+		dialog.setView(tv);
+		dialog.show();
+	}
+
+	private void textEncoding(ArrayList<MenuAction> actions, final boolean all) {
+		createEncodingMenu(actions, "ISO-8859-1", all);
+		createEncodingMenu(actions, "UTF-8", all);
+		createEncodingMenu(actions, "GBK", all);
+		createEncodingMenu(actions, "Big5", all);
+		createEncodingMenu(actions, "ISO-2022-JP", all);
+		createEncodingMenu(actions, "SHIFT_JS", all);
+		createEncodingMenu(actions, "EUC-JP", all);
+		createEncodingMenu(actions, "EUC-KR", all);
+	}
+
+	private void createEncodingMenu(final ArrayList<MenuAction> actions, final String encode, final boolean all) {
+		actions.add(new MenuAction(encode, 0, new Runnable() {
+							@Override
+							public void run() {
+								if (all) {
+									textEncoding = encode;
+									prefs.edit().putString("textEncoding", textEncoding).apply();
+									for (Tab t : tabs) {
+										t.webview.getSettings().setDefaultTextEncodingName(textEncoding);
+									}
+								} else {
+									getCurrentWebView().getSettings().setDefaultTextEncodingName(encode);
+								}
+							}
+						}, new MyBooleanSupplier() {
+							@Override
+							public boolean getAsBoolean() {
+								if (all)
+									return encode.equals(textEncoding);
+								else
+									return encode.equals(getCurrentWebView().getSettings().getDefaultTextEncodingName());
+							}
+						}));
+	}
+
 	private void cacheMode(int mode) {
 		cacheMode = mode;
 		prefs.edit().putInt("cacheMode", cacheMode).apply();
@@ -1551,13 +1530,11 @@ public class MainActivity extends Activity {
 				{
 					progressBar.setProgress(0);
 					progressBar.setVisibility(View.VISIBLE);
-					if (webview.getSettings().getJavaScriptEnabled())
-					{
+					if (webview.getSettings().getJavaScriptEnabled()) {
 						webview.removeJavascriptInterface("HTMLOUT");
 						webview.addJavascriptInterface(this, "HTMLOUT");
 					}
-					if (view == getCurrentWebView())
-					{
+					if (view == getCurrentWebView()) {
 						et.setText(url);
 						et.setSelection(0);
 						view.requestFocus();
@@ -1576,15 +1553,12 @@ public class MainActivity extends Activity {
 				}
 
 				@Override
-				public void onPageFinished(final WebView view, final String url)
-				{
+				public void onPageFinished(final WebView view, final String url) {
 					printWeb = view;
-					if (view == getCurrentWebView())
-					{
+					if (view == getCurrentWebView()) {
 						// Don't use the argument url here since navigation to that URL might have been
 						// cancelled due to SSL error
-						if (et.getSelectionStart() == 0 && et.getSelectionEnd() == 0 && et.getText().toString().equals(view.getUrl()))
-						{
+						if (et.getSelectionStart() == 0 && et.getSelectionEnd() == 0 && et.getText().toString().equals(view.getUrl())) {
 							// If user haven't started typing anything, focus on webview
 							view.requestFocus();
 						}
@@ -1616,15 +1590,13 @@ public class MainActivity extends Activity {
 				}
 
 				@Override
-				public void onReceivedHttpAuthRequest(WebView view, final HttpAuthHandler handler, String host, String realm)
-				{
+				public void onReceivedHttpAuthRequest(WebView view, final HttpAuthHandler handler, String host, String realm) {
 					new AlertDialog.Builder(MainActivity.this)
                         .setTitle(host)
                         .setView(R.layout.sweb_login_password)
                         .setCancelable(false)
 						.setPositiveButton("OK", new OnClickListener() {
-							public void onClick(DialogInterface dialog, int which)
-							{
+							public void onClick(DialogInterface dialog, int which) {
 								final String username = ((EditText) ((Dialog) dialog).findViewById(R.id.username)).getText().toString();
 								final String password = ((EditText) ((Dialog) dialog).findViewById(R.id.password)).getText().toString();
 								handler.proceed(username, password);
@@ -1650,7 +1622,8 @@ public class MainActivity extends Activity {
                     }
                 }
 				final String path = url.getPath();
-				if (path != null) {
+				ExceptionLogger.d(TAG, "path = " + path + ", view.getUrl() " + view.getUrl());
+				if (path != null && !url.toString().equals(view.getUrl())) {
 //					if (blockImages && IMAGES_PATTERN.matcher(path).matches()) {
 //						return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 //					}
@@ -2063,6 +2036,7 @@ public class MainActivity extends Activity {
 		settings.setBlockNetworkImage(blockImages);
 		settings.setLoadsImagesAutomatically(!blockImages);
 		settings.setBlockNetworkLoads(blockNetworkLoads);
+		settings.setDefaultTextEncodingName(textEncoding);
 		settings.setCacheMode(cacheMode);
         if (autoHideToolbar) {
 			webview.setOnTouchListener(new TouchListener());
@@ -2303,6 +2277,9 @@ public class MainActivity extends Activity {
 										settings.setUseWideViewPort(tab.isDesktopUA);
 										currentWebView.reload();
 										break;
+									case R.id.textEncoding:
+										encodingDialog(false);
+										break;
 								}
 								return true;
 							}
@@ -2467,6 +2444,7 @@ public class MainActivity extends Activity {
 		doNotTrack = prefs.getBoolean("doNotTrack", true);
 		renderMode = prefs.getInt("renderMode", 0);
 		downloadLocation = prefs.getString("downloadLocation", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
+		textEncoding = prefs.getString("textEncoding", "UTF-8");
 		
 		setupToolbar(toolbar);
 		newBackgroundTab(et.getText().toString(), false);

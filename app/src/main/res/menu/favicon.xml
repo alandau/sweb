@@ -52,9 +52,14 @@
 	<item
         android:id="@+id/openInApp"
         android:title="Open In App"/>
-
+	
 	<item
         android:id="@+id/destopUA"
         android:title="Desktop User Agent"/>
+	
+	<item
+        android:id="@+id/textEncoding"
+        android:title="Text Encoding"/>
+	
 	
 </menu>
