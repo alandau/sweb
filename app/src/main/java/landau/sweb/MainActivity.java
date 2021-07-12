@@ -130,6 +130,8 @@ import landau.sweb.MainActivity.MenuActionArrayAdapter.*;
 import java.lang.ref.*;
 import android.view.GestureDetector.*;
 import android.content.res.*;
+import android.os.*;
+import java.net.*;
 
 public class MainActivity extends Activity {
 	 
@@ -167,7 +169,7 @@ public class MainActivity extends Activity {
 		boolean isIncognito = false;
 		boolean skipTextChange = false;
 		ArrayList<String> requestsLog = new ArrayList<>();
-		String favicon;
+		Bitmap favicon;
     }
 	
 	private boolean FULL_INCOGNITO = Build.VERSION.SDK_INT >= 28;
@@ -388,10 +390,12 @@ public class MainActivity extends Activity {
 				@Override
 				public void run() {
 					final WebView currentWebView = getCurrentWebView();
-					String url = savedName(currentWebView);
-					String uniqueName = getUniqueName(downloadLocation, url, ".mht");
-					currentWebView.saveWebArchive(uniqueName);
-					Toast.makeText(MainActivity.this, "Saved " + uniqueName, Toast.LENGTH_LONG).show();
+					if (!currentWebView.getUrl().equals("about:blank")) {
+						String url = savedName(currentWebView);
+						String uniqueName = getUniqueName(downloadLocation, url, ".mht");
+						currentWebView.saveWebArchive(uniqueName);
+						Toast.makeText(MainActivity.this, "Saved " + uniqueName, Toast.LENGTH_LONG).show();
+					}
 				}
 			}),
 
@@ -1526,15 +1530,14 @@ public class MainActivity extends Activity {
         });
         webview.setWebViewClient(new WebViewClient() {
 				@Override
-				public void onPageStarted(final WebView view, final String url, final Bitmap favicon)
-				{
+				public void onPageStarted(final WebView view, final String url, final Bitmap favicon) {
 					progressBar.setProgress(0);
 					progressBar.setVisibility(View.VISIBLE);
 					if (webview.getSettings().getJavaScriptEnabled()) {
 						webview.removeJavascriptInterface("HTMLOUT");
 						webview.addJavascriptInterface(this, "HTMLOUT");
 					}
-					if (view == getCurrentWebView()) {
+					if (view.getVisibility() == View.VISIBLE) {
 						et.setText(url);
 						et.setSelection(0);
 						view.requestFocus();
@@ -1546,6 +1549,22 @@ public class MainActivity extends Activity {
 						if (t.webview == view) {
 							currentTab = t;
 						}
+					}
+					if (favicon == null) {
+						if (url.isEmpty() || url.equals("about:blank")) {
+							faviconImage.setImageResource(R.drawable.page_info);
+							faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+							faviconImage.setBackgroundColor(backgroundColor);
+							currentTab.favicon = null;
+						} else {
+							URI uri = URI.create(url);
+							new DownloadImageTask(faviconImage, currentTab)
+								.execute(uri.getScheme()+"://"+uri.getHost()+"/favicon.ico");
+						}
+					} else {
+						faviconImage.clearColorFilter();
+						faviconImage.setImageBitmap(favicon);
+						currentTab.favicon = favicon;
 					}
 					currentTab.loading = true;
 					currentTab.textChanged = false;
@@ -1622,8 +1641,8 @@ public class MainActivity extends Activity {
                     }
                 }
 				final String path = url.getPath();
-				ExceptionLogger.d(TAG, "path = " + path + ", view.getUrl() " + view.getUrl());
-				if (path != null && !url.toString().equals(view.getUrl())) {
+				//ExceptionLogger.d(TAG, "path = " + path + ", view.getUrl() " + view.getUrl());
+				if (path != null && !request.isForMainFrame()) {
 //					if (blockImages && IMAGES_PATTERN.matcher(path).matches()) {
 //						return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 //					}
@@ -1785,7 +1804,38 @@ public class MainActivity extends Activity {
 				}});
         return webview;
     }
+	private class DownloadImageTask extends AsyncTask<String, Void, Bitmap> {
+		ImageView bmImage;
+		Tab t;
+		public DownloadImageTask(ImageView bmImage, Tab t) {
+			this.bmImage = bmImage;
+			this.t = t;
+		}
 
+		protected Bitmap doInBackground(String... urls) {
+			String urldisplay = urls[0];
+			Bitmap mIcon11 = null;
+			try {
+				InputStream in = new java.net.URL(urldisplay).openStream();
+				mIcon11 = BitmapFactory.decodeStream(in);
+			} catch (Exception e) {
+				ExceptionLogger.e("Error", e);
+			}
+			return mIcon11;
+		}
+
+		protected void onPostExecute(Bitmap result) {
+			if (result != null) {
+				bmImage.clearColorFilter();
+				bmImage.setImageBitmap(result);
+				t.favicon = result;
+			} else {
+				bmImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+				bmImage.setBackgroundColor(backgroundColor);
+				t.favicon = null;
+			}
+		}
+	}
     void showLongPressMenu(final String linkUrl, final String imageUrl) {
         final String url;
         final String title;
@@ -2079,9 +2129,14 @@ public class MainActivity extends Activity {
 			//ExceptionLogger.d(TAG, getCurrentTab().sourceName + ", " + toString);
 			loadUrl(toString, currentTab.webview);
 			currentTab.sourceName = null;
+			faviconImage.setImageResource(R.drawable.page_info);
 			return;
 		}
 		currentTab.skipTextChange = true;
+		if (currentTab.favicon != null)
+			faviconImage.setImageBitmap(currentTab.favicon);
+		else
+			faviconImage.setImageResource(R.drawable.page_info);
 		if (currentTab.loading)
       		et.setText(currentTab.webview.getUrl());
 		else
@@ -2095,6 +2150,7 @@ public class MainActivity extends Activity {
 			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
 			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, displayMetrics);
             Drawable right = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
+			right.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
             right.setBounds(0, 0, size, size);
             et.setCompoundDrawables(right, null, null, null);
             et.setCompoundDrawablePadding(
@@ -3253,6 +3309,8 @@ public class MainActivity extends Activity {
             et.setCompoundDrawables(left, null, null, null);
             et.setCompoundDrawablePadding(
 				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
+		} else {
+			et.setCompoundDrawables(null, null, null, null);
 		}
 		currentTab.skipTextChange = true;
 		if (currentTab.loading)
@@ -3260,7 +3318,11 @@ public class MainActivity extends Activity {
 		else
 			et.setText(currentWebView.getTitle());
 		setTabCountText(tabs.size());
-
+		if (currentTab.favicon != null)
+			faviconImage.setImageBitmap(currentTab.favicon);
+		else
+			faviconImage.setImageResource(R.drawable.page_info);
+		
 		currentTab.webview.requestFocus();
 		currentTab.textChanged = false;
 		currentTab.skipTextChange = false;
@@ -3368,9 +3430,12 @@ public class MainActivity extends Activity {
         }
 		et.setTextColor(textColor);
 		et.setBackgroundColor(backgroundColor);
+		Drawable compoundDrawables = et.getCompoundDrawables()[0];
+		if (compoundDrawables != null)
+			compoundDrawables.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 		goStop.setColorFilter(textColor);
 		goStop.setBackgroundColor(backgroundColor);
-		faviconImage.setColorFilter(textColor);
+		faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 		faviconImage.setBackgroundColor(backgroundColor);
 		searchEdit.setTextColor(textColor);
 		searchEdit.setBackgroundColor(backgroundColor);
