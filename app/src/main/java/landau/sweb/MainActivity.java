@@ -520,6 +520,9 @@ public class MainActivity extends Activity {
 				public void run() {
 					blockCSS = !blockCSS;
 					prefs.edit().putBoolean("blockCSS", blockCSS).apply();
+					for (Tab t : tabs) {
+						t.blockCSS = blockCSS;
+					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
@@ -532,6 +535,9 @@ public class MainActivity extends Activity {
 				public void run() {
 					blockFonts = !blockFonts;
 					prefs.edit().putBoolean("blockFonts", blockFonts).apply();
+					for (Tab t : tabs) {
+						t.blockFonts = blockFonts;
+					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
@@ -544,18 +550,15 @@ public class MainActivity extends Activity {
 				public void run() {
 					blockImages = !blockImages;
 					prefs.edit().putBoolean("blockImages", blockImages).apply();
+					for (Tab t : tabs) {
+						t.blockImages = blockImages;
+						t.webview.getSettings().setBlockNetworkImage(blockImages);
+						t.webview.getSettings().setLoadsImagesAutomatically(!blockImages);
+					}
 					if (blockImages) {
-						for (Tab t : tabs) {
-							t.webview.getSettings().setBlockNetworkImage(true);
-							t.webview.getSettings().setLoadsImagesAutomatically(false);
-						}
 						showToast("Blocked Images");
 						blockImagesImageView.setImageResource(R.drawable.adblocker);
 					} else {
-						for (Tab t : tabs) {
-							t.webview.getSettings().setBlockNetworkImage(false);
-							t.webview.getSettings().setLoadsImagesAutomatically(true);
-						}
 						showToast("Unblocked Images");
 						blockImagesImageView.setImageResource(R.drawable.ic_doc_image);
 					}
@@ -571,6 +574,9 @@ public class MainActivity extends Activity {
 				public void run() {
 					blockMedia = !blockMedia;
 					prefs.edit().putBoolean("blockMedia", blockMedia).apply();
+					for (Tab t : tabs) {
+						t.blockMedia = blockMedia;
+					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
@@ -583,6 +589,11 @@ public class MainActivity extends Activity {
 				public void run() {
 					blockJavaScript = !blockJavaScript;
 					prefs.edit().putBoolean("blockJavaScript", blockJavaScript).apply();
+					for (Tab t : tabs) {
+						t.blockJavaScript = blockJavaScript;
+						t.webview.getSettings().setJavaScriptEnabled(!blockImages);
+						t.webview.getSettings().setJavaScriptCanOpenWindowsAutomatically(!blockImages);
+					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
@@ -2182,13 +2193,13 @@ public class MainActivity extends Activity {
 		}
 		if (currentTab.isIncognito) {
 			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, displayMetrics);
-            Drawable right = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
-			right.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-            right.setBounds(0, 0, size, size);
-            et.setCompoundDrawables(right, null, null, null);
+			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 18, displayMetrics);
+            Drawable left = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
+			left.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+            left.setBounds(0, 0, size, size);
+            et.setCompoundDrawables(left, null, null, null);
             et.setCompoundDrawablePadding(
-				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
+				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6, displayMetrics));
 		} else {
 			et.setCompoundDrawables(null, null, null, null);
 		}
@@ -3412,12 +3423,12 @@ public class MainActivity extends Activity {
 		Tab currentTab = getCurrentTab();
 		if (currentTab.isIncognito) {
 			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, displayMetrics);
+			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 18, displayMetrics);
             Drawable left = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
             left.setBounds(0, 0, size, size);
             et.setCompoundDrawables(left, null, null, null);
             et.setCompoundDrawablePadding(
-				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
+				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6, displayMetrics));
 		} else {
 			et.setCompoundDrawables(null, null, null, null);
 		}
@@ -3884,12 +3895,12 @@ public class MainActivity extends Activity {
 			settings.setSaveFormData(false);
 			settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, displayMetrics);
-            Drawable right = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
-            right.setBounds(0, 0, size, size);
-            et.setCompoundDrawables(right, null, null, null);
+			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 18, displayMetrics);
+            Drawable left = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
+            left.setBounds(0, 0, size, size);
+            et.setCompoundDrawables(left, null, null, null);
             et.setCompoundDrawablePadding(
-				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, displayMetrics));
+				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6, displayMetrics));
 		}
 		currentTab.loading = true;
 		currentTab.textChanged = false;
@@ -4397,10 +4408,10 @@ public class MainActivity extends Activity {
             }
             TextView v = (TextView) convertView.findViewById(android.R.id.text1);
             v.setText(completions.get(position));
-            Drawable d = mContext.getResources().getDrawable(R.drawable.commit_search, null);
+            Drawable right = mContext.getResources().getDrawable(R.drawable.commit_search, null);
             final int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32, mContext.getResources().getDisplayMetrics());
-            d.setBounds(0, 0, size, size);
-            v.setCompoundDrawables(null, null, d, null);
+            right.setBounds(0, 0, size, size);
+            v.setCompoundDrawables(null, null, right, null);
             //noinspection AndroidLintClickableViewAccessibility
             v.setOnTouchListener(new OnTouchListener() {
 					public boolean onTouch(View v1, MotionEvent event) {
