@@ -4,62 +4,73 @@
     <item
         android:id="@+id/newIgcognitoTab"
         android:title="New Igcognito Tab"/>
-
     <item
         android:id="@+id/savePageAsPdf"
         android:title="Save Page As Pdf"/>
-
     <item
         android:id="@+id/savePageAsImage"
         android:title="Save Page As Image"/>
-	
     <item
         android:id="@+id/pageInfo"
         android:title="Page Info"/>
-	
     <item
-		android:id="@+id/imageLog"
-		android:title="Image Log" />
-	
+        android:id="@+id/blockCSS"
+        android:title="Block CSS"
+		android:checkable="true"/>
     <item
-        android:id="@+id/videoInfo"
-        android:title="Video Log"/>
-
+        android:id="@+id/blockFonts"
+        android:title="Block Fonts"
+		android:checkable="true"/>
     <item
-        android:id="@+id/jsInfo"
-        android:title="JavaScript Log"/>
-
+        android:id="@+id/blockImages"
+        android:title="Block Images"
+		android:checkable="true"/>
     <item
-        android:id="@+id/cssInfo"
-        android:title="CSS Log"/>
-
+        android:id="@+id/blockMedia"
+        android:title="Block Media"
+		android:checkable="true"/>
     <item
-        android:id="@+id/allInfo"
-        android:title="All Log"/>
-
-    <item
-        android:id="@+id/closeLog"
-        android:title="Close Log"/>
-	
+        android:id="@+id/blockJavaScript"
+        android:title="Block JavaScript"
+		android:checkable="true"/>
 	<item
         android:id="@+id/shareUrl"
         android:title="Share URL"/>
-	
 	<item
         android:id="@+id/viewSource"
         android:title="View Source"/>
-
 	<item
         android:id="@+id/openInApp"
         android:title="Open In App"/>
-	
 	<item
         android:id="@+id/destopUA"
-        android:title="Desktop User Agent"/>
-	
+        android:title="Desktop User Agent"
+		android:checkable="true"/>
 	<item
         android:id="@+id/textEncoding"
         android:title="Text Encoding"/>
-	
+    <item
+		android:id="@+id/imageLog"
+		android:title="Image Log"
+		android:checkable="true"/>
+    <item
+        android:id="@+id/videoInfo"
+        android:title="Video Log"
+		android:checkable="true"/>
+    <item
+        android:id="@+id/jsInfo"
+        android:title="JavaScript Log"
+		android:checkable="true"/>
+    <item
+        android:id="@+id/cssInfo"
+        android:title="CSS Log"
+		android:checkable="true"/>
+    <item
+        android:id="@+id/allInfo"
+        android:title="All Log"
+		android:checkable="true"/>
+    <!--<item
+        android:id="@+id/closeLog"
+        android:title="Close Log"/>-->
 	
 </menu>
