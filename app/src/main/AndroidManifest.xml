@@ -21,8 +21,8 @@
         android:theme="@android:style/Theme.Holo.NoActionBar"
 		android:hardwareAccelerated="true"
 		android:largeHeap="true"
-		android:extractNativeLibs="false"
-		>
+		android:extractNativeLibs="true"
+	>
 		
         <meta-data android:name="android.webkit.WebView.EnableSafeBrowsing"
 			android:value="true" />
