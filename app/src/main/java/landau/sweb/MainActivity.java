@@ -131,6 +131,7 @@ import android.view.GestureDetector.*;
 import android.content.res.*;
 import android.os.*;
 import java.net.*;
+import android.text.*;
 
 public class MainActivity extends Activity {
 	 
@@ -186,7 +187,7 @@ public class MainActivity extends Activity {
     static final String searchUrl = "https://www.google.com/search?q=%s";
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
     static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36";
-
+	static final String androidUA = "Mozilla/5.0 (Linux; Android 9; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.90 Mobile Safari/537.36";
     static final String[] adblockRulesList = {
             "https://easylist.to/easylist/easylist.txt",
             "https://easylist.to/easylist/easyprivacy.txt",
@@ -272,6 +273,7 @@ public class MainActivity extends Activity {
 	private int textColor;
 	private int backgroundColor;
 	private String textEncoding;
+	private String deleteAfter;
 	
 	private int cacheMode;
 	private boolean isDesktopUA;
@@ -445,7 +447,7 @@ public class MainActivity extends Activity {
 					prefs.edit().putBoolean("isDesktopUA", isDesktopUA).apply();
 					WebView currentWebView = getCurrentWebView();
 					WebSettings settings = currentWebView.getSettings();
-					settings.setUserAgentString(tab.isDesktopUA ? desktopUA : null);
+					settings.setUserAgentString(tab.isDesktopUA ? desktopUA : androidUA);
 					settings.setUseWideViewPort(tab.isDesktopUA);
 					currentWebView.reload();
 				}
@@ -597,8 +599,6 @@ public class MainActivity extends Activity {
 					prefs.edit().putBoolean("blockJavaScript", blockJavaScript).apply();
 					for (Tab t : tabs) {
 						t.blockJavaScript = blockJavaScript;
-						t.webview.getSettings().setJavaScriptEnabled(!blockImages);
-						t.webview.getSettings().setJavaScriptCanOpenWindowsAutomatically(!blockImages);
 					}
 				}
 			}, new MyBooleanSupplier() {
@@ -1250,6 +1250,27 @@ public class MainActivity extends Activity {
 					deleteAllHistory();
 				}
 			}),
+		new MenuAction("Delete History After", R.drawable.ic_delete_white_36dp, new Runnable() {
+				@Override
+				public void run() {
+					final EditText editView = new EditText(MainActivity.this);
+					editView.setText(deleteAfter);
+					editView.setInputType(InputType.TYPE_NUMBER_FLAG_DECIMAL);
+					editView.setSelection(deleteAfter.length());
+					new AlertDialog.Builder(MainActivity.this)
+						.setTitle("Delete History After Days")
+						.setView(editView)
+						.setPositiveButton("Apply", new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which) {
+								deleteAfter = editView.getText().toString();
+								prefs.edit().putString("deleteAfter", deleteAfter).apply();
+								if (placesDb != null) 
+									placesDb.execSQL("DELETE FROM history WHERE date_created < DATETIME('now', '-" + deleteAfter + " day')", new Object[] {});
+							}})
+						.setNegativeButton("Cancel", new EmptyOnClickListener())
+						.show();
+				}
+			}),
 		new MenuAction("Show History", R.drawable.ic_history_black_36dp, new Runnable() {
 				@Override
 				public void run() {
@@ -1698,17 +1719,10 @@ public class MainActivity extends Activity {
 							} else if (currentTab.blockCSS && CSS_PATTERN.matcher(path).matches()) {
 								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 							} else if (currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(path).matches()) {
-//								settings.setJavaScriptEnabled(false);
-//								settings.setJavaScriptCanOpenWindowsAutomatically(false);
 								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 							} else if (currentTab.blockFonts && FONT_PATTERN.matcher(path).matches()) {
 								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 							}
-						} else {
-							settings.setBlockNetworkImage(false);
-							settings.setLoadsImagesAutomatically(true);
-							settings.setJavaScriptEnabled(true);
-							settings.setJavaScriptCanOpenWindowsAutomatically(true);
 						}
 						final Map<String, String> requestHeaders = request.getRequestHeaders();
 						if (requestSaveData) {
@@ -2117,7 +2131,7 @@ public class MainActivity extends Activity {
     private void newTabCommon(final WebView webview, boolean isIncognito) {
         //boolean isDesktopUA = !tabs.isEmpty() && getCurrentTab().isDesktopUA;
         final WebSettings settings = webview.getSettings();
-		settings.setUserAgentString(isDesktopUA ? desktopUA : null);
+		settings.setUserAgentString(isDesktopUA ? desktopUA : androidUA);
         settings.setUseWideViewPort(isDesktopUA);
 		settings.setAcceptThirdPartyCookies(accept3PartyCookies);
 		settings.setSaveFormData(saveFormData);
@@ -2398,10 +2412,6 @@ public class MainActivity extends Activity {
 										}
 									case R.id.blockJavaScript:{
 											currentTab.blockJavaScript = !currentTab.blockJavaScript;
-											WebSettings settings = currentTab.webview.getSettings();
-											settings.setJavaScriptEnabled(!currentTab.blockJavaScript);
-											settings.setJavaScriptCanOpenWindowsAutomatically(!currentTab.blockJavaScript);
-											showToast("JavaScript " + !currentTab.blockJavaScript);
 											break;
 										}
 									case R.id.blockMedia:
@@ -2457,7 +2467,7 @@ public class MainActivity extends Activity {
 										//prefs.edit().putBoolean("isDesktopUA", isDesktopUA).apply();
 										WebView currentWebView = getCurrentWebView();
 										WebSettings settings = currentWebView.getSettings();
-										settings.setUserAgentString(tab.isDesktopUA ? desktopUA : null);
+										settings.setUserAgentString(tab.isDesktopUA ? desktopUA : androidUA);
 										settings.setUseWideViewPort(tab.isDesktopUA);
 										currentWebView.reload();
 										break;
@@ -2636,6 +2646,9 @@ public class MainActivity extends Activity {
 		renderMode = prefs.getInt("renderMode", 0);
 		downloadLocation = prefs.getString("downloadLocation", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
 		textEncoding = prefs.getString("textEncoding", "UTF-8");
+		deleteAfter = prefs.getString("deleteAfter", "30");
+		if (placesDb != null)
+			placesDb.execSQL("DELETE FROM history WHERE date_created < DATETIME('now', '-" + deleteAfter + " day')", new Object[] {});
 		
 		setupToolbar(toolbar);
 		newBackgroundTab(et.getText().toString(), false);
@@ -2973,7 +2986,10 @@ public class MainActivity extends Activity {
 		final File customFilterFile = new File(getExternalFilesDir("adblock").getAbsolutePath() + "/customFilter.txt");
 		if (address == null || address.isEmpty()) {
 			try {
-				StringBuilder sb = readTextFile(customFilterFile);
+				if (!customFilterFile.exists()) {
+					customFilterFile.createNewFile();
+				}
+				final String sb = readTextFile(customFilterFile).toString().replaceAll("127.0.0.1 ", "");
 				final EditText editView = new EditText(MainActivity.this);
 				editView.setText(sb);
 				editView.setSelection(sb.length());
@@ -2983,9 +2999,15 @@ public class MainActivity extends Activity {
 					.setPositiveButton("Apply", new OnClickListener() {
 						public void onClick(DialogInterface dialog, int which) {
 							try {
-								FileWriter fr = new FileWriter(customFilterFile);
-								BufferedWriter br = new BufferedWriter(fr);
-								br.write(editView.getText().toString());
+								final FileWriter fr = new FileWriter(customFilterFile);
+								final BufferedWriter br = new BufferedWriter(fr);
+								final String[] addresses = editView.getText().toString().split("[\r\n]+");
+								String trim;
+								for (String s : addresses) {
+									trim = s.trim();
+									if (trim.length() > 0)
+										br.append("127.0.0.1 " + trim + "\n");
+								}
 								br.flush();
 								fr.flush();
 								br.close();
@@ -3002,9 +3024,9 @@ public class MainActivity extends Activity {
 			}
 		} else {
 			try {
-				FileWriter fr = new FileWriter(customFilterFile, true);
-				BufferedWriter br = new BufferedWriter(fr);
-				br.append("127.0.0.1 " + address + "\n");
+				final FileWriter fr = new FileWriter(customFilterFile, true);
+				final BufferedWriter br = new BufferedWriter(fr);
+				br.append("127.0.0.1 " + address.trim() + "\n");
 				br.flush();
 				fr.flush();
 				br.close();
@@ -3887,7 +3909,9 @@ public class MainActivity extends Activity {
                 url = guess;
             }
 			//ExceptionLogger.log("guess2 ", guess);
-		} else if (!url.equals("about:blank")) {
+		} else if (url.startsWith("content")) {
+			url = uri2RawPath(Uri.parse(url));
+        } else if (!url.equals("about:blank")) {
             url = URLUtil.composeSearchUrl(url, searchUrl, "%s");
 			WebSettings settings = webview.getSettings();
 			settings.setJavaScriptEnabled(javaScriptEnabled);
