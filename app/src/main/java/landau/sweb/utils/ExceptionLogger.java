@@ -10,6 +10,7 @@ import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import landau.sweb.*;
+import android.util.*;
 
 @SuppressWarnings("WeakerAccess")
 public class ExceptionLogger {
@@ -24,23 +25,25 @@ public class ExceptionLogger {
             e1.printStackTrace();
         }
 	}
+
 	@SuppressLint("SimpleDateFormat")
-    public static void e(final Throwable e) {
-        printWriter.println("Exception on " + simpleDateFormat.format(new Date()));
-		e.printStackTrace(printWriter);
-		printWriter.flush();
-		e.printStackTrace();
-    }
-	
-	@SuppressLint("SimpleDateFormat")
-    public static void e(final String msg, final Throwable e) {
-        printWriter.println("Exception on " + simpleDateFormat.format(new Date()));
+    public static void e(final String tag, final Throwable e) {
+        Log.w(tag, e);
+        printWriter.println(simpleDateFormat.format(new Date()) + " Exception on ");
 		e.printStackTrace(printWriter);
 		printWriter.flush();
 		e.printStackTrace();
     }
 
-	public static void d(final CharSequence tag, final CharSequence st) {
+	@SuppressLint("SimpleDateFormat")
+    public static void e(final String tag, final String st) {
+        Log.e(tag, st);
+        printWriter.println(simpleDateFormat.format(new Date()) + " Exception on " + st);
+		printWriter.flush();
+    }
+
+	public static void d(final String tag, final String st) {
+		Log.d(tag, st);
         printWriter.println(simpleDateFormat.format(new Date()) + ": " + tag + ": " + st);
 		printWriter.flush();
     }

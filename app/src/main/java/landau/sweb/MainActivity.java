@@ -156,7 +156,37 @@ public class MainActivity extends Activity {
 		public void onClick(DialogInterface p1, int p2) {
 		}
 	}
-
+//	public static String[] returnImageUrlsFromHtml(String htmlCode) {
+//        List<String> imageSrcList = new ArrayList<String>();
+//        Pattern p = Pattern.compile("<img\\b[^>]*\\bsrc\\b\\s*=\\s*('|\")?([^'\"\n\r\f>]+(\\.jpg|\\.bmp|\\.eps|\\.gif|\\.mif|\\.miff|\\.png|\\.tif|\\.tiff|\\.svg|\\.wmf|\\.jpe|\\.jpeg|\\.dib|\\.ico|\\.tga|\\.cut|\\.pic|\\b)\\b)[^>]*>", Pattern.CASE_INSENSITIVE);
+//        Matcher m = p.matcher(htmlCode);
+//        String quote = null;
+//        String src = null;
+//        while (m.find()) {
+//            quote = m.group(1);
+//            src = (quote == null || quote.trim().length() == 0) ? m.group(2).split("//s+")[0] : m.group(2);
+//            imageSrcList.add(src);
+//        }
+//        if (imageSrcList.size() == 0) {
+//            return null;
+//        }
+//        return imageSrcList.toArray(new String[imageSrcList.size()]);
+//    }
+//	public class ImageJavascriptInterface {
+//
+//		private Context context;
+//		private String[] imageUrls;    //Picture Collection
+//
+//		public ImageJavascriptInterface(Context context, String[] imageUrls) {
+//			this.context = context;
+//			this.imageUrls = imageUrls;
+//		}
+//
+//		@JavascriptInterface
+//		public void openImage(String image,int position) {
+//			//todo jump to the picture view page
+//		}
+//	}
 	private static class Tab {
         Tab(WebView w, boolean isIncognito) {
             this.webview = w;
@@ -178,6 +208,7 @@ public class MainActivity extends Activity {
 		boolean blockFonts;
 		boolean blockCSS;
 		boolean blockJavaScript;
+		String source;
 	}
 	
 	private boolean FULL_INCOGNITO = Build.VERSION.SDK_INT >= 28;
@@ -931,7 +962,7 @@ public class MainActivity extends Activity {
 						} catch (Exception e) {
 							// This shouldn't be necessary, but there are a number
 							// of KitKat devices that crash trying to set this
-							ExceptionLogger.e("Problem setting LayoutAlgorithm to TEXT_AUTOSIZING", e);
+							ExceptionLogger.e("Problem setting LayoutAlgorithm to TEXT_AUTOSIZING", e.getMessage());
 						}
 					} else {
 						settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
@@ -1486,8 +1517,12 @@ public class MainActivity extends Activity {
     }
 	
 	@JavascriptInterface
-	public void processHTML(int tabId, String html) {
-		
+	public void showSource(final String tabId, final String html) {
+		for (Tab t : tabs) {
+			if (t.toString().equals(tabId)) {
+				t.source = html;
+			}
+		}
 	}
 	
 	@SuppressLint({"SetJavaScriptEnabled", "DefaultLocale"})
@@ -1498,6 +1533,7 @@ public class MainActivity extends Activity {
 		if (bundle != null) {
             webview.restoreState(bundle);
         }
+		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
         webview.setBackgroundColor(isNightMode ? DARK_BACKGROUND : LIGHT_BACKGROUND);
         final WebSettings settings = webview.getSettings();
         settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
@@ -1519,7 +1555,7 @@ public class MainActivity extends Activity {
 				public void onShowCustomView(final View view, final CustomViewCallback callback) {
 					fullScreenView[0] = view;
 					fullScreenCallback[0] = callback;
-					MainActivity.this.findViewById(R.id.main_layout).setVisibility(View.INVISIBLE);
+					((View)MainActivity.this.findViewById(R.id.main_layout)).setVisibility(View.INVISIBLE);
 					ViewGroup fullscreenLayout = (ViewGroup) MainActivity.this.findViewById(R.id.fullScreenVideo);
 					fullscreenLayout.addView(view);
 					fullscreenLayout.setVisibility(View.VISIBLE);
@@ -1534,7 +1570,7 @@ public class MainActivity extends Activity {
 					fullscreenLayout.setVisibility(View.GONE);
 					fullScreenView[0] = null;
 					fullScreenCallback[0] = null;
-					MainActivity.this.findViewById(R.id.main_layout).setVisibility(View.VISIBLE);
+					((View)MainActivity.this.findViewById(R.id.main_layout)).setVisibility(View.VISIBLE);
 				}
 
 				@Override
@@ -1578,15 +1614,17 @@ public class MainActivity extends Activity {
 					return false;
 				}
 			});
-        webview.setWebViewClient(new WebViewClient() {
+//        String[] imgs = returnImageUrlsFromHtml(htmlData);
+//		webview.addJavascriptInterface(new ImageJavascriptInterface(MainActivity.this, imgs), "click");
+		webview.addJavascriptInterface(MainActivity.this, "HTMLOUT");
+		webview.setWebViewClient(new WebViewClient() {
 				@Override
 				public void onPageStarted(final WebView view, final String url, final Bitmap favicon) {
+					super.onPageStarted(view, url, favicon);
+					//ExceptionLogger.d(TAG, "onPageStarted " + url + ", favicon " + favicon);
 					progressBar.setProgress(0);
 					progressBar.setVisibility(View.VISIBLE);
-					if (webview.getSettings().getJavaScriptEnabled()) {
-						webview.removeJavascriptInterface("HTMLOUT");
-						webview.addJavascriptInterface(this, "HTMLOUT");
-					}
+					
 					if (view.getVisibility() == View.VISIBLE) {
 						et.setText(url);
 						et.setSelection(0);
@@ -1601,12 +1639,12 @@ public class MainActivity extends Activity {
 							break;
 						}
 					}
+					currentTab.favHref = url;
 					if (favicon == null) {
 						faviconImage.setImageResource(R.drawable.page_info);
 						faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 						faviconImage.setBackgroundColor(backgroundColor);
 						currentTab.favicon = null;
-						currentTab.favHref = null;
 					} else {
 						faviconImage.clearColorFilter();
 						faviconImage.setImageBitmap(favicon);
@@ -1619,6 +1657,8 @@ public class MainActivity extends Activity {
 
 				@Override
 				public void onPageFinished(final WebView view, final String url) {
+					super.onPageFinished(view, url);
+					//ExceptionLogger.d(TAG, "onPageFinished " + url + ", getFavicon " + view.getFavicon());
 					printWeb = view;
 					if (view == getCurrentWebView()) {
 						// Don't use the argument url here since navigation to that URL might have been
@@ -1628,6 +1668,14 @@ public class MainActivity extends Activity {
 							view.requestFocus();
 						}
 					}
+//					String jsCode = "javascript:(function(){" +
+//						"var imgs=document.getElementsByTagName(\"img\");" +
+//						"for(var i=0;i<imgs.length;i++){" +
+//						"imgs[i].pos = i;"+
+//						"imgs[i].οnclick=function(){" +
+//						"click.openImage(this.src,this.pos);" +
+//						"}}})()";
+//                    view.loadUrl(jsCode);
 					if (saveHistory 
 						&& !getCurrentTab().isIncognito
 						&& !url.startsWith("data")
@@ -1640,6 +1688,14 @@ public class MainActivity extends Activity {
 							currentTab = t;
 							break;
 						}
+					}
+					//ExceptionLogger.d(TAG, "javascript:window.HTMLOUT.showSource(" + currentTab.toString() + ", document.documentElement.outerHTML)" + ", tabId.toString() " + currentTab.toString());
+					view.loadUrl("javascript:window.HTMLOUT.showSource(\"" + currentTab.toString() + "\", document.documentElement.outerHTML)");
+					Bitmap favicon = view.getFavicon();
+					if (favicon != null) {
+						faviconImage.clearColorFilter();
+						faviconImage.setImageBitmap(favicon);
+						currentTab.favicon = favicon;
 					}
 					currentTab.favHref = url;
 					currentTab.loading = false;
@@ -1699,17 +1755,13 @@ public class MainActivity extends Activity {
 							}
 						}
 						if (FAVICON_PATTERN.matcher(path).matches()) {
-							ExceptionLogger.d(TAG, "shouldInterceptRequest.FAVICON_PATTERN " + url.toString());
-							//currentTab.favHref = url.toString();
-							URI uriHref = null;
-							String toString = url.toString();
-							//URI uri = URI.create(toString);
-							ExceptionLogger.d(TAG, "shouldInterceptRequest.uri " + url.toString());
-							if (currentTab.favHref != null &&
-								(uriHref = URI.create(currentTab.favHref)).getHost().equals(url.getHost()))
-								ExceptionLogger.d(TAG, "shouldInterceptRequest.uriTabHref " + uriHref.toString());
-							new DownloadImageTask(faviconImage, currentTab)
-								.execute(toString);
+							//ExceptionLogger.d(TAG, "shouldInterceptRequest.uri " + url.toString());
+							if (currentTab.favicon == null && !url.getScheme().equals("file") &&
+								url.getHost().equals(URI.create(currentTab.favHref).getHost())) {
+//								ExceptionLogger.d(TAG, "shouldInterceptRequest.currentTab.favHref " + currentTab.favHref);
+								new DownloadImageTask(faviconImage, currentTab)
+									.execute(url.toString());
+							}
 						} else if (url.getScheme().startsWith("http")
 								 || url.getScheme().startsWith("ftp")) {
 							if (currentTab.blockImages && IMAGES_PATTERN.matcher(path).matches()) {
@@ -1764,7 +1816,7 @@ public class MainActivity extends Activity {
 					}
 					return false;
 				}
-
+				
 				@Override
 				public void onLoadResource(final WebView view, final String url) {
 					if (isLogRequests) {
@@ -1800,37 +1852,63 @@ public class MainActivity extends Activity {
         });
         webview.setOnLongClickListener(new View.OnLongClickListener() {
 				public boolean onLongClick(android.view.View v) {
-					String url = null, imageUrl = null;
+					String url = null, imageUrl = null, text = "";
 					final WebView.HitTestResult r = ((WebView) v).getHitTestResult();
 					switch (r.getType()) {
 						case WebView.HitTestResult.SRC_ANCHOR_TYPE:
 							url = r.getExtra();
 							break;
-						case WebView.HitTestResult.IMAGE_TYPE:
-							imageUrl = r.getExtra();
-							break;
+						case WebView.HitTestResult.IMAGE_TYPE: {
+								imageUrl = r.getExtra();
+								final Handler handler = new Handler();
+								final Message message = handler.obtainMessage();
+								((WebView)v).requestFocusNodeHref(message);
+								Bundle bundle = message.getData();
+								text = bundle.getString("title");
+								if (text == null || text.length() == 0) {
+									text = bundle.getString("alt");
+									if (text == null)
+										text = "";
+								}
+//								ExceptionLogger.d(TAG, "IMAGE_TYPE.bundle: " + bundle + ", VALUE.size: " + bundle.size());
+//								for (String key : bundle.keySet()) {
+//									ExceptionLogger.d(TAG, "IMAGE_TYPE.KEY: " + key + ", VALUE: " + bundle.get(key));
+//								}
+								break;
+							}
 						case WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE:
 						case WebView.HitTestResult.EMAIL_TYPE:
 						case WebView.HitTestResult.UNKNOWN_TYPE:
 							final Handler handler = new Handler();
 							final Message message = handler.obtainMessage();
 							((WebView)v).requestFocusNodeHref(message);
-							url = message.getData().getString("url");
+							Bundle bundle = message.getData();
+							url = bundle.getString("url");
 							if ("".equals(url)) {
 								url = null;
 							}
-							imageUrl = message.getData().getString("src");
+							imageUrl = bundle.getString("src");
 							if ("".equals(imageUrl)) {
 								imageUrl = null;
 							}
 							if (url == null && imageUrl == null) {
 								return false;
 							}
+							text = bundle.getString("title");
+							if (text == null || text.length() == 0) {
+								text = bundle.getString("alt");
+								if (text == null)
+									text = "";
+							}
+//							ExceptionLogger.d(TAG, "bundle: " + bundle + ", VALUE: " + bundle.size());
+//							for (String key : bundle.keySet()) {
+//								ExceptionLogger.d(TAG, "KEY: " + key + ", VALUE: " + bundle.get(key));
+//							}
 							break;
 						default:
 							return false;
 					}
-					showLongPressMenu(url, imageUrl);
+					showLongPressMenu(url, imageUrl, text);
 					return true;
 				}});
         webview.setDownloadListener(new DownloadListener() {
@@ -1880,7 +1958,7 @@ public class MainActivity extends Activity {
 		}
 		protected Bitmap doInBackground(final String... urls) {
 			final String urldisplay = urls[0];
-			ExceptionLogger.d(TAG, "urldisplay " + urldisplay);
+			ExceptionLogger.d(TAG, "download favicon " + urldisplay);
 			Bitmap mIcon11 = null;
 			if (urldisplay != null) {
 				try {
@@ -1888,7 +1966,7 @@ public class MainActivity extends Activity {
 					mIcon11 = BitmapFactory.decodeStream(in);
 					in.close();
 				} catch (Exception e) {
-					ExceptionLogger.e("Error", e);
+					ExceptionLogger.e("Error", e.getMessage());
 				}
 			}
 			return mIcon11;
@@ -1903,17 +1981,17 @@ public class MainActivity extends Activity {
 				bmImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 				bmImage.setBackgroundColor(backgroundColor);
 				tab.favicon = null;
-				tab.favHref = null;
+				//tab.favHref = null;
 			}
 		}
 	}
-    void showLongPressMenu(final String linkUrl, final String imageUrl) {
+    void showLongPressMenu(final String linkUrl, final String imageUrl, final String text) {
         final String url;
         final String title;
-        String[] options = new String[]{"Open in background", "Open in new tab", "Add Bookmark", "Copy URL", "Show URL", "Download", "Block"};
+        String[] options = new String[]{"Open in background", "Open in new tab", "Add Bookmark", "Copy link text", "Copy link", "Show link", "Share link", "Download", "Block"};
 		final String[] imageOptions = new String[]{
-			"Open in background", "Open in new tab", "Add Bookmark", "Copy URL", "Show URL", "Download", "Block",
-			"Open image in background", "Open image in new tab", "Copy image URL", "Show image URL", "Download image"};
+			"Open in background", "Open in new tab", "Add Bookmark", "Copy link text", "Copy link", "Show link", "Share link", "Download", "Block",
+			"Open image in background", "Open image in new tab", "Copy image link", "Show image link", "Share image link", "Download image"};
 		
         if (imageUrl == null) {
             if (linkUrl == null) {
@@ -1950,42 +2028,51 @@ public class MainActivity extends Activity {
 							addBookmark(url);
 							break;
 						case 3:
-							copyClipboard("URL", url);
+							copyClipboard("Text", text.trim());
 							break;
 						case 4:
+							copyClipboard("URL", url);
+							break;
+						case 5:
 							new AlertDialog.Builder(MainActivity.this)
 								.setTitle("Full URL")
 								.setMessage(url)
 								.setPositiveButton("OK", new EmptyOnClickListener())
 								.show();
 							break;
-						case 5:
+						case 6:
+							shareUrl(url);
+							break;
+						case 7:
 							startDownload(url, null);
 							break;
-						case 6:
+						case 8:
 							if (!url.startsWith("/") && !url.startsWith("file")) {
 								final Uri parse = Uri.parse(url);
 								//ExceptionLogger.d(TAG, url + ", Authority " + parse.getAuthority() + ", Host " + parse.getHost() + ", LastPathSegment " + parse.getLastPathSegment() + ", Fragment " + parse.getFragment() + ", Path " + parse.getPath());
 								addBlockRules(parse.getHost());
 							}
 							break;
-						case 7:
+						case 9:
 							newBackgroundTab(imageUrl, getCurrentTab().isIncognito);
 							break;
-						case 8:
+						case 10:
 							newForegroundTab(imageUrl, getCurrentTab().isIncognito);
 							break;
-						case 9:
+						case 11:
 							copyClipboard("URL", imageUrl);
 							break;
-						case 10:
+						case 12:
 							new AlertDialog.Builder(MainActivity.this)
 								.setTitle("Full imageUrl")
 								.setMessage(imageUrl)
 								.setPositiveButton("OK", new EmptyOnClickListener())
 								.show();
 							break;
-						case 11:
+						case 13:
+							shareUrl(imageUrl);
+							break;
+						case 14:
 							startDownload(imageUrl, null);
 							break;
 					}
@@ -2262,7 +2349,7 @@ public class MainActivity extends Activity {
             private Thread.UncaughtExceptionHandler defaultUEH = Thread.getDefaultUncaughtExceptionHandler();
             @Override
             public void uncaughtException(final Thread t, final Throwable e) {
-                ExceptionLogger.e(e);
+                ExceptionLogger.e(TAG, e);
                 defaultUEH.uncaughtException(t, e);
             }
         });
@@ -2422,8 +2509,10 @@ public class MainActivity extends Activity {
 										String url = currentTab.webview.getUrl();
 										if (url.startsWith("http")
 											|| url.startsWith("ftp")) {
-											currentTab.sourceName = savedName(currentTab.webview) + ".txt";
-											ret = startDownload(currentTab.webview.getUrl(), currentTab.sourceName);
+											//currentTab.sourceName = savedName(currentTab.webview) + ".txt";
+											//ret = startDownload(currentTab.webview.getUrl(), currentTab.sourceName);
+											currentTab.webview.loadData(currentTab.source, "text/txt", "utf-8");
+											ret = true;
 										}
 										if (!ret && currentTab.webview.getSettings().getJavaScriptEnabled()
 											&& url.startsWith("http")
@@ -2435,15 +2524,14 @@ public class MainActivity extends Activity {
 															currentTab.webview.loadData(fixCharCode(s.replaceAll("\\\\n", "\n").replaceAll("\\\\\"", "\"").replaceAll("\\\\b", "\b").replaceAll("\\\\t", "\t").replaceAll("\\\\r", "\r")), "text/txt", "utf-8");
 														}
 													});
-											} else {
-											}
+											} 
 										} else if (url.startsWith("file")) {
 											File f = new File(Uri.decode(url).substring("file:".length()));
 											try {
 												s = readTextFile(f).toString();
 												currentTab.webview.loadData(fixCharCode(s.replaceAll("\\\\n", "\n").replaceAll("\\\\\"", "\"").replaceAll("\\\\b", "\b").replaceAll("\\\\t", "\t").replaceAll("\\\\r", "\r")), "text/txt", "utf-8");
 											} catch (IOException e) {
-												ExceptionLogger.e(e);
+												ExceptionLogger.e(TAG, e.getMessage());
 											}
 										}
 										break;
@@ -2940,7 +3028,7 @@ public class MainActivity extends Activity {
 					fos.close();
 					Toast.makeText(this, "Saved " + savedName, Toast.LENGTH_LONG).show();
                 } catch (Throwable e) {
-					ExceptionLogger.e(e);
+					ExceptionLogger.e(TAG, e.getMessage());
                 }
 			} else {
 				Toast.makeText(this, "Not available for device below Android LOLLIPOP", Toast.LENGTH_SHORT).show();
@@ -3013,14 +3101,14 @@ public class MainActivity extends Activity {
 								br.close();
 								fr.close();
 							} catch (IOException e) {
-								ExceptionLogger.e(e);
+								ExceptionLogger.e(TAG, e.getMessage());
 							}
 							initAdblocker();
 						}})
 					.setNegativeButton("Cancel", new EmptyOnClickListener())
 					.show();
 			} catch (IOException e) {
-				ExceptionLogger.e(e);
+				ExceptionLogger.e(TAG, e.getMessage());
 			}
 		} else {
 			try {
@@ -3032,7 +3120,7 @@ public class MainActivity extends Activity {
 				br.close();
 				fr.close();
 			} catch (IOException e) {
-				ExceptionLogger.e(e);
+				ExceptionLogger.e(TAG, e.getMessage());
 			}
 			initAdblocker();
 		}
@@ -3232,14 +3320,16 @@ public class MainActivity extends Activity {
 		assert clipboard != null;
 		ClipData clipData = ClipData.newPlainText(label, text);
 		clipboard.setPrimaryClip(clipData);
-		showToast("Copied " + text + " to clipboard");
+		showToast("Copied \"" + text + "\" to clipboard");
 	}
 
     void addHistory() {
-        if (placesDb == null) return;
+        if (placesDb == null)
+			return;
         ContentValues values = new ContentValues(2);
-        values.put("title", getCurrentWebView().getTitle());
-        values.put("url", getCurrentWebView().getUrl());
+        WebView currentWebView = getCurrentWebView();
+		values.put("title", currentWebView.getTitle());
+        values.put("url", currentWebView.getUrl());
         placesDb.insert("history", null, values);
     }
 
@@ -3537,7 +3627,7 @@ public class MainActivity extends Activity {
 			try {
 				cur = cr.query(uri, null, null, null, null);
 			} catch (Exception e) {
-				ExceptionLogger.e(e);
+				ExceptionLogger.e(TAG, e);
 			}
 			if (cur != null) {
 				cur.moveToFirst();
@@ -3898,21 +3988,23 @@ public class MainActivity extends Activity {
 					return;
 				}
 			}
-		} else if (url.indexOf(' ') == -1 && Patterns.WEB_URL.matcher(url).matches()) {
-            final int indexOfHash = url.indexOf('#');
-            final String guess = URLUtil.guessUrl(url);
-			//ExceptionLogger.log("guess1 ", guess);
-			if (indexOfHash != -1 && guess.indexOf('#') == -1) {
-                // Hash exists in original URL but no hash in guessed URL
-                url = guess + url.substring(indexOfHash);
-            } else {
-                url = guess;
-            }
-			//ExceptionLogger.log("guess2 ", guess);
 		} else if (url.startsWith("content")) {
 			url = uri2RawPath(Uri.parse(url));
-        } else if (!url.equals("about:blank")) {
-            url = URLUtil.composeSearchUrl(url, searchUrl, "%s");
+        } else {
+			if (url.indexOf(' ') == -1 && Patterns.WEB_URL.matcher(url).matches()) {
+				final int indexOfHash = url.indexOf('#');
+				final String guess = URLUtil.guessUrl(url);
+				//ExceptionLogger.log("guess1 ", guess);
+				if (indexOfHash != -1 && guess.indexOf('#') == -1) {
+					// Hash exists in original URL but no hash in guessed URL
+					url = guess + url.substring(indexOfHash);
+				} else {
+					url = guess;
+				}
+				//ExceptionLogger.log("guess2 ", guess);
+			} else if (!url.equals("about:blank")) {
+				url = URLUtil.composeSearchUrl(url, searchUrl, "%s");
+			}
 			WebSettings settings = webview.getSettings();
 			settings.setJavaScriptEnabled(javaScriptEnabled);
 			settings.setJavaScriptCanOpenWindowsAutomatically(javaScriptCanOpenWindowsAutomatically);
@@ -3939,7 +4031,6 @@ public class MainActivity extends Activity {
 			if (currentTab.isIncognito) {
 				mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW;
 			} else {
-				// We're in Incognito mode, reject
 				mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE;
 			}
 		} 
@@ -3985,7 +4076,7 @@ public class MainActivity extends Activity {
 	private long mBackPressed = System.nanoTime();
     @Override
     public void onBackPressed() {
-        if (findViewById(R.id.fullScreenVideo).getVisibility() == View.VISIBLE && fullScreenCallback[0] != null) {
+        if (((View)findViewById(R.id.fullScreenVideo)).getVisibility() == View.VISIBLE && fullScreenCallback[0] != null) {
             fullScreenCallback[0].onCustomViewHidden();
         } else if (getCurrentWebView().canGoBack()) {
             getCurrentWebView().goBack();
