@@ -14,7 +14,7 @@ import android.util.*;
 
 @SuppressWarnings("WeakerAccess")
 public class ExceptionLogger {
-    private static final File file = new File(MainActivity.externalLogFilesDir, "sweb_" + new SimpleDateFormat("yyyyMMdd HHmmss").format(new Date()) + ".log");
+    public static final File file = new File(MainActivity.externalLogFilesDir, "sweb_" + new SimpleDateFormat("yyyyMMdd HHmmss").format(new Date()) + ".log");
 	private static final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	
 	private static PrintWriter printWriter;

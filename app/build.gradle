@@ -8,7 +8,7 @@ android {
         minSdkVersion 21
         targetSdkVersion 24
         versionCode 9
-        versionName "1.5.5e"
+        versionName "1.5.5f"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         resValue "string", "app_name", "SWeb"
     }
