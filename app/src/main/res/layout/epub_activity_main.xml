@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+	xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/scroll"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content" >
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:paddingBottom="12dp"
+		android:paddingLeft="16dp"
+		android:paddingRight="16dp"
+		android:paddingTop="12dp" >
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+
+			<TextView
+				android:id="@+id/filesLbl"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="File: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/files"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:text=""
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<Button
+				android:id="@+id/filesBtn"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:onClick="fileBtn"
+				android:textStyle="bold"
+				android:text="..." />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+			<TextView
+				android:id="@+id/titleLbl"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Title: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/title"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:text=""
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+			<TextView
+				android:id="@+id/authorLbl"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Author: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/author"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:text=""
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+
+			<TextView
+				android:id="@+id/coverLbl"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Cover: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/coverFiles"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:text=""
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<Button
+				android:id="@+id/coverFilesBtn"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:onClick="coverFilesBtn"
+				android:textStyle="bold"
+				android:text="..." />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+
+			<TextView
+				android:id="@+id/startLbl"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Start Page: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/startPage"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:text=""
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<Button
+				android:id="@+id/startPageBtn"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:onClick="startPageBtn"
+				android:textStyle="bold"
+				android:text="..." />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+
+			<TextView
+				android:id="@+id/saveToLbl"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Save to: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/saveTo"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:text=""
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<Button
+				android:id="@+id/saveToBtn"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:onClick="saveToBtn"
+				android:textStyle="bold"
+				android:text="..." />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+
+			<TextView
+				android:id="@+id/includeLbl"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Include Pattern: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/include"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:singleLine="true"
+				android:text=".*?\\.(([xds]?ht(m?|ml))|xml|svg|jpg|jpeg|png|ico|bmp|pcx|gif|webp|webm|tif|tiff|css|js|php)"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+		</LinearLayout>
+
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+
+			<TextView
+				android:id="@+id/excludeLbl"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Exclude Pattern: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/exclude"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:singleLine="true"
+				android:text=""
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+		</LinearLayout>
+
+
+		<Button
+			android:id="@+id/okDir"
+			android:layout_width="200dp"
+			android:layout_height="wrap_content"
+			android:layout_gravity="center"
+			android:onClick="createBook"
+			android:text="Create"
+			android:textStyle="bold"
+			/>
+
+    </LinearLayout>
+
+</ScrollView>
+

@@ -28,11 +28,13 @@
 		android:extractNativeLibs="true"
 	>
 		
-        <meta-data android:name="android.webkit.WebView.EnableSafeBrowsing"
+        <meta-data
+			android:name="android.webkit.WebView.EnableSafeBrowsing"
 			android:value="true" />
         <activity
             android:name="landau.sweb.MainActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:label="SWeb"
+			android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
             android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -77,6 +79,38 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
             </intent-filter>
+        </activity>
+		
+		<activity
+            android:name="landau.sweb.EPUBActivity"
+            android:icon="@drawable/epub_converter"
+        	android:label="EPUB Converter"
+			android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.BROWSABLE" />
+				<category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+				<category android:name="android.intent.category.IOT_LAUNCHER"/>
+				<category android:name="android.intent.category.MULTIWINDOW_LAUNCHER"/>
+            </intent-filter>
+            
+
+            <intent-filter>
+				<action android:name="android.intent.action.SEND" />
+				<action android:name="android.intent.action.SEND_MULTIPLE" />
+				<action android:name="android.intent.action.SENDTO" />
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.OPENABLE"/>
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            
         </activity>
 		
 		<!--<activity
