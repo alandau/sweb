@@ -256,8 +256,8 @@ public class AndroidUtils {
 			if (f.isDirectory()) {
 				folderQueue.push(f);
 			} else if ((includePat == null && excludePat == null)
-					   || (includePat != null && includePat.matcher(name).matches()
-					   && excludePat != null && !excludePat.matcher(name).matches())
+					   || (includePat != null && excludePat != null
+					   && includePat.matcher(name).matches() && !excludePat.matcher(name).matches())
 					   || (includePat != null && includePat.matcher(name).matches())
 					   || (excludePat != null && !excludePat.matcher(name).matches())) {
 				fList.add(f);
@@ -274,8 +274,8 @@ public class AndroidUtils {
 						} else {
 							name = f2.getName();
 							if ((includePat == null && excludePat == null)
-								|| (includePat != null && includePat.matcher(name).matches()
-								&& excludePat != null && !excludePat.matcher(name).matches())
+								|| (includePat != null && excludePat != null
+								&& includePat.matcher(name).matches() && !excludePat.matcher(name).matches())
 								|| (includePat != null && includePat.matcher(name).matches())
 								|| (excludePat != null && !excludePat.matcher(name).matches())) {
 								fList.add(f2);

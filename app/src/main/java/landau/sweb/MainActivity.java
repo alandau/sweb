@@ -125,7 +125,6 @@ import android.os.storage.*;
 import android.webkit.*;
 import android.view.*;
 import android.util.*;
-import landau.sweb.MainActivity.MenuActionArrayAdapter.*;
 import java.lang.ref.*;
 import android.view.GestureDetector.*;
 import android.content.res.*;
@@ -3134,11 +3133,11 @@ public class MainActivity extends Activity {
 //			this.date = date;
 //		}
 //	}
-	int pos = -1;
-	void showHistory() {
+	private Cursor cursorHistory;
+	private void showHistory() {
         if (placesDb == null)
 			return;
-        final Cursor cursor = placesDb.rawQuery("SELECT title, url, date_created, _id FROM history ORDER BY date_created DESC", null);
+        cursorHistory = placesDb.rawQuery("SELECT title, url, date_created, _id FROM history ORDER BY date_created DESC", null);
 //		final List<HistoryData> list = new ArrayList<>(cursor.getCount());
 //		final int columnId = cursor.getColumnIndex("_id");
 //		final int columnTitle = cursor.getColumnIndex("title");
@@ -3161,7 +3160,7 @@ public class MainActivity extends Activity {
 //		}
         final SimpleCursorAdapter adapter = new SimpleCursorAdapter(this,
 																	R.layout.list_item,
-																	cursor,
+																	cursorHistory,
 																	new String[] { "title", "url", "date_created" },
 																	new int[] { R.id.name, R.id.domain , R.id.lastAccessed });
 		final AlertDialog dialog = new AlertDialog.Builder(this)
@@ -3169,11 +3168,11 @@ public class MainActivity extends Activity {
 			.setPositiveButton("OK", new EmptyOnClickListener())
 			.setOnDismissListener(new OnDismissListener() {
 				public void onDismiss(DialogInterface p1) {
-					cursor.close();}})
+					cursorHistory.close();}})
 			.setAdapter(adapter, new OnClickListener() {
 				public void onClick(DialogInterface dialog, int which) {
-					cursor.moveToPosition(which);
-					String url = cursor.getString(cursor.getColumnIndex("url"));
+					cursorHistory.moveToPosition(which);
+					String url = cursorHistory.getString(cursorHistory.getColumnIndex("url"));
 					et.requestFocus();
 					et.setText(url);
 					loadUrl(url, getCurrentWebView());
@@ -3190,11 +3189,10 @@ public class MainActivity extends Activity {
         final ListView listView = dialog.getListView();
 		listView.setOnItemLongClickListener(new OnItemLongClickListener() {
 				public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, final long id) {
-					cursor.moveToPosition(position);
-					final int rowid = cursor.getInt(cursor.getColumnIndex("_id"));
-					final String title = cursor.getString(cursor.getColumnIndex("title"));
-					final String url = cursor.getString(cursor.getColumnIndex("url"));
-					//dialog.dismiss();
+					cursorHistory.moveToPosition(position);
+					final int rowid = cursorHistory.getInt(cursorHistory.getColumnIndex("_id"));
+					final String title = cursorHistory.getString(cursorHistory.getColumnIndex("title"));
+					final String url = cursorHistory.getString(cursorHistory.getColumnIndex("url"));
 					new AlertDialog.Builder(MainActivity.this)
 						.setTitle(title)
 						.setItems(new String[] {"Add bookmark", "Copy link", "Show URL", "Share link", "Delete"}, new OnClickListener() {
@@ -3217,10 +3215,10 @@ public class MainActivity extends Activity {
 										shareUrl(url);
 										break;
 									case 4:
+										cursorHistory.close();
 										placesDb.execSQL("DELETE FROM history WHERE _id = ?", new Object[] {rowid});
-										pos = position;
-										dialog.dismiss();
-										showHistory();
+										cursorHistory = placesDb.rawQuery("SELECT title, url, date_created, _id FROM history ORDER BY date_created DESC", null);
+										adapter.swapCursor(cursorHistory);
 										break;
 								}
 							}})
@@ -3228,14 +3226,11 @@ public class MainActivity extends Activity {
 					return true;
 				}});
         dialog.show();
-		if (pos > 0) {
-			listView.scrollTo(0, pos);
-			pos = -1;
-		}
 	}
 
-    void showBookmarks() {
-        if (placesDb == null) return;
+    private void showBookmarks() {
+        if (placesDb == null)
+			return;
         final Cursor cursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
         final AlertDialog dialog = new AlertDialog.Builder(this)
 			.setTitle("Bookmarks")
@@ -3271,10 +3266,11 @@ public class MainActivity extends Activity {
 												.setTitle("Rename bookmark")
 												.setView(editView)
 												.setPositiveButton("Rename", new OnClickListener() {
-													public void onClick(DialogInterface dialog, int which) {
+													public void onClick(DialogInterface dlg, int which) {
+														cursor.close();
 														placesDb.execSQL("UPDATE bookmarks SET title=? WHERE _id=?", new Object[] {editView.getText(), rowid});
-														dialog.dismiss();
 														showBookmarks();
+														dialog.dismiss();
 													}})
 												.setNegativeButton("Cancel", new EmptyOnClickListener())
 												.show();
@@ -3287,10 +3283,11 @@ public class MainActivity extends Activity {
 												.setTitle("Change bookmark URL")
 												.setView(editView)
 												.setPositiveButton("Change URL", new OnClickListener() {
-													public void onClick(DialogInterface dialog, int which) {
+													public void onClick(DialogInterface dlg, int which) {
+														cursor.close();
 														placesDb.execSQL("UPDATE bookmarks SET url=? WHERE _id=?", new Object[] {editView.getText(), rowid});
-														dialog.dismiss();
 														showBookmarks();
+														dialog.dismiss();
 													}})
 												.setNegativeButton("Cancel", new EmptyOnClickListener())
 												.show();
@@ -3304,9 +3301,10 @@ public class MainActivity extends Activity {
 										shareUrl(url);
 										break;
 									case 4:
+										cursor.close();
 										placesDb.execSQL("DELETE FROM bookmarks WHERE _id = ?", new Object[] {rowid});
-										dialog.dismiss();
 										showBookmarks();
+										dialog.dismiss();
 										break;
 								}
 							}})
@@ -3332,39 +3330,39 @@ public class MainActivity extends Activity {
     }
 
 	private void copyClipboard(CharSequence label, CharSequence text) {
-		ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+		final ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
 		assert clipboard != null;
-		ClipData clipData = ClipData.newPlainText(label, text);
+		final ClipData clipData = ClipData.newPlainText(label, text);
 		clipboard.setPrimaryClip(clipData);
 		AndroidUtils.toast(MainActivity.this, "Copied \"" + text + "\" to clipboard");
 	}
 
-    void addHistory() {
+    private void addHistory() {
         if (placesDb == null)
 			return;
-        ContentValues values = new ContentValues(2);
-        WebView currentWebView = getCurrentWebView();
+        final ContentValues values = new ContentValues(2);
+        final WebView currentWebView = getCurrentWebView();
 		values.put("title", currentWebView.getTitle());
         values.put("url", currentWebView.getUrl());
         placesDb.insert("history", null, values);
     }
 
-    void addBookmark() {
-        WebView currentWebView = getCurrentWebView();
+    private void addBookmark() {
+        final WebView currentWebView = getCurrentWebView();
 		addBookmark(currentWebView.getUrl(), currentWebView.getTitle());
 	}
 
-    void addBookmark(String url, String title) {
+    private void addBookmark(String url, String title) {
         if (placesDb == null || url.isEmpty() || url.equalsIgnoreCase("about:blank"))
 			return;
-        ContentValues values = new ContentValues(2);
+        final ContentValues values = new ContentValues(2);
         values.put("title", title);
 		values.put("url", url);
         placesDb.insert("bookmarks", null, values);
 		AndroidUtils.toast(MainActivity.this, "Added " + url + " to bookmarks");
 	}
 
-    void exportBookmarks() {
+    private void exportBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
 				.setTitle("Export bookmarks error")
@@ -3427,7 +3425,7 @@ public class MainActivity extends Activity {
     }
 
     @SuppressLint("DefaultLocale")
-    void importBookmarks() {
+    private void importBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
 				.setTitle("Import bookmarks error")
@@ -3504,7 +3502,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    void deleteAllBookmarks() {
+    private void deleteAllBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
 				.setTitle("Bookmarks error")
@@ -3523,7 +3521,7 @@ public class MainActivity extends Activity {
 			.show();
     }
 
-    void deleteAllHistory() {
+    private void deleteAllHistory() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
 				.setTitle("History error")
@@ -3542,7 +3540,7 @@ public class MainActivity extends Activity {
 			.show();
     }
 
-    void closeCurrentTab() {
+    private void closeCurrentTab() {
         WebView currentWebView = getCurrentWebView();
 		String url = currentWebView.getUrl();
 		if (url != null && !url.equals("about:blank")) {
@@ -3647,7 +3645,7 @@ public class MainActivity extends Activity {
         }
     }
 	
-    public void onNightModeChange() {
+    private void onNightModeChange() {
 		if (isNightMode) {
             textColor = Color.rgb(0xe0, 0xe0, 0xe0);
             backgroundColor = Color.rgb(0x22, 0x22, 0x22);
@@ -3859,7 +3857,7 @@ public class MainActivity extends Activity {
 		}
 	}
 
-    void showShortMenu() {
+    private void showShortMenu() {
         final ArrayList<MenuAction> shortMenuActions = new ArrayList<>(shortMenu.length);
         for (int i = 0; i < shortMenu.length; i++) {
             shortMenuActions.add(getAction(shortMenu[i]));
@@ -3885,7 +3883,7 @@ public class MainActivity extends Activity {
 		alertDialog.show();
     }
 
-    void showFullMenu() {
+    private void showFullMenu() {
 		final ArrayList<MenuAction> copyOfRange = new ArrayList<MenuAction>(menuActions.length - toolbarActions.length*toolbarActions[0].length);
 		for (MenuAction ma : menuActions) {
 			boolean exist = false;
@@ -3924,7 +3922,7 @@ public class MainActivity extends Activity {
 		alertDialog.show();
     }
 
-    void shareUrl(String url) {
+    private void shareUrl(String url) {
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
         intent.putExtra(Intent.EXTRA_TEXT, url);
@@ -4056,7 +4054,7 @@ public class MainActivity extends Activity {
 	private long mBackPressed = System.nanoTime();
     @Override
     public void onBackPressed() {
-        if (((View)findViewById(R.id.fullScreenVideo)).getVisibility() == View.VISIBLE && fullScreenCallback[0] != null) {
+        if ((findViewById(R.id.fullScreenVideo)).getVisibility() == View.VISIBLE && fullScreenCallback[0] != null) {
             fullScreenCallback[0].onCustomViewHidden();
         } else if (getCurrentWebView().canGoBack()) {
             getCurrentWebView().goBack();
@@ -4164,7 +4162,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    boolean hasOrRequestPermission(final String permission, String explanation, final int requestCode) {
+    private boolean hasOrRequestPermission(final String permission, String explanation, final int requestCode) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return true;
         }
@@ -4313,8 +4311,8 @@ public class MainActivity extends Activity {
             return true;
         }
     }
-	class LogArrayAdapter extends ArrayAdapter<String> implements View.OnClickListener {
-		CharSequence recentConstraint;
+	private class LogArrayAdapter extends ArrayAdapter<String> implements View.OnClickListener {
+		private CharSequence recentConstraint;
 		class Holder {
 			final TextView textView;
 			String item;
@@ -4399,7 +4397,7 @@ public class MainActivity extends Activity {
 			return filter;
 		}
     }
-    static class ArrayAdapterWithCurrentItem<T> extends ArrayAdapter<T> {
+    private static class ArrayAdapterWithCurrentItem<T> extends ArrayAdapter<T> {
         int currentIndex;
 
         ArrayAdapterWithCurrentItem(@NonNull Context context, int resource, @NonNull T[] objects, int currentIndex) {
@@ -4480,7 +4478,7 @@ public class MainActivity extends Activity {
 //        }
 //    }
 
-    static class MenuActionArrayAdapter extends ArrayAdapter<MenuAction> implements View.OnClickListener {
+    private static class MenuActionArrayAdapter extends ArrayAdapter<MenuAction> implements View.OnClickListener {
 		DisplayMetrics m;
 		int size;
 		class Holder {
@@ -4558,7 +4556,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    static class SearchAutocompleteAdapter extends BaseAdapter implements Filterable {
+    private static class SearchAutocompleteAdapter extends BaseAdapter implements Filterable {
 
         interface OnSearchCommitListener {
             void onSearchCommit(String text);
