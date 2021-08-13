@@ -3595,7 +3595,7 @@ public class MainActivity extends Activity {
 		currentTab.skipTextChange = false;
 	}
 
-    private String getUrlFromIntent(Intent intent) {
+    private String getUrlFromIntent(final Intent intent) {
 //		ExceptionLogger.log(TAG, "getUrlFromIntent " + intent.getAction());
 //		ExceptionLogger.log(TAG, "getDataString " + intent.getDataString());
 //		ExceptionLogger.log(TAG, "Intent.EXTRA_TEXT " + intent.getStringExtra(Intent.EXTRA_TEXT));
@@ -3605,9 +3605,14 @@ public class MainActivity extends Activity {
 			|| Intent.ACTION_VIEW.equals(intent.getAction())
 			|| Intent.ACTION_SENDTO.equals(intent.getAction())) {
 			Uri uri = intent.getData();
-				ExceptionLogger.d(TAG, "URI to open is: " + uri + ", intent " + intent + ", " + intent.getClipData());
+			ExceptionLogger.d(TAG, "URI to open is: " + uri + ", intent " + intent + ", " + intent.getClipData());
 			if (uri != null) {
-				return AndroidUtils.getPath(MainActivity.this, uri);
+				final String scheme = uri.getScheme();
+				if (!scheme.startsWith("http") && !scheme.startsWith("ftp")) {
+					return AndroidUtils.getPath(MainActivity.this, uri);
+				} else {
+					return uri.toString();
+				}
 			} else {
 				final ClipData clip = intent.getClipData();
 				if (clip != null) {
