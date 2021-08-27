@@ -4,11 +4,11 @@ android {
     buildToolsVersion '27.0.3'
     compileSdkVersion 27
     defaultConfig {
-        applicationId "net.gnu.sweb"
+        applicationId "landau.sweb"
         minSdkVersion 21
         targetSdkVersion 24
         versionCode 9
-        versionName "1.5.6a"
+        versionName "1.5.6b"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         resValue "string", "app_name", "SWeb"
     }
@@ -59,6 +59,7 @@ dependencies {
 	//compile 'org.slf4j:slf4j-api:1.7.25'
 	//compile "net.sf.kxml:kxml2:2.3.0"
 	
+	compile 'org.jsoup:jsoup:1.14.2'
 	
     //testImplementation 'junit:junit:4.12'
     //androidTestImplementation 'com.android.support.test:runner:1.0.1'
