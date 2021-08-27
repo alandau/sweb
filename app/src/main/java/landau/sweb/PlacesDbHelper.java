@@ -16,7 +16,7 @@ public class PlacesDbHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE bookmarks (_id INTEGER PRIMARY KEY, title TEXT, url TEXT UNIQUE)");
-		db.execSQL("CREATE TABLE history (_id INTEGER PRIMARY KEY, title TEXT, url TEXT, date_created datetime default current_timestamp)");
+		db.execSQL("CREATE TABLE history (_id INTEGER PRIMARY KEY, title TEXT, url TEXT, date_created datetime default CURRENT_TIMESTAMP, CONSTRAINT unidate UNIQUE (url, date_created))");
     }
 
     @Override

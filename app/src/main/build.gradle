@@ -6,9 +6,9 @@ android {
     defaultConfig {
         applicationId "net.gnu.sweb"
         minSdkVersion 21
-        targetSdkVersion 23
-        versionCode 7
-        versionName "1.5.1"
+        targetSdkVersion 24
+        versionCode 9
+        versionName "1.5.6b"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         resValue "string", "app_name", "SWeb"
     }
@@ -50,7 +50,16 @@ repositories {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:support-annotations:24.1.1'
+    //compile 'com.android.support:support-annotations:24.1.1'
+	//compile ('nl.siegmann.epublib:epublib-core:+') {
+    //    exclude group: 'org.slf4j'
+    //    exclude group: 'xmlpull'
+    //}
+    //compile 'org.slf4j:slf4j-android:1.7.25'
+	//compile 'org.slf4j:slf4j-api:1.7.25'
+	//compile "net.sf.kxml:kxml2:2.3.0"
+	compile 'org.jsoup:jsoup:+'
+	
     //testImplementation 'junit:junit:4.12'
     //androidTestImplementation 'com.android.support.test:runner:1.0.1'
     //androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'

@@ -113,8 +113,7 @@ public class AndroidUtils {
 	
 	@TargetApi(Build.VERSION_CODES.KITKAT)
     public static String getPath(final Context context, final Uri uri) {
-//		ExceptionLogger.d(TAG, "uri.getAuthority() " + uri.getAuthority());
-//      ExceptionLogger.d(TAG, "uri.getPath() " + uri.getPath());
+		ExceptionLogger.d(TAG, "uri.authority " + uri.getAuthority() + ", uri.path " + uri.getPath());
 //		ExceptionLogger.d(TAG, "DocumentsContract.isDocumentUri " + DocumentsContract.isDocumentUri(context, uri));
 //      ExceptionLogger.d(TAG, "DocumentsContract.isTreeUri " + DocumentsContract.isTreeUri(uri));
         
@@ -244,6 +243,9 @@ public class AndroidUtils {
      */
     public static boolean isGooglePhotosUri(final Uri uri) {
         return "com.google.android.apps.photos.content".equals(uri.getAuthority());
+    }
+}
+ent".equals(uri.getAuthority());
     }
 
 	public static List<File> getFiles(final File f, final Pattern includePat, final Pattern excludePat) {

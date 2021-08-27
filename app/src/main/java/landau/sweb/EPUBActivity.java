@@ -1,23 +1,25 @@
 package landau.sweb;
 
 import android.app.*;
+import android.content.*;
+import android.database.*;
+import android.net.*;
 import android.os.*;
-import java.io.*;
-import landau.sweb.utils.*;
-import net.gnu.sweb.*;
-import android.widget.*;
-import android.view.View.*;
+import android.provider.*;
+import android.util.*;
 import android.view.*;
-import nl.siegmann.epublib.domain.*;
-import nl.siegmann.epublib.epub.*;
-import android.text.*;
+import android.widget.*;
+import java.io.*;
+import java.net.*;
 import java.util.*;
 import java.util.regex.*;
-import android.net.*;
-import android.content.*;
-import java.net.*;
-import android.provider.*;
-import android.database.*;
+import landau.sweb.utils.*;
+import net.gnu.sweb.*;
+import nl.siegmann.epublib.domain.*;
+import nl.siegmann.epublib.epub.*;
+import org.jsoup.*;
+import org.jsoup.nodes.*;
+import android.webkit.*;
 
 public class EPUBActivity extends Activity {
 	
@@ -119,6 +121,7 @@ public class EPUBActivity extends Activity {
 					final String title = titleET.getText().toString().trim();
 					if (title.length() > 0) {
 						metadata.addTitle(title);
+						ExceptionLogger.d("title", title);
 					}
 					final String author = authorET.getText().toString().trim();
 					if (author.length() > 0) {
@@ -129,6 +132,7 @@ public class EPUBActivity extends Activity {
 						} else {
 							metadata.addAuthor(new Author("", author));
 						}
+						ExceptionLogger.d("author", author);
 					}
 
 					final String startPage = startPageET.getText().toString().trim();
@@ -136,10 +140,12 @@ public class EPUBActivity extends Activity {
 					if (startPage.length() > 0 && fstart.exists() && fstart.isFile()) {
 						book.addSection(fstart.getName(),
 										getResource(startPage, lengthDir));
+						ExceptionLogger.d("startPage", startPage);
 					}
 					final String coverImage = coverImageET.getText().toString().trim();
 					if (coverImage.length() > 0 && new File(coverImage).exists()) {
 						book.setCoverImage(getResource(coverImage, lengthDir));
+						ExceptionLogger.d("coverImage", coverImage);
 					}
 					Pattern includePat = null, excludePat = null;
 					final String include = includeET.getText().toString().trim();
@@ -150,7 +156,7 @@ public class EPUBActivity extends Activity {
 					if (exclude.length() > 0) {
 						excludePat = Pattern.compile(exclude, Pattern.CASE_INSENSITIVE);
 					}
-					final List<File> fs = AndroidUtils.getFiles(f, includePat, excludePat);
+					final List<File> fs = FileUtil.getFiles(f, includePat, excludePat);
 					Collections.sort(fs, new Comparator<File>() {
 							@Override
 							public int compare(final File file1, final File file2) {
@@ -158,17 +164,29 @@ public class EPUBActivity extends Activity {
 							}
 						});
 					String name;
+					Document doc;
+					String htmlTitle;
+					String absolutePath;
 					for (File ff : fs) {
-						if (!startPage.equalsIgnoreCase(ff.getAbsolutePath())) {
+						absolutePath = ff.getAbsolutePath();
+						if (!startPage.equalsIgnoreCase(absolutePath)
+							&& !coverImage.equalsIgnoreCase(absolutePath)) {
 							name = ff.getName();
 							if (HTML_PATTERN.matcher(name).matches()) {
-								book.addSection(name,
-												getResource(ff.getAbsolutePath(), lengthDir));
-
+								doc = Jsoup.parse(ff, null);
+								htmlTitle = doc.title();
+								ExceptionLogger.d("htmlTitle", htmlTitle);
+								//ExceptionLogger.d("readHtml", FileUtil.readHtml(ff));
+								if (htmlTitle != null && htmlTitle.length() > 0) {
+									book.addSection(htmlTitle + "_" + name,
+													getResource(absolutePath, lengthDir));
+								} else {
+									book.addSection(name,
+													getResource(absolutePath, lengthDir));
+								}
 							} else {
 								book.getResources().add(
-									getResource(ff.getAbsolutePath(),
-												lengthDir));
+									getResource(absolutePath, lengthDir));
 							}
 						}
 					}

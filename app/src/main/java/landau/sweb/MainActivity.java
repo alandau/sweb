@@ -1674,7 +1674,7 @@ public class MainActivity extends Activity {
 						&& !currentTab.isIncognito
 						&& !url.startsWith("data")
 						&& !url.equals("about:blank")) {
-						addHistory();
+						addHistory(view, url);
 					}
 					//ExceptionLogger.d(TAG, "javascript:window.HTMLOUT.showSource(" + currentTab.toString() + ", document.documentElement.outerHTML)" + ", tabId.toString() " + currentTab.toString());
 					view.loadUrl("javascript:window.HTMLOUT.showSource(\"" + currentTab.toString() + "\", document.documentElement.outerHTML)");
@@ -2862,8 +2862,9 @@ public class MainActivity extends Activity {
     }
 
     void showOpenTabs() {
-        final String[] items = new String[tabs.size()];
-        for (int i = 0; i < tabs.size(); i++) {
+        final int size = tabs.size();
+		final String[] items = new String[size];
+        for (int i = 0; i < size; i++) {
             items[i] = tabs.get(i).webview.getTitle();
         }
         final ArrayAdapter<String> adapter = new ArrayAdapterWithCurrentItem<String>(
@@ -2879,8 +2880,9 @@ public class MainActivity extends Activity {
         if (!closedTabs.isEmpty()) {
             tabsDialog.setNeutralButton("Undo closed tabs", new OnClickListener() {
 					public void onClick(final DialogInterface dialog, final int which) {
-						final String[] items1 = new String[closedTabs.size()];
-						for (int i = 0; i < closedTabs.size(); i++) {
+						final int size = closedTabs.size();
+						final String[] items1 = new String[size];
+						for (int i = 0; i < size; i++) {
 							items1[i] = closedTabs.get(i).title;
 						}
 						final AlertDialog undoClosedTabsDialog = new AlertDialog.Builder(MainActivity.this)
@@ -3121,162 +3123,205 @@ public class MainActivity extends Activity {
         });
     }
 	
-//	public class HistoryData {
-//		int id;
-//		String title;
-//		String url;
-//		Date date;
-//		public HistoryData(int id, String title, String url, Date date) {
-//			this.id = id;
-//			this.title = title;
-//			this.url = url;
-//			this.date = date;
-//		}
-//	}
 	private Cursor cursorHistory;
+	private SimpleCursorAdapter historyAdapter;
+	private List<Integer> selectedItems;
+	private class HistoryHolder {
+		final ImageView iconView;
+		final ImageView moreView;
+		final TextView titleView;
+		final TextView domainView;
+		final TextView dateView;
+		int position;
+		Integer id;
+		HistoryHolder(final View convertView) {
+			moreView = (ImageView) convertView.findViewById(R.id.more);
+			iconView = (ImageView) convertView.findViewById(R.id.icon);
+			titleView = (TextView) convertView.findViewById(R.id.name);
+			domainView = (TextView) convertView.findViewById(R.id.domain);
+			dateView = (TextView) convertView.findViewById(R.id.lastAccessed);
+			
+			moreView.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View button) {
+						cursorHistory.moveToPosition(position);
+						final int rowid = cursorHistory.getInt(cursorHistory.getColumnIndex("_id"));
+						final String title = cursorHistory.getString(cursorHistory.getColumnIndex("title"));
+						final String url = cursorHistory.getString(cursorHistory.getColumnIndex("url"));
+						final PopupMenu popup = new PopupMenu(MainActivity.this, button);
+						//Inflating the Popup using xml file
+						popup.getMenuInflater().inflate(R.menu.more_history, popup.getMenu());
+						
+						//registering popup with OnMenuItemClickListener
+						popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+								public boolean onMenuItemClick(MenuItem item) {
+									switch (item.getItemId())  {
+										case R.id.add: 
+											addBookmark(url, title);
+											break;
+										case R.id.copy:
+											copyClipboard("URL", url);
+											break;
+										case R.id.show:
+											new AlertDialog.Builder(MainActivity.this)
+												.setTitle(title)
+												.setMessage(url)
+												.setPositiveButton("OK", new EmptyOnClickListener())
+												.show();
+											break;
+										case R.id.share:
+											shareUrl(url);
+											break;
+										case R.id.delete:
+											cursorHistory.close();
+											placesDb.execSQL("DELETE FROM history WHERE _id = ?", new Object[] {rowid});
+											cursorHistory = placesDb.rawQuery("SELECT title, url, date_created, _id FROM history ORDER BY date_created DESC", null);
+											historyAdapter.swapCursor(cursorHistory);
+											break;
+									}
+									return true;
+								}
+							});
+
+						popup.show();//showing popup menu
+					}
+				});
+			iconView.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View button) {
+						if (selectedItems.contains(id)) {
+							selectedItems.remove(id);
+							iconView.setImageResource(R.drawable.dot);
+						} else {
+							selectedItems.add(id);
+							iconView.setImageResource(R.drawable.ic_accept);
+						}
+					}
+			});
+			moreView.setTag(this);
+			convertView.setTag(this);
+			iconView.setTag(this);
+			titleView.setTag(this);
+		}
+	}
 	private void showHistory() {
         if (placesDb == null)
 			return;
-        cursorHistory = placesDb.rawQuery("SELECT title, url, date_created, _id FROM history ORDER BY date_created DESC", null);
-//		final List<HistoryData> list = new ArrayList<>(cursor.getCount());
-//		final int columnId = cursor.getColumnIndex("_id");
-//		final int columnTitle = cursor.getColumnIndex("title");
-//		final int columnUrl = cursor.getColumnIndex("url");
-//		final int columnDateCreated = cursor.getColumnIndex("date_created");
-//		while(cursor.moveToNext()) {
-//			int id = cursor.getInt(columnId);
-//			String title = cursor.getString(columnTitle);
-//			String url = cursor.getString(columnUrl);
-//			String dateCreated = cursor.getString(columnDateCreated);
-//			DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
-//			Date date = null;
-//			try {
-//				date = format.parse(dateCreated);
-//			} catch (ParseException e) {
-//				ExceptionLogger.e(TAG, e);
-//			}
-//			HistoryData data = new HistoryData(id, title, url, date);
-//			list.add(data);
-//		}
-        final SimpleCursorAdapter adapter = new SimpleCursorAdapter(this,
-																	R.layout.list_item,
-																	cursorHistory,
-																	new String[] { "title", "url", "date_created" },
-																	new int[] { R.id.name, R.id.domain , R.id.lastAccessed });
+		selectedItems = new ArrayList<>();
+        cursorHistory = placesDb.rawQuery("SELECT title, url, date_created, _id FROM history ORDER BY date(date_created) DESC, url ASC", null);
+        historyAdapter = new SimpleCursorAdapter(this,
+												 R.layout.history_list_item,
+												 cursorHistory,
+												 new String[] { "title", "url", "date_created" },
+												 new int[] { R.id.name, R.id.domain , R.id.lastAccessed }) {
+			@Override
+			public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+				final HistoryHolder holder;
+				if (convertView == null) {
+					convertView = super.getView(position, convertView, parent);//getLayoutInflater().inflate(R.layout.list_item, parent, false);
+					holder = new HistoryHolder(convertView);
+				} else {
+					holder = (HistoryHolder) convertView.getTag();
+				}
+				holder.position = position;
+				cursorHistory.moveToPosition(position);
+				holder.id = cursorHistory.getInt(cursorHistory.getColumnIndex("_id"));
+				if (selectedItems.contains(holder.id)) {
+					holder.iconView.setImageResource(R.drawable.ic_accept);
+				} else {
+					holder.iconView.setImageResource(R.drawable.dot);
+				}
+				final TextView titleView = holder.titleView;
+				final TextView domainView = holder.domainView;
+				final TextView dateView = holder.dateView;
+				final String title = cursorHistory.getString(cursorHistory.getColumnIndex("title"));
+				titleView.setText(title);
+				final String url = cursorHistory.getString(cursorHistory.getColumnIndex("url"));
+				domainView.setText(url);
+				final String lastAccessed = cursorHistory.getString(cursorHistory.getColumnIndex("date_created"));
+				dateView.setText(lastAccessed);
+				return convertView;
+			}
+		};
 		final AlertDialog dialog = new AlertDialog.Builder(this)
 			.setTitle("History")
 			.setPositiveButton("OK", new EmptyOnClickListener())
+			.setNegativeButton("Delete", new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					final int size = selectedItems.size();
+					if (size > 0) {
+						final StringBuilder sb = new StringBuilder();
+						for (int i = 0; i < size; i++) {
+							sb.append("?");
+							if (i < size - 1) {
+								sb.append(",");
+							}
+						}
+						cursorHistory.close();
+						placesDb.execSQL("DELETE FROM history WHERE _id IN (" + sb.toString()+ ")", selectedItems.toArray());
+					}
+					
+				}})
 			.setOnDismissListener(new OnDismissListener() {
 				public void onDismiss(DialogInterface p1) {
 					cursorHistory.close();}})
-			.setAdapter(adapter, new OnClickListener() {
+			.setAdapter(historyAdapter, new OnClickListener() {
 				public void onClick(DialogInterface dialog, int which) {
 					cursorHistory.moveToPosition(which);
 					String url = cursorHistory.getString(cursorHistory.getColumnIndex("url"));
 					et.requestFocus();
 					et.setText(url);
 					loadUrl(url, getCurrentWebView());
+					cursorHistory.close();
 				}})
-//			.setCursor(cursor, new OnClickListener() {
-//				public void onClick(DialogInterface dialog, int which) {
-//					cursor.moveToPosition(which);
-//					String url = cursor.getString(cursor.getColumnIndex("url"));
-//					et.requestFocus();
-//					et.setText(url);
-//					loadUrl(url, getCurrentWebView());
-//				}}, "title")
 			.create();
-        final ListView listView = dialog.getListView();
-		listView.setOnItemLongClickListener(new OnItemLongClickListener() {
-				public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, final long id) {
-					cursorHistory.moveToPosition(position);
-					final int rowid = cursorHistory.getInt(cursorHistory.getColumnIndex("_id"));
-					final String title = cursorHistory.getString(cursorHistory.getColumnIndex("title"));
-					final String url = cursorHistory.getString(cursorHistory.getColumnIndex("url"));
-					new AlertDialog.Builder(MainActivity.this)
-						.setTitle(title)
-						.setItems(new String[] {"Add bookmark", "Copy link", "Show URL", "Share link", "Delete"}, new OnClickListener() {
-							public void onClick(DialogInterface subDialog, int which) {
-								switch (which) {
-									case 0: 
-										addBookmark(url, title);
-										break;
-									case 1:
-										copyClipboard("URL", url);
-										break;
-									case 2:
-										new AlertDialog.Builder(MainActivity.this)
-											.setTitle(title)
-											.setMessage(url)
-											.setPositiveButton("OK", new EmptyOnClickListener())
-											.show();
-										break;
-									case 3:
-										shareUrl(url);
-										break;
-									case 4:
-										cursorHistory.close();
-										placesDb.execSQL("DELETE FROM history WHERE _id = ?", new Object[] {rowid});
-										cursorHistory = placesDb.rawQuery("SELECT title, url, date_created, _id FROM history ORDER BY date_created DESC", null);
-										adapter.swapCursor(cursorHistory);
-										break;
-								}
-							}})
-						.show();
-					return true;
-				}});
         dialog.show();
 	}
+	private class BookmarkHolder {
+		final ImageView iconView;
+		final ImageView moreView;
+		final TextView titleView;
+		final TextView domainView;
+		int position;
+		Integer id;
+		BookmarkHolder(final View convertView) {
+			moreView = (ImageView) convertView.findViewById(R.id.more);
+			iconView = (ImageView) convertView.findViewById(R.id.icon);
+			titleView = (TextView) convertView.findViewById(R.id.name);
+			domainView = (TextView) convertView.findViewById(R.id.domain);
+			
+			moreView.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View button) {
+						bookmarkCursor.moveToPosition(position);
+						final int rowid = bookmarkCursor.getInt(bookmarkCursor.getColumnIndex("_id"));
+						final String title = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("title"));
+						final String url = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("url"));
+						final PopupMenu popup = new PopupMenu(MainActivity.this, button);
+						
+						popup.getMenuInflater().inflate(R.menu.more_bookmark, popup.getMenu());
 
-    private void showBookmarks() {
-        if (placesDb == null)
-			return;
-        final Cursor cursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
-        final AlertDialog dialog = new AlertDialog.Builder(this)
-			.setTitle("Bookmarks")
-			.setPositiveButton("OK", new EmptyOnClickListener())
-			.setOnDismissListener(new OnDismissListener() {
-				public void onDismiss(android.content.DialogInterface p1) {
-					cursor.close();}})
-			.setCursor(cursor, new OnClickListener() {
-				public void onClick(DialogInterface dialog, int which) {
-					cursor.moveToPosition(which);
-					String url = cursor.getString(cursor.getColumnIndex("url"));
-					et.requestFocus();
-					et.setText(url);
-					loadUrl(url, getCurrentWebView());
-				}}, "title")
-			.create();
-        dialog.getListView().setOnItemLongClickListener(new OnItemLongClickListener() {
-				public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-					cursor.moveToPosition(position);
-					final int rowid = cursor.getInt(cursor.getColumnIndex("_id"));
-					final String title = cursor.getString(cursor.getColumnIndex("title"));
-					final String url = cursor.getString(cursor.getColumnIndex("url"));
-					//dialog.dismiss();
-					new AlertDialog.Builder(MainActivity.this)
-						.setTitle(title)
-						.setItems(new String[] {"Rename", "Change URL", "Copy link", "Share link", "Delete"}, new OnClickListener() {
-							public void onClick(DialogInterface subDialog, int which) {
-								switch (which) {
-									case 0: {
-											final EditText editView = new EditText(MainActivity.this);
-											editView.setText(title);
+						popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+								public boolean onMenuItemClick(MenuItem item) {
+									switch (item.getItemId())  {
+										case R.id.rename: 
+											final EditText editView2 = new EditText(MainActivity.this);
+											editView2.setText(title);
 											new AlertDialog.Builder(MainActivity.this)
 												.setTitle("Rename bookmark")
-												.setView(editView)
+												.setView(editView2)
 												.setPositiveButton("Rename", new OnClickListener() {
 													public void onClick(DialogInterface dlg, int which) {
-														cursor.close();
-														placesDb.execSQL("UPDATE bookmarks SET title=? WHERE _id=?", new Object[] {editView.getText(), rowid});
-														showBookmarks();
-														dialog.dismiss();
+														bookmarkCursor.close();
+														placesDb.execSQL("UPDATE bookmarks SET title=? WHERE _id=?", new Object[] {editView2.getText(), rowid});
+														bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
+														bookmarkAdapter.swapCursor(bookmarkCursor);
+														
 													}})
 												.setNegativeButton("Cancel", new EmptyOnClickListener())
 												.show();
 											break;
-										}
-									case 1: {
+										case R.id.change:
 											final EditText editView = new EditText(MainActivity.this);
 											editView.setText(url);
 											new AlertDialog.Builder(MainActivity.this)
@@ -3284,33 +3329,122 @@ public class MainActivity extends Activity {
 												.setView(editView)
 												.setPositiveButton("Change URL", new OnClickListener() {
 													public void onClick(DialogInterface dlg, int which) {
-														cursor.close();
+														bookmarkCursor.close();
 														placesDb.execSQL("UPDATE bookmarks SET url=? WHERE _id=?", new Object[] {editView.getText(), rowid});
-														showBookmarks();
-														dialog.dismiss();
+														bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
+														bookmarkAdapter.swapCursor(bookmarkCursor);
 													}})
 												.setNegativeButton("Cancel", new EmptyOnClickListener())
 												.show();
 											break;
-										}
-									case 2: {
+										case R.id.copy:
 											copyClipboard("URL", url);
 											break;
-										}
-									case 3:
-										shareUrl(url);
-										break;
-									case 4:
-										cursor.close();
-										placesDb.execSQL("DELETE FROM bookmarks WHERE _id = ?", new Object[] {rowid});
-										showBookmarks();
-										dialog.dismiss();
-										break;
+										case R.id.share:
+											shareUrl(url);
+											break;
+										case R.id.delete:
+											bookmarkCursor.close();
+											placesDb.execSQL("DELETE FROM bookmarks WHERE _id = ?", new Object[] {rowid});
+											bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
+											bookmarkAdapter.swapCursor(bookmarkCursor);
+											break;
+									}
+									return true;
 								}
-							}})
-						.show();
-					return true;
-				}});
+							});
+
+						popup.show();
+					}
+				});
+			iconView.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View button) {
+						if (selectedItems.contains(id)) {
+							selectedItems.remove(id);
+							iconView.setImageResource(R.drawable.dot);
+						} else {
+							selectedItems.add(id);
+							iconView.setImageResource(R.drawable.ic_accept);
+						}
+					}
+				});
+			moreView.setTag(this);
+			convertView.setTag(this);
+			iconView.setTag(this);
+			titleView.setTag(this);
+		}
+	}
+	private SimpleCursorAdapter bookmarkAdapter;
+	private Cursor bookmarkCursor;
+    private void showBookmarks() {
+        if (placesDb == null)
+			return;
+        selectedItems = new ArrayList<>();
+        bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
+        bookmarkAdapter = new SimpleCursorAdapter(this,
+												  R.layout.bookmark_list_item,
+												  bookmarkCursor,
+												  new String[] { "title", "url" },
+												  new int[] { R.id.name, R.id.domain }) {
+			@Override
+			public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+				final BookmarkHolder holder;
+				if (convertView == null) {
+					convertView = super.getView(position, convertView, parent);//getLayoutInflater().inflate(R.layout.list_item, parent, false);
+					holder = new BookmarkHolder(convertView);
+				} else {
+					holder = (BookmarkHolder) convertView.getTag();
+				}
+				holder.position = position;
+				bookmarkCursor.moveToPosition(position);
+				holder.id = bookmarkCursor.getInt(bookmarkCursor.getColumnIndex("_id"));
+				if (selectedItems.contains(holder.id)) {
+					holder.iconView.setImageResource(R.drawable.ic_accept);
+				} else {
+					holder.iconView.setImageResource(R.drawable.dot);
+				}
+				final TextView titleView = holder.titleView;
+				final TextView domainView = holder.domainView;
+				final String title = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("title"));
+				titleView.setText(title);
+				final String url = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("url"));
+				domainView.setText(url);
+				return convertView;
+			}
+		};
+		final AlertDialog dialog = new AlertDialog.Builder(this)
+			.setTitle("Bookmarks")
+			.setPositiveButton("OK", new EmptyOnClickListener())
+			.setNegativeButton("Delete", new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					final int size = selectedItems.size();
+					if (size > 0) {
+						final StringBuilder sb = new StringBuilder();
+						for (int i = 0; i < size; i++) {
+							sb.append("?");
+							if (i < size - 1) {
+								sb.append(",");
+							}
+						}
+						bookmarkCursor.close();
+						placesDb.execSQL("DELETE FROM bookmarks WHERE _id IN (" + sb.toString()+ ")", selectedItems.toArray());
+					}
+
+				}})
+			.setOnDismissListener(new OnDismissListener() {
+				public void onDismiss(android.content.DialogInterface p1) {
+					bookmarkCursor.close();}})
+			.setAdapter(bookmarkAdapter, new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					bookmarkCursor.moveToPosition(which);
+					String url = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("url"));
+					et.requestFocus();
+					et.setText(url);
+					loadUrl(url, getCurrentWebView());
+					bookmarkCursor.close();
+				}})
+			.create();
         dialog.show();
     }
 
@@ -3337,14 +3471,22 @@ public class MainActivity extends Activity {
 		AndroidUtils.toast(MainActivity.this, "Copied \"" + text + "\" to clipboard");
 	}
 
-    private void addHistory() {
+    private void addHistory(final WebView currentWebView, final String url) {
         if (placesDb == null)
 			return;
-        final ContentValues values = new ContentValues(2);
-        final WebView currentWebView = getCurrentWebView();
-		values.put("title", currentWebView.getTitle());
-        values.put("url", currentWebView.getUrl());
-        placesDb.insert("history", null, values);
+        
+		final String selection = "url=? AND date(date_created)=?" ;
+		final Calendar cal = Calendar.getInstance();
+		final int month = (cal.get(Calendar.MONTH) + 1);
+		final String currentDate = cal.get(Calendar.YEAR) + "-" + (month < 10 ? "0" + month : month) + "-" + cal.get(Calendar.DAY_OF_MONTH);
+		final String[] selectionArgs = new String[] {currentWebView.getUrl(), currentDate};
+		placesDb.delete("history", selection, selectionArgs);
+		ExceptionLogger.d(TAG, "currentDate: " + currentDate);
+
+		final ContentValues valuesInsert = new ContentValues(2);
+        valuesInsert.put("title", currentWebView.getTitle());
+        valuesInsert.put("url", url);
+        placesDb.insert("history", null, valuesInsert);
     }
 
     private void addBookmark() {
@@ -3608,7 +3750,7 @@ public class MainActivity extends Activity {
 			ExceptionLogger.d(TAG, "URI to open is: " + uri + ", intent " + intent + ", " + intent.getClipData());
 			if (uri != null) {
 				final String scheme = uri.getScheme();
-				if (!scheme.startsWith("http") && !scheme.startsWith("ftp")) {
+				if (!scheme.startsWith("http") && !scheme.startsWith("ftp") && !scheme.startsWith("file")) {
 					return AndroidUtils.getPath(MainActivity.this, uri);
 				} else {
 					return uri.toString();
