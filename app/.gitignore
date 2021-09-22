@@ -16,7 +16,7 @@
 *.rar
 *.gz
 *.bz2
-//*.jar
+#*.jar
 *.aar
 *.bak
 *.class
