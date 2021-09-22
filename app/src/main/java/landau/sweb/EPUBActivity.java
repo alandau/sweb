@@ -14,7 +14,6 @@ import java.net.*;
 import java.util.*;
 import java.util.regex.*;
 import landau.sweb.utils.*;
-import net.gnu.sweb.*;
 import nl.siegmann.epublib.domain.*;
 import nl.siegmann.epublib.epub.*;
 import org.jsoup.*;

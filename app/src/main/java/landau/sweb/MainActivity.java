@@ -111,7 +111,6 @@ import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.AdapterView;
 import android.content.DialogInterface.OnDismissListener;
 import java.lang.reflect.*;
-import net.gnu.sweb.R;
 import java.util.*;
 import landau.sweb.MainActivity.*;
 import android.print.*;
@@ -211,6 +210,17 @@ public class MainActivity extends Activity {
 		boolean blockCSS;
 		boolean blockJavaScript;
 		String source;
+		boolean saveMedia;
+		LinkedList<Article> mediaList = new LinkedList<>();
+		String includePatternStr;
+		String excludePatternStr;
+		Pattern includePattern;
+		Pattern excludePattern;
+		
+		String includeUrlPatternStr;
+		String excludeUrlPatternStr;
+		Pattern includeUrlPattern;
+		Pattern excludeUrlPattern;
 	}
 	
 	private boolean FULL_INCOGNITO = Build.VERSION.SDK_INT >= 28;
@@ -219,8 +229,8 @@ public class MainActivity extends Activity {
 	
     static final String searchUrl = "https://www.google.com/search?q=%s";
     static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
-    static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36";
-	static final String androidUA = "Mozilla/5.0 (Linux; Android 9; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.90 Mobile Safari/537.36";
+    private static final String desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36";
+	private static final String androidUA = "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Mobile Safari/537.36";
     static final String[] adblockRulesList = {
             "https://easylist.to/easylist/easylist.txt",
             "https://easylist.to/easylist/easyprivacy.txt",
@@ -446,15 +456,14 @@ public class MainActivity extends Activity {
 		new MenuAction("Desktop UA", R.drawable.ua, new Runnable() {
 				@Override
 				public void run() {
-					Tab tab = getCurrentTab();
-					isDesktopUA = !tab.isDesktopUA;
-					tab.isDesktopUA = isDesktopUA;
+					isDesktopUA = !isDesktopUA;
 					prefs.edit().putBoolean("isDesktopUA", isDesktopUA).apply();
-					WebView currentWebView = getCurrentWebView();
-					WebSettings settings = currentWebView.getSettings();
-					settings.setUserAgentString(tab.isDesktopUA ? desktopUA : androidUA);
-					settings.setUseWideViewPort(tab.isDesktopUA);
-					currentWebView.reload();
+					for (Tab t : tabs) {
+						WebSettings settings = t.webview.getSettings();
+						settings.setUserAgentString(isDesktopUA ? desktopUA : androidUA);
+						settings.setUseWideViewPort(isDesktopUA);
+						t.webview.reload();
+					}
 				}
 			}, new MyBooleanSupplier() {
 				@Override
@@ -1650,6 +1659,13 @@ public class MainActivity extends Activity {
 					if (view == getCurrentWebView()) {
 						// Don't use the argument url here since navigation to that URL might have been
 						// cancelled due to SSL error
+						goStop.setImageResource(R.drawable.reload);
+						final Tab currentTab = getCurrentTab();
+						if (!currentTab.textChanged) {
+							currentTab.skipTextChange = true;
+							et.setText(currentTab.webview.getTitle());
+							currentTab.skipTextChange = false;
+						}
 						if (et.getSelectionStart() == 0 && et.getSelectionEnd() == 0 && et.getText().toString().equals(view.getUrl())) {
 							// If user haven't started typing anything, focus on webview
 							view.requestFocus();
@@ -1678,7 +1694,7 @@ public class MainActivity extends Activity {
 					}
 					//ExceptionLogger.d(TAG, "javascript:window.HTMLOUT.showSource(" + currentTab.toString() + ", document.documentElement.outerHTML)" + ", tabId.toString() " + currentTab.toString());
 					view.loadUrl("javascript:window.HTMLOUT.showSource(\"" + currentTab.toString() + "\", document.documentElement.outerHTML)");
-					Bitmap favicon = view.getFavicon();
+					final Bitmap favicon = view.getFavicon();
 					if (favicon != null) {
 						faviconImage.clearColorFilter();
 						faviconImage.setImageBitmap(favicon);
@@ -1691,12 +1707,6 @@ public class MainActivity extends Activity {
 					}
 					currentTab.favHref = url;
 					currentTab.loading = false;
-					goStop.setImageResource(R.drawable.reload);
-					if (!currentTab.textChanged) {
-						currentTab.skipTextChange = true;
-						et.setText(currentTab.webview.getTitle());
-						currentTab.skipTextChange = false;
-					}
 					if (requestList.getVisibility() == View.VISIBLE
 						&& view.getVisibility() == View.VISIBLE) {
 						log("");
@@ -1753,18 +1763,21 @@ public class MainActivity extends Activity {
 								new DownloadImageTask(faviconImage, currentTab)
 									.execute(url.toString());
 							}
-						} else if (url.getScheme().startsWith("http")
-								 || url.getScheme().startsWith("ftp")) {
-							if (currentTab.blockImages && IMAGES_PATTERN.matcher(path).matches()) {
-								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-							} else if (currentTab.blockMedia && MEDIA_PATTERN.matcher(path).matches()) {
-								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-							} else if (currentTab.blockCSS && CSS_PATTERN.matcher(path).matches()) {
-								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-							} else if (currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(path).matches()) {
-								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-							} else if (currentTab.blockFonts && FONT_PATTERN.matcher(path).matches()) {
-								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+						} else {
+							final String scheme = url.getScheme();
+							if (scheme.startsWith("http")
+								|| scheme.startsWith("ftp")) {
+								if (currentTab.blockImages && IMAGES_PATTERN.matcher(path).matches()) {
+									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+								} else if (currentTab.blockMedia && MEDIA_PATTERN.matcher(path).matches()) {
+									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+								} else if (currentTab.blockCSS && CSS_PATTERN.matcher(path).matches()) {
+									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+								} else if (currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(path).matches()) {
+									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+								} else if (currentTab.blockFonts && FONT_PATTERN.matcher(path).matches()) {
+									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+								}
 							}
 						}
 						final Map<String, String> requestHeaders = request.getRequestHeaders();
@@ -1810,15 +1823,20 @@ public class MainActivity extends Activity {
 				
 				@Override
 				public void onLoadResource(final WebView view, final String url) {
-					if (isLogRequests) {
-						Tab currentTab = null;
-						for(Tab t : tabs) {
-							if (t.webview == view) {
-								currentTab = t;
-								break;
-							}
+					Tab currentTab = null;
+					for(Tab t : tabs) {
+						if (t.webview == view) {
+							currentTab = t;
+							break;
 						}
+					}
+					if (isLogRequests) {
 						currentTab.requestsLog.add(url);
+					}
+					if (currentTab.saveMedia
+						&& currentTab.includePattern.matcher(url).matches()
+						&& !currentTab.excludePattern.matcher(url).matches()) {
+						currentTab.mediaList.add(new Article(url, null));
 					}
 				}
 
@@ -1904,7 +1922,7 @@ public class MainActivity extends Activity {
 				}});
         webview.setDownloadListener(new DownloadListener() {
 				public void onDownloadStart(final String url, final String userAgent, final String contentDisposition, final String mimetype, final long contentLength) {
-					ExceptionLogger.d("onDownloadStart", url + ", userAgent " + userAgent + ", contentDisposition" + contentDisposition +", contentLength " + contentLength);
+					ExceptionLogger.d("onDownloadStart", url + ", userAgent " + userAgent + ", contentDisposition" + contentDisposition +", contentLength " + contentLength + ", mimetype " + mimetype);
 					final String filename = URLUtil.guessFileName(url, contentDisposition, mimetype);
 					new AlertDialog.Builder(MainActivity.this)
 						.setTitle("Download")
@@ -2254,27 +2272,30 @@ public class MainActivity extends Activity {
 			//ExceptionLogger.d(TAG, getCurrentTab().sourceName + ", " + toString);
 			loadUrl(toString, currentTab.webview);
 			currentTab.sourceName = null;
+			faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 			faviconImage.setImageResource(R.drawable.page_info);
 			return;
 		}
 		currentTab.skipTextChange = true;
-		if (currentTab.favicon != null)
+		if (currentTab.favicon != null) {
+			faviconImage.clearColorFilter();
 			faviconImage.setImageBitmap(currentTab.favicon);
-		else
+		} else {
+			faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+			faviconImage.setBackgroundColor(backgroundColor);
 			faviconImage.setImageResource(R.drawable.page_info);
-		if (currentTab.loading)
-      		et.setText(currentTab.webview.getUrl());
-		else
-			et.setText(currentTab.webview.getTitle());
+		}
 		if (currentTab.loading) {
-			goStop.setImageResource(R.drawable.stop);
+      		goStop.setImageResource(R.drawable.stop);
+			et.setText(currentTab.webview.getUrl());
 		} else {
 			goStop.setImageResource(R.drawable.reload);
+			et.setText(currentTab.webview.getTitle());
 		}
 		if (currentTab.isIncognito) {
-			DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-			int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 18, displayMetrics);
-            Drawable left = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
+			final DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+			final int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 18, displayMetrics);
+            final Drawable left = getResources().getDrawable(R.drawable.ic_notification_incognito, null);
 			left.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
             left.setBounds(0, 0, size, size);
             et.setCompoundDrawables(left, null, null, null);
@@ -2513,9 +2534,7 @@ public class MainActivity extends Activity {
 									case R.id.destopUA:
 										Tab tab = getCurrentTab();
 										tab.isDesktopUA = !tab.isDesktopUA;
-										//tab.isDesktopUA = isDesktopUA;
-										//prefs.edit().putBoolean("isDesktopUA", isDesktopUA).apply();
-										WebView currentWebView = getCurrentWebView();
+										WebView currentWebView = tab.webview;
 										WebSettings settings = currentWebView.getSettings();
 										settings.setUserAgentString(tab.isDesktopUA ? desktopUA : androidUA);
 										settings.setUseWideViewPort(tab.isDesktopUA);
@@ -2618,6 +2637,7 @@ public class MainActivity extends Activity {
 						} else {
 							t.loading = true;
 							currentWebView.reload();
+							goStop.setImageResource(R.drawable.stop);
 						}
 					}
 					t.textChanged = false;
@@ -3478,10 +3498,11 @@ public class MainActivity extends Activity {
 		final String selection = "url=? AND date(date_created)=?" ;
 		final Calendar cal = Calendar.getInstance();
 		final int month = (cal.get(Calendar.MONTH) + 1);
-		final String currentDate = cal.get(Calendar.YEAR) + "-" + (month < 10 ? "0" + month : month) + "-" + cal.get(Calendar.DAY_OF_MONTH);
-		final String[] selectionArgs = new String[] {currentWebView.getUrl(), currentDate};
-		placesDb.delete("history", selection, selectionArgs);
-		ExceptionLogger.d(TAG, "currentDate: " + currentDate);
+		final int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
+		final String currentDate = cal.get(Calendar.YEAR) + "-" + (month < 10 ? "0" + month : month) + "-" + (dayOfMonth < 10 ? "0" + dayOfMonth : dayOfMonth);
+		final String[] selectionArgs = new String[] {url, currentDate};
+		final int deleted = placesDb.delete("history", selection, selectionArgs);
+		//ExceptionLogger.d(TAG, "deleted " + deleted + ", currentDate: " + currentDate);
 
 		final ContentValues valuesInsert = new ContentValues(2);
         valuesInsert.put("title", currentWebView.getTitle());
@@ -3722,16 +3743,22 @@ public class MainActivity extends Activity {
 			et.setCompoundDrawables(null, null, null, null);
 		}
 		currentTab.skipTextChange = true;
-		if (currentTab.loading)
-     		et.setText(currentWebView.getUrl());
-		else
+		if (currentTab.loading) {
+     		goStop.setImageResource(R.drawable.stop);
+			et.setText(currentWebView.getUrl());
+		} else {
+			goStop.setImageResource(R.drawable.reload);
 			et.setText(currentWebView.getTitle());
+		}
 		setTabCountText(tabs.size());
-		if (currentTab.favicon != null)
+		if (currentTab.favicon != null) {
+			faviconImage.clearColorFilter();
 			faviconImage.setImageBitmap(currentTab.favicon);
-		else
+		} else {
+			faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+			faviconImage.setBackgroundColor(backgroundColor);
 			faviconImage.setImageResource(R.drawable.page_info);
-		
+		}
 		currentTab.webview.requestFocus();
 		currentTab.textChanged = false;
 		currentTab.skipTextChange = false;
@@ -3818,8 +3845,8 @@ public class MainActivity extends Activity {
 			compoundDrawables.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 		goStop.setColorFilter(textColor);
 		goStop.setBackgroundColor(backgroundColor);
-		faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 		faviconImage.setBackgroundColor(backgroundColor);
+		
 		searchEdit.setTextColor(textColor);
 		searchEdit.setBackgroundColor(backgroundColor);
 		searchCount.setTextColor(textColor);
@@ -4090,6 +4117,7 @@ public class MainActivity extends Activity {
 		for (Tab t : tabs) {
 			if (t.webview == webview) {
 				currentTab = t;
+				break;
 			}
 		}
 		if (url.startsWith("javascript:") 
@@ -4130,11 +4158,11 @@ public class MainActivity extends Activity {
 			} else if (!url.equals("about:blank")) {
 				url = URLUtil.composeSearchUrl(url, searchUrl, "%s");
 			}
-			WebSettings settings = webview.getSettings();
+			final WebSettings settings = webview.getSettings();
 			settings.setJavaScriptEnabled(javaScriptEnabled);
 			settings.setJavaScriptCanOpenWindowsAutomatically(javaScriptCanOpenWindowsAutomatically);
-			settings.setBlockNetworkImage(blockImages);
-			settings.setLoadsImagesAutomatically(!blockImages);
+			settings.setBlockNetworkImage(currentTab.blockImages);
+			settings.setLoadsImagesAutomatically(!currentTab.blockImages);
 		}
 		//ExceptionLogger.log("url2 ", url);
 		final ArrayMap<String, String> requestHeaders = new ArrayMap<String, String>();

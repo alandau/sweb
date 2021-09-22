@@ -1,6 +1,10 @@
 package landau.sweb;
 import java.text.*;
 
+import android.icu.text.CharsetDetector;
+import android.icu.text.CharsetMatch;
+import landau.sweb.utils.*;
+
 public class Util {
 	
 	private static final String TAG = "Util";
@@ -17,4 +21,11 @@ public class Util {
 
 	public static final String SPECIAL_CHAR_PATTERNSTR = "([{}^$.\\[\\]|*+?()\\\\])";
 	
+//	public static CharsetMatch getCharset(final byte [] byteData) {
+//		final CharsetDetector detector = new CharsetDetector();
+//		detector.setText(byteData);
+//		final CharsetMatch match = detector.detect();
+//		ExceptionLogger.d(TAG, "match " + match.getName());
+//		return match;
+//	}
 }
