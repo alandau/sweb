@@ -26,6 +26,9 @@
 		android:hardwareAccelerated="true"
 		android:largeHeap="true"
 		android:extractNativeLibs="true"
+		tools:replace="android:icon"
+		tools:replace="android:theme"
+		tools:replace="android:label"
 	>
 		
         <meta-data

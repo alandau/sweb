@@ -25,7 +25,8 @@ public class EPUBActivity extends Activity {
 	private static final String TAG = "EPUBActivity";
 	
 	public static File externalLogFilesDir;
-	private Pattern HTML_PATTERN = Pattern.compile(".*?\\.[xds]?ht(m?|ml)");
+	private Pattern HTML_PATTERN = Pattern.compile(".*?\\.[xds]?ht(m?|ml)", Pattern.CASE_INSENSITIVE);
+	private Pattern IMAGE_PATTERN = Pattern.compile(".*?\\.(jpe?g|gif|png|webp|pcx|bmp|tiff?)", Pattern.CASE_INSENSITIVE);
 	
 	private EditText coverImageET, titleET, authorET, fileET, saveToET, startPageET, includeET, excludeET;
 
@@ -105,6 +106,7 @@ public class EPUBActivity extends Activity {
 			try {
 				final Book book = new Book();
 
+				TreeMap<String, List<String>> tm = new TreeMap<>();
 				final String path = fileET.getText().toString().trim();
 				final File f = new File(path);
 				int lengthDir = path.length();
@@ -166,6 +168,7 @@ public class EPUBActivity extends Activity {
 					Document doc;
 					String htmlTitle;
 					String absolutePath;
+					String parent;
 					for (File ff : fs) {
 						absolutePath = ff.getAbsolutePath();
 						if (!startPage.equalsIgnoreCase(absolutePath)
@@ -186,6 +189,17 @@ public class EPUBActivity extends Activity {
 							} else {
 								book.getResources().add(
 									getResource(absolutePath, lengthDir));
+								if (IMAGE_PATTERN.matcher(name).matches()) {
+									parent = ff.getParent().substring(lengthDir);
+									List<String> l = tm.get(parent);
+									if (l != null) {
+										l.add(absolutePath);
+									} else {
+										l = new LinkedList<String>();
+										l.add(absolutePath);
+										tm.put(parent, l);
+									}
+								}
 							}
 						}
 					}

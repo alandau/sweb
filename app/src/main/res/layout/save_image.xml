@@ -1,0 +1,59 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+	android:paddingBottom="12dp"
+	android:paddingLeft="16dp"
+	android:paddingRight="16dp"
+	android:paddingTop="12dp">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal" >
+		<TextView
+			android:id="@+id/image_include"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Image Include Pattern: "
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<EditText
+			android:id="@+id/image_include_pattern"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="true"
+			android:text=".*?\\.(jpg|jpeg|webp)"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+	</LinearLayout>
+	
+    <LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal" >
+
+		<TextView
+			android:id="@+id/image_exclude"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Image Exclude Pattern: "
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<EditText
+			android:id="@+id/image_exclude_pattern"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="true"
+			android:text=".*?/(44884218_345707102882519_2446069589734326272_n.jpg|68d99ba29cc8.png|1b47f9d0e595.png|bcd90c1d4868.png).*?"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+	</LinearLayout>
+	
+</LinearLayout>

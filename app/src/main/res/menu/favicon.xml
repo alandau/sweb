@@ -4,12 +4,21 @@
     <item
         android:id="@+id/newIgcognitoTab"
         android:title="New Igcognito Tab"/>
-    <item
+    <!--<item
         android:id="@+id/savePageAsImage"
         android:title="Save as Image"/>
+	-->
     <item
         android:id="@+id/savePageAsPdf"
         android:title="Save as Pdf"/>
+    <item
+        android:id="@+id/autoScrollAndSave"
+        android:title="Auto Scroll &amp; Save"
+		android:checkable="true"/>
+    <item
+        android:id="@+id/saveImage"
+        android:title="Save Images"
+		android:checkable="true"/>
     <item
         android:id="@+id/pageInfo"
         android:title="Page Info"/>
@@ -33,6 +42,11 @@
         android:id="@+id/blockJavaScript"
         android:title="Block JavaScript"
 		android:checkable="true"/>
+	<item
+        android:id="@+id/blockNetworkLoads"
+        android:title="Block Network Loads"
+		android:checkable="true"/>
+	
 	<item
         android:id="@+id/destopUA"
         android:title="Desktop User Agent"
