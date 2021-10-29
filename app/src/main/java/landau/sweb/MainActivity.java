@@ -2098,9 +2098,7 @@ public class MainActivity extends Activity {
 						&& (scheme.startsWith("http")
 						|| scheme.startsWith("ftp"))) {
 						final Tab currentTab = tabOfWebView(view);
-						if (isLogRequests) {
-							currentTab.requestsLog.add(urlToString);
-						}
+						
 						if (FAVICON_PATTERN.matcher(fileName).matches()) {
 							if (currentTab.favicon == null &&
 								url.getHost().equals(URI.create(currentTab.favHref).getHost())) {
@@ -2207,7 +2205,13 @@ public class MainActivity extends Activity {
 				
 				@Override
 				public void onLoadResource(final WebView view, final String url) {
-					
+					if (isLogRequests) {
+						final Tab currentTab = tabOfWebView(view);
+						currentTab.requestsLog.add(url);
+						if (currentTab.logAdapter != null) {
+							currentTab.logAdapter.notifyDataSetChanged();
+						}
+					}
 				}
 
 				final String[] sslErrors = {"Not yet valid", "Expired", "Hostname mismatch", "Untrusted CA", "Invalid date", "Unknown error"};
@@ -3606,6 +3610,7 @@ public class MainActivity extends Activity {
 													 R.layout.image,
 													 currentTab.requestsLog);
 			currentTab.logAdapter.showImages = show;
+			currentTab.logAdapter.setNotifyOnChange(true);
 			requestList.setAdapter(currentTab.logAdapter);
 			currentTab.logAdapter.getFilter().filter(pat);
 		} else {
