@@ -50,7 +50,7 @@
 			android:layout_height="wrap_content"
 			android:layout_weight="1"
 			android:singleLine="true"
-			android:text=".*?/(44884218_345707102882519_2446069589734326272_n.jpg|68d99ba29cc8.png|1b47f9d0e595.png|bcd90c1d4868.png).*?"
+			android:text=".*?/(44884218_345707102882519_2446069589734326272_n.jpg|68d99ba29cc8.png|1b47f9d0e595.png|bcd90c1d4868.png|1075ddfe0f68.png|.*?\.png).*?"
 			android:textAppearance="?android:attr/textAppearanceLarge"
 			android:textSize="14dip" />
 

@@ -8,7 +8,7 @@ android {
         minSdkVersion 21
         targetSdkVersion 24
         versionCode 9
-        versionName "1.5.6b"
+        versionName "1.5.6j"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         resValue "string", "app_name", "SWeb"
     }
@@ -41,6 +41,10 @@ repositories {
     maven { 
 		url 'https://jitpack.io'
 		url 'https://repo1.maven.org/maven2/'
+		url 'https://search.maven.org/'
+		url 'https://mvnrepository.com'
+		url 'https://jcenter.bintray.com/'
+		url 'https://dl.google.com/dl/android/maven2/'
 		url 'https://github.com/psiegman/mvn-repo/raw/master/releases'
 	}
 	flatDir {
@@ -50,6 +54,7 @@ repositories {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
+	//compile 'com.daandtu:android-web-scraper:1.0.1'//1.0.1'
     //compile 'com.android.support:support-annotations:24.1.1'
 	//compile ('nl.siegmann.epublib:epublib-core:+') {
     //    exclude group: 'org.slf4j'
@@ -59,7 +64,11 @@ dependencies {
 	//compile 'org.slf4j:slf4j-api:1.7.25'
 	//compile "net.sf.kxml:kxml2:2.3.0"
 	
-	compile 'org.jsoup:jsoup:1.14.2'
+	//compile 'org.jsoup:jsoup:1.14.2'
+	//compile 'com.ibm.icu:icu4j:69.1'
+	//compile 'edu.uci.ics:crawler4j:4.4.0'
+	//compile 'net.sourceforge.htmlunit:htmlunit:+'
+	//compile 'org.seleniumhq.selenium:selenium-java:+'
 	
     //testImplementation 'junit:junit:4.12'
     //androidTestImplementation 'com.android.support.test:runner:1.0.1'

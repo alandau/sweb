@@ -52,7 +52,7 @@ public class MainActivity extends Activity {
     private static final String TAG = "MainActivity";
 	private static final int DARK_BACKGROUND = 0xffc0c0c0;
 	private static final int LIGHT_BACKGROUND = 0xfffffff0;
-	
+	private String SCRAP_PATH;
 	private static final Pattern FAVICON_PATTERN = Pattern.compile(".*?/favicon\\.(ico|png|bmp)", Pattern.CASE_INSENSITIVE);
 	
 	private static final String IMAGE_PAT = ".*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico|svg).*?";
@@ -155,9 +155,9 @@ public class MainActivity extends Activity {
 		boolean blockCSS;
 		boolean blockJavaScript;
 		boolean blockNetworkLoads;
+		boolean saveResources;
 		String source;
-		//boolean saveMedia;
-		
+		ArrayList<String> resourcesList = new ArrayList<>();
 		String includePatternStr;
 		String excludePatternStr;
 		Pattern includePattern;
@@ -170,29 +170,28 @@ public class MainActivity extends Activity {
 		boolean saveImage = false;
 		volatile ArrayList<DownloadInfo> downloadInfos = new ArrayList<>(4096);
 		volatile ArrayList<DownloadInfo> downloadedInfos = new ArrayList<>(4096);
-		LogArrayAdapter adapter;
-		void addDownload(final String url) {
-			final DownloadInfo downloadInfo = new DownloadInfo(url);
-//			if (!downloadInfos.contains(downloadInfo)
-//				&& !downloadedInfos.contains(downloadInfo)) {
+		LogArrayAdapter logAdapter;
+		boolean showLog = false;
+		boolean addImage(final String url) {
 			final String onlyName = FileUtil.getFileNameFromUrl(url);
 			try {
 				for (int i = 0; i < downloadInfos.size(); i++) {
 					if (onlyName.equals(downloadInfos.get(i).name)) {
-						return;
+						return false;
 					}
 				}
 			} catch (Throwable t) {
 			}
 			for (int i = 0; i < downloadedInfos.size(); i++) {
 				if (onlyName.equals(downloadedInfos.get(i).name)) {
-					return;
+					return false;
 				}
 			}
-			downloadInfos.add(downloadInfo);
+			downloadInfos.add(new DownloadInfo(url));
+			return true;
 		}
-		//}
-		volatile DownloadTask dtask;
+		volatile DownloadImageTask diTask;
+		volatile DownloadResourceTask resTask;
 		
 		int delay = 1000;
 		boolean isScrolling = false;
@@ -213,6 +212,10 @@ public class MainActivity extends Activity {
 			this.blockCSS = srcTab.blockCSS;
 			this.blockJavaScript = srcTab.blockJavaScript;
 			this.saveImage = srcTab.saveImage;
+			this.includePatternStr = srcTab.includePatternStr;
+			this.excludePatternStr = srcTab.excludePatternStr;
+			this.includePattern = srcTab.includePattern;
+			this.excludePattern = srcTab.excludePattern;
 		}
 	}
 	
@@ -315,7 +318,7 @@ public class MainActivity extends Activity {
 	private int backgroundColor;
 	private String textEncoding;
 	private String deleteAfter;
-	
+	private boolean saveResources;
 	private int cacheMode;
 	private boolean isDesktopUA;
 	private boolean requestSaveData;
@@ -1226,7 +1229,22 @@ public class MainActivity extends Activity {
 					getCurrentWebView().pageDown(true);
 				}
 			}),
-
+		new MenuAction("Save Resources", 0, new Runnable() {
+				@Override
+				public void run() {
+					saveResources = !saveResources;
+					prefs.edit().putBoolean("saveResources", saveResources).apply();
+					for (Tab t : tabs) {
+						t.saveResources = saveResources;
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return saveResources;
+				}
+			}),
+		
 		new MenuAction("Keep History", R.drawable.ic_history_black_36dp, new Runnable() {
 				@Override
 				public void run() {
@@ -2014,9 +2032,9 @@ public class MainActivity extends Activity {
 					tabOfWebView.loading = false;
 					if (requestList.getVisibility() == View.VISIBLE
 						&& view.getVisibility() == View.VISIBLE
-						&& tabOfWebView.adapter != null) {
-							if (tabOfWebView.adapter.show) {
-								tabOfWebView.adapter.notifyDataSetChanged();
+						&& tabOfWebView.logAdapter != null) {
+							if (tabOfWebView.logAdapter.showImages) {
+								tabOfWebView.logAdapter.notifyDataSetChanged();
 							} else {
 								log("", false);
 							}
@@ -2072,41 +2090,54 @@ public class MainActivity extends Activity {
 							return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 						}
 					}
-					final String path = url.getLastPathSegment();
-					//ExceptionLogger.d(TAG, "request.url = " + path);
-					if (path != null && !request.isForMainFrame()) {
+					final String fileName = url.getLastPathSegment();
+					final String scheme = url.getScheme();
+					final String urlToString = url.toString();
+					ExceptionLogger.d(TAG, "url.getLastPathSegment() = " + fileName + ", " + scheme + ", " + urlToString);
+					if (fileName != null && !request.isForMainFrame()
+						&& (scheme.startsWith("http")
+						|| scheme.startsWith("ftp"))) {
 						final Tab currentTab = tabOfWebView(view);
-						if (FAVICON_PATTERN.matcher(path).matches()) {
-							//ExceptionLogger.d(TAG, "shouldInterceptRequest.uri " + url.toString());
-							if (currentTab.favicon == null && !url.getScheme().equals("file") &&
+						if (isLogRequests) {
+							currentTab.requestsLog.add(urlToString);
+						}
+						if (FAVICON_PATTERN.matcher(fileName).matches()) {
+							if (currentTab.favicon == null &&
 								url.getHost().equals(URI.create(currentTab.favHref).getHost())) {
 //								ExceptionLogger.d(TAG, "shouldInterceptRequest.currentTab.favHref " + currentTab.favHref);
-								new DownloadImageTask(faviconImage, currentTab)
-									.execute(url.toString());
+								new DownloadFAVTask(faviconImage, currentTab)
+									.execute(urlToString);
 							}
-						} else {
-							final String scheme = url.getScheme();
-							if (scheme.startsWith("http")
-								|| scheme.startsWith("ftp")) {
-								if (IMAGES_PATTERN.matcher(path).matches()) {
-									currentTab.addDownload(url.toString());
-									if (currentTab.saveImage && (currentTab.dtask == null || currentTab.dtask.getStatus() == AsyncTask.Status.FINISHED)) {
-										currentTab.dtask = new DownloadTask<>(currentTab);
-										currentTab.dtask.execute();
-									}
-									if (currentTab.blockImages) {
-										return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-									}
-								} else if (currentTab.blockMedia && MEDIA_PATTERN.matcher(path).matches()) {
-									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-								} else if (currentTab.blockCSS && CSS_PATTERN.matcher(path).matches()) {
-									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-								} else if (currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(path).matches()) {
-									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-								} else if (currentTab.blockFonts && FONT_PATTERN.matcher(path).matches()) {
-									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+						} else if (IMAGES_PATTERN.matcher(fileName).matches()) {
+							final boolean isNew = currentTab.addImage(urlToString);
+							if (isNew && currentTab.saveImage && (currentTab.diTask == null || currentTab.diTask.getStatus() == AsyncTask.Status.FINISHED)) {
+								currentTab.diTask = new DownloadImageTask<>(currentTab);
+								synchronized (currentTab.diTask) {
+									if (currentTab.diTask.getStatus() == AsyncTask.Status.PENDING)
+										currentTab.diTask.execute();
 								}
 							}
+							if (currentTab.blockImages) {
+								final WebResourceResponse res = setRespond(currentTab, fileName, urlToString);
+								if (res != null) {
+									return res;
+								} else 
+									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+							}
+						} 
+						if (currentTab.saveResources && !MEDIA_PATTERN.matcher(fileName).matches()) {
+							saveRes(currentTab, urlToString);
+						} 
+						if (currentTab.blockMedia && MEDIA_PATTERN.matcher(fileName).matches()) {
+							return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+						} else if (currentTab.blockCSS && CSS_PATTERN.matcher(fileName).matches()
+							|| currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(fileName).matches()
+							|| currentTab.blockFonts && FONT_PATTERN.matcher(fileName).matches()) {
+							final WebResourceResponse res = setRespond(currentTab, fileName, urlToString);
+							if (res != null) {
+								return res;
+							} else 
+								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
 						}
 						final Map<String, String> requestHeaders = request.getRequestHeaders();
 						if (requestSaveData) {
@@ -2127,7 +2158,32 @@ public class MainActivity extends Activity {
 							requestHeaders.remove("X-Wap-Profile");
 						}
 					}
+						
 					return super.shouldInterceptRequest(view, request);
+				}
+
+				private void saveRes(MainActivity.Tab currentTab, String urlToString) {
+					if (currentTab.saveResources) {
+						currentTab.resourcesList.add(urlToString);
+						if (currentTab.resTask == null || currentTab.resTask.getStatus() == AsyncTask.Status.FINISHED) {
+							currentTab.resTask = new DownloadResourceTask<>(currentTab);
+							synchronized (currentTab.resTask) {
+								if (currentTab.resTask.getStatus() == AsyncTask.Status.PENDING)
+									currentTab.resTask.execute();
+							}
+						}
+					}
+				}
+
+				private WebResourceResponse setRespond(Tab currentTab, final String fileName, final String urlToString) {
+					final String mimeTypeFromExtension = MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(fileName));
+					final File file = new File(SCRAP_PATH + FileUtil.getPathFromUrl(urlToString));
+					ExceptionLogger.d(TAG, mimeTypeFromExtension + ", exists " + file.exists() + ", " + file.getAbsolutePath());
+					try {
+						return new WebResourceResponse(mimeTypeFromExtension, null, new BufferedInputStream(new FileInputStream(file)));
+					} catch (Throwable e) {
+					}
+					return null;
 				}
 
 				@Override
@@ -2151,15 +2207,7 @@ public class MainActivity extends Activity {
 				
 				@Override
 				public void onLoadResource(final WebView view, final String url) {
-					final Tab currentTab = tabOfWebView(view);
-					if (isLogRequests) {
-						currentTab.requestsLog.add(url);
-					}
-//					if (currentTab.saveMedia
-//						&& currentTab.includePattern.matcher(url).matches()
-//						&& !currentTab.excludePattern.matcher(url).matches()) {
-//						currentTab.mediaList.add(new Article(url, null));
-//					}
+					
 				}
 
 				final String[] sslErrors = {"Not yet valid", "Expired", "Hostname mismatch", "Untrusted CA", "Invalid date", "Unknown error"};
@@ -2281,15 +2329,13 @@ public class MainActivity extends Activity {
         return webview;
     }
 
-	//public static File externalDownloadFilesDir = null;
-    private class DownloadTask extends AsyncTask<Void, String, Void> {
-		
+	private class DownloadImageTask extends AsyncTask<Void, String, Void> {
+
 		final Tab tab;
-		
-		public DownloadTask(final Tab t) {
+		public DownloadImageTask(final Tab t) {
 			this.tab = t;
 		}
-		
+
 		protected Void doInBackground(final Void... v) {
 			final ArrayList<DownloadInfo> downloadInfos = tab.downloadInfos;
 			//ExceptionLogger.d(TAG, "download " + downloadInfos);
@@ -2297,24 +2343,27 @@ public class MainActivity extends Activity {
 				try {
 					DownloadInfo downloadInfo;
 					String url;
-					final String parentPath = downloadLocation + "/sweb";//externalDownloadFilesDir.getAbsolutePath();
 					while (downloadInfos.size() > 0) {
 						downloadInfo = downloadInfos.remove(0);
 						url = downloadInfo.url;
 						ExceptionLogger.d(TAG, "downloadInfo.url " + url);
 						if (tab.includePattern != null && tab.includePattern.matcher(url).matches()) {
-							downloadInfo.savedPath = saveImage(url, parentPath);
+							downloadInfo.savedPath = save(url, SCRAP_PATH);
 						} else {
 							if (tab.excludePattern != null) {
 								if (!tab.excludePattern.matcher(url).matches()) {
-									downloadInfo.savedPath = saveImage(url, parentPath);
+									downloadInfo.savedPath = save(url, SCRAP_PATH);
 								}
 							} else {
-								downloadInfo.savedPath = saveImage(url, parentPath);
+								downloadInfo.savedPath = save(url, SCRAP_PATH);
 							}
 						}
-						if (downloadInfo.savedPath != null)
+						if (downloadInfo.savedPath != null) {
 							tab.downloadedInfos.add(downloadInfo);
+							if (tab.logAdapter != null && tab.logAdapter.showImages) {
+								tab.logAdapter.notifyDataSetChanged();
+							}
+						}
 					}
 				} catch (Exception e) {
 					ExceptionLogger.e(TAG, e.getMessage());
@@ -2323,38 +2372,61 @@ public class MainActivity extends Activity {
 			return null;
 		}
 
-		private String saveImage(final String url, final String parentPath) throws IOException {
-			final String path = url.substring(url.indexOf("//") + 1, url.lastIndexOf("/"));
-			final String savedFilePath = parentPath + path;
-			final File file = new File(savedFilePath, FileUtil.getFileNameFromUrl(url));
-			ExceptionLogger.d(TAG, "saveImage savedFilePath " + file.getAbsolutePath() + ", exist " + file.exists());
-			if (!file.exists()) {
-				final InputStream in = new java.net.URL(url).openStream();
-				final String s = FileUtil.saveISToFile(in, savedFilePath, url, false, false);
-				ExceptionLogger.d(TAG, "saveImage s " + s);
-				publishProgress(s);
-			}
-			return file.getAbsolutePath();
-		}
-
 		@Override
-		protected void onProgressUpdate(String[] values) {
-			super.onProgressUpdate(values);
+		protected void onPostExecute(final Void result) {
+			//AndroidUtils.toast(MainActivity.this, "Finish saving images");
+		}
+	}
+
+
+    private class DownloadResourceTask extends AsyncTask<Void, String, Void> {
+		
+		final Tab tab;
+		public DownloadResourceTask(final Tab t) {
+			this.tab = t;
+		}
+		
+		protected Void doInBackground(final Void... v) {
+			final ArrayList<String> resources = tab.resourcesList;
+			//ExceptionLogger.d(TAG, "download " + downloadInfos);
+			if (resources != null && resources.size() > 0) {
+				try {
+					String url;
+					while (resources.size() > 0) {
+						url = resources.remove(0);
+						ExceptionLogger.d(TAG, "resources.url " + url);
+						save(url, SCRAP_PATH);
+					}
+				} catch (Exception e) {
+					ExceptionLogger.e(TAG, e.getMessage());
+				}
+			}
+			return null;
 		}
 		
 		@Override
 		protected void onPostExecute(final Void result) {
-			if (tab.adapter != null) {
-				tab.adapter.notifyDataSetChanged();
-			}
-			AndroidUtils.toast(MainActivity.this, "Finish saving images");
+			//AndroidUtils.toast(MainActivity.this, "Finish saving resources");
 		}
 	}
+
+	private String save(final String url, final String parentPath) throws IOException {
+		final String path = url.substring(url.indexOf("//") + 1, url.lastIndexOf("/"));
+		final String savedFilePath = parentPath + path;
+		final File file = new File(savedFilePath, FileUtil.getFileNameFromUrl(url));
+		ExceptionLogger.d(TAG, "save exist " + file.exists() + ", " + file.getAbsolutePath());
+		if (!file.exists()) {
+			final InputStream in = new java.net.URL(url).openStream();
+			final String s = FileUtil.saveISToFile(in, savedFilePath, url, false, false);
+			ExceptionLogger.d(TAG, "saved successfully " + s);
+		}
+		return file.getAbsolutePath();
+	}
 	
-	private class DownloadImageTask extends AsyncTask<String, Void, Bitmap> {
+	private class DownloadFAVTask extends AsyncTask<String, Void, Bitmap> {
 		final ImageView bmImage;
 		final Tab tab;
-		public DownloadImageTask(final ImageView bmImage, final Tab t) {
+		public DownloadFAVTask(final ImageView bmImage, final Tab t) {
 			this.bmImage = bmImage;
 			this.tab = t;
 		}
@@ -2364,9 +2436,7 @@ public class MainActivity extends Activity {
 			Bitmap mIcon11 = null;
 			if (urldisplay != null) {
 				try {
-					final InputStream in = new java.net.URL(urldisplay).openStream();
-					mIcon11 = BitmapFactory.decodeStream(in);
-					in.close();
+					mIcon11 = BitmapFactory.decodeFile(save(urldisplay, SCRAP_PATH));
 				} catch (Exception e) {
 					ExceptionLogger.e("Error", e.getMessage());
 				}
@@ -2649,7 +2719,8 @@ public class MainActivity extends Activity {
         tab.blockMedia = blockMedia;
         tab.blockJavaScript = blockJavaScript;
         tab.blockNetworkLoads = blockNetworkLoads;
-		tab.isDesktopUA = isDesktopUA;
+		tab.saveResources = saveResources;
+        tab.isDesktopUA = isDesktopUA;
         tabs.add(tab);
         webviews.addView(webview);
         setTabCountText(tabs.size());
@@ -2731,12 +2802,12 @@ public class MainActivity extends Activity {
 		} else {
 			progressBar.setVisibility(View.VISIBLE);
 		}
-		if (requestList.getVisibility() == View.VISIBLE && currentTab.adapter != null) {
-			if (currentTab.adapter.show) {
-				currentTab.adapter.notifyDataSetChanged();
-			} else {
-				log("", false);
-			}
+		requestList.setAdapter(currentTab.logAdapter);
+		if (currentTab.showLog) {
+			currentTab.logAdapter.notifyDataSetChanged();
+			requestList.setVisibility(View.VISIBLE);
+		} else {
+			requestList.setVisibility(View.GONE);
 		}
 		textChanged = false;
 		skipTextChange = false;
@@ -2890,22 +2961,22 @@ public class MainActivity extends Activity {
 															final Tab currentTab = getCurrentTab();
 															currentTab.saveImage = true;
 															currentTab.includePatternStr = ((EditText)saveImageLayout.findViewById(R.id.image_include_pattern)).getText().toString().trim();
-															ExceptionLogger.d(TAG, "currentTab.includePatternStr " + currentTab.includePatternStr);
+															ExceptionLogger.d(TAG, "includePatternStr " + currentTab.includePatternStr);
 															if (currentTab.includePatternStr.length() > 0) {
 																currentTab.includePattern = Pattern.compile(currentTab.includePatternStr, Pattern.CASE_INSENSITIVE);
 															} else {
 																currentTab.includePattern = null;
 															}
 															currentTab.excludePatternStr = ((EditText)saveImageLayout.findViewById(R.id.image_exclude_pattern)).getText().toString().trim();
-															ExceptionLogger.d(TAG, "currentTab.excludePatternStr " + currentTab.excludePatternStr);
+															ExceptionLogger.d(TAG, "excludePatternStr " + currentTab.excludePatternStr);
 															if (currentTab.excludePatternStr.length() > 0) {
 																currentTab.excludePattern = Pattern.compile(currentTab.excludePatternStr, Pattern.CASE_INSENSITIVE);
 															} else {
 																currentTab.excludePattern = null;
 															}
-															if (currentTab.dtask == null || currentTab.dtask.getStatus() == AsyncTask.Status.FINISHED) {
-																currentTab.dtask = new DownloadTask<>(currentTab);
-																currentTab.dtask.execute();
+															if (currentTab.diTask == null || currentTab.diTask.getStatus() == AsyncTask.Status.FINISHED) {
+																currentTab.diTask = new DownloadImageTask<>(currentTab);
+																currentTab.diTask.execute();
 															}
 															uaAdapter.notifyDataSetChanged();
 														} catch (Throwable t) {
@@ -2917,8 +2988,8 @@ public class MainActivity extends Activity {
 														final Tab currentTab = getCurrentTab();
 														currentTab.saveImage = false;
 														uaAdapter.notifyDataSetChanged();
-														if (currentTab.dtask != null && (currentTab.dtask.getStatus() == AsyncTask.Status.PENDING || currentTab.dtask.getStatus() == AsyncTask.Status.RUNNING)) {
-															currentTab.dtask.cancel(true);
+														if (currentTab.diTask != null && currentTab.diTask.getStatus() != AsyncTask.Status.FINISHED) {
+															currentTab.diTask.cancel(true);
 														}
 													}})
 												.show();
@@ -3013,6 +3084,17 @@ public class MainActivity extends Activity {
 											return currentTab.blockNetworkLoads;
 										}
 									}));
+					actions.add(new MenuAction("Save Resources", 0, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.saveResources = !currentTab.saveResources;
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.saveResources;
+										}
+									}));
 					actions.add(new MenuAction("Desktop User Agent", 0, new Runnable() {
 										@Override
 										public void run() {
@@ -3089,99 +3171,98 @@ public class MainActivity extends Activity {
 					actions.add(new MenuAction("Image Viewer", 0, new Runnable() {
 										@Override
 										public void run() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											if (requestList.getVisibility() == View.VISIBLE && logAdapter != null && logAdapter.show)
+											if (currentTab.showLog && currentTab.logAdapter != null && currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
-											else {
-												getCurrentTab().recentConstraint = ".";
+												currentTab.showLog = false;
+											} else {
+												currentTab.recentConstraint = ".";
 												log(null, true);
 											}
 										}
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											return requestList.getVisibility() == View.VISIBLE && logAdapter != null && logAdapter.show;
+											return currentTab.showLog && currentTab.logAdapter != null && currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("All Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											if (requestList.getVisibility() == View.VISIBLE && logAdapter != null && getCurrentTab().recentConstraint == null)
+											if (currentTab.showLog && currentTab.logAdapter != null && currentTab.recentConstraint == null) {
 												requestList.setVisibility(View.GONE);
-											else
+												currentTab.showLog = false;
+											} else {
 												log(null, false);
+											}
 										}
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											return requestList.getVisibility() == View.VISIBLE && logAdapter != null && getCurrentTab().recentConstraint == null;
+											return currentTab.showLog && currentTab.logAdapter != null && currentTab.recentConstraint == null;
 										}
 									}));
 					actions.add(new MenuAction("CSS Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											if (requestList.getVisibility() == View.VISIBLE && logAdapter != null && CSS_PAT.equals(getCurrentTab().recentConstraint))
+											if (currentTab.showLog && currentTab.logAdapter != null && CSS_PAT.equals(getCurrentTab().recentConstraint)) {
 												requestList.setVisibility(View.GONE);
-											else
+												currentTab.showLog = false;
+											} else {
 												log(CSS_PAT, false);
+											}
 										}
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											return requestList.getVisibility() == View.VISIBLE && logAdapter != null && CSS_PAT.equals(getCurrentTab().recentConstraint);
+											return currentTab.showLog && currentTab.logAdapter != null && CSS_PAT.equals(getCurrentTab().recentConstraint);
 										}
 									}));
 					actions.add(new MenuAction("Media Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											if (requestList.getVisibility() == View.VISIBLE && logAdapter != null && MEDIA_PAT.equals(getCurrentTab().recentConstraint))
+											if (currentTab.showLog && currentTab.logAdapter != null && MEDIA_PAT.equals(getCurrentTab().recentConstraint)) {
+												currentTab.showLog = false;
 												requestList.setVisibility(View.GONE);
-											else
+											} else {
 												log(MEDIA_PAT, false);
+											}
 										}
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											return requestList.getVisibility() == View.VISIBLE && logAdapter != null && MEDIA_PAT.equals(getCurrentTab().recentConstraint);
+											return currentTab.showLog && currentTab.logAdapter != null && MEDIA_PAT.equals(getCurrentTab().recentConstraint);
 										}
 									}));
 					actions.add(new MenuAction("Image Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											if (requestList.getVisibility() == View.VISIBLE && logAdapter != null && IMAGE_PAT.equals(getCurrentTab().recentConstraint))
+											if (currentTab.showLog && currentTab.logAdapter != null && IMAGE_PAT.equals(getCurrentTab().recentConstraint)) {
 												requestList.setVisibility(View.GONE);
-											else
+												currentTab.showLog = false;
+											} else {
 												log(IMAGE_PAT, false);
+											}
 										}
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											return requestList.getVisibility() == View.VISIBLE && logAdapter != null && IMAGE_PAT.equals(getCurrentTab().recentConstraint);
+											return currentTab.showLog && currentTab.logAdapter != null && IMAGE_PAT.equals(getCurrentTab().recentConstraint);
 										}
 									}));
 					actions.add(new MenuAction("JavaScript Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											if (requestList.getVisibility() == View.VISIBLE && logAdapter != null && JAVASCRIPT_PAT.equals(getCurrentTab().recentConstraint))
+											if (currentTab.showLog && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(getCurrentTab().recentConstraint)) {
 												requestList.setVisibility(View.GONE);
-											else
+												currentTab.showLog = false;
+											} else {
 												log(JAVASCRIPT_PAT, false);
+											}
 										}
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											final LogArrayAdapter logAdapter = (LogArrayAdapter) requestList.getAdapter();
-											return requestList.getVisibility() == View.VISIBLE && logAdapter != null && JAVASCRIPT_PAT.equals(getCurrentTab().recentConstraint);
+											return currentTab.showLog && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(getCurrentTab().recentConstraint);
 										}
 									}));
 					
@@ -3344,6 +3425,7 @@ public class MainActivity extends Activity {
 		saveFormData = prefs.getBoolean("saveFormData", true);
 		autoHideToolbar = prefs.getBoolean("autoHideToolbar", false);
         removeIdentifyingHeaders = prefs.getBoolean("removeIdentifyingHeaders", false);
+		saveResources = prefs.getBoolean("saveResources", true);
 		
 		javaScriptEnabled = prefs.getBoolean("javaScriptEnabled", true);
 		appCacheEnabled = prefs.getBoolean("appCacheEnabled", true);
@@ -3370,6 +3452,7 @@ public class MainActivity extends Activity {
 		downloadLocation = prefs.getString("downloadLocation", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
 		textEncoding = prefs.getString("textEncoding", "UTF-8");
 		deleteAfter = prefs.getString("deleteAfter", "30");
+		SCRAP_PATH = downloadLocation + "/sweb";//externalDownloadFilesDir.getAbsolutePath();
 		if (placesDb != null)
 			placesDb.execSQL("DELETE FROM history WHERE date_created < DATETIME('now', '-" + deleteAfter + " day')", new Object[] {});
 		
@@ -3519,21 +3602,22 @@ public class MainActivity extends Activity {
 	private void log(final String pat, final boolean show) {
 		final Tab currentTab = getCurrentTab();
 		if (!show) {
-			currentTab.adapter = new LogArrayAdapter(MainActivity.this,
+			currentTab.logAdapter = new LogArrayAdapter(MainActivity.this,
 													 R.layout.image,
 													 currentTab.requestsLog);
-			currentTab.adapter.show = show;
-			requestList.setAdapter(currentTab.adapter);
-			currentTab.adapter.getFilter().filter(pat);
+			currentTab.logAdapter.showImages = show;
+			requestList.setAdapter(currentTab.logAdapter);
+			currentTab.logAdapter.getFilter().filter(pat);
 		} else {
-			currentTab.adapter = new LogArrayAdapter(MainActivity.this,
+			currentTab.logAdapter = new LogArrayAdapter(MainActivity.this,
 													 R.layout.image,
 													 currentTab.downloadedInfos);
-			currentTab.adapter.show = show;
-			requestList.setAdapter(currentTab.adapter);
+			currentTab.logAdapter.showImages = show;
+			requestList.setAdapter(currentTab.logAdapter);
 		}
-		if (requestList.getVisibility() == View.GONE)
-			requestList.setVisibility(View.VISIBLE);
+		currentTab.showLog = true;
+		requestList.setVisibility(View.VISIBLE);
+		currentTab.logAdapter.notifyDataSetChanged();
 	}
 
 //	private void log(final String pat, final boolean show) {
@@ -4015,8 +4099,10 @@ public class MainActivity extends Activity {
 				public void onClick(DialogInterface dialog, int which) {
 					cursorHistory.moveToPosition(which);
 					String url = cursorHistory.getString(cursorHistory.getColumnIndex("url"));
-					et.requestFocus();
+					//et.requestFocus();
+					skipTextChange = true;
 					et.setText(url);
+					skipTextChange = false;
 					loadUrl(url, getCurrentWebView());
 					cursorHistory.close();
 				}})
@@ -4185,8 +4271,10 @@ public class MainActivity extends Activity {
 				public void onClick(DialogInterface dialog, int which) {
 					bookmarkCursor.moveToPosition(which);
 					String url = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("url"));
-					et.requestFocus();
+					//et.requestFocus();
+					skipTextChange = true;
 					et.setText(url);
+					skipTextChange = false;
 					loadUrl(url, getCurrentWebView());
 					bookmarkCursor.close();
 				}})
@@ -4485,6 +4573,13 @@ public class MainActivity extends Activity {
 			faviconImage.setImageResource(R.drawable.page_info);
 		}
 		currentTab.webview.requestFocus();
+		requestList.setAdapter(currentTab.logAdapter);
+		if (currentTab.showLog) {
+			currentTab.logAdapter.notifyDataSetChanged();
+			requestList.setVisibility(View.VISIBLE);
+		} else {
+			requestList.setVisibility(View.GONE);
+		}
 		textChanged = false;
 		skipTextChange = false;
 	}
@@ -5214,7 +5309,7 @@ public class MainActivity extends Activity {
         }
     }
 	private class LogArrayAdapter extends ArrayAdapter implements View.OnClickListener {
-		private boolean show = false;
+		private boolean showImages = false;
 		class Holder {
 			TextView textView;
 			ImageView imageView;
@@ -5242,7 +5337,7 @@ public class MainActivity extends Activity {
 		public void onClick(View p1) {
 			final Holder tag = (Holder) p1.getTag();
 			final Object item = (tag).item;
-			if (show)
+			if (showImages)
 				newForegroundTab(((DownloadInfo)item).savedPath, getCurrentTab().isIncognito, getCurrentTab());
 			else
 				newForegroundTab((String)item, getCurrentTab().isIncognito, getCurrentTab());
@@ -5261,7 +5356,7 @@ public class MainActivity extends Activity {
 			final TextView textView = holder.textView;
 			holder.item = getItem(position);
 			final String path;
-			if (show) {
+			if (showImages) {
 				path = ((DownloadInfo)holder.item).savedPath;
 				final BitmapFactory.Options opts = new BitmapFactory.Options();
 				opts.inJustDecodeBounds = false;

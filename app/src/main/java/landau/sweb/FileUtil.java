@@ -120,6 +120,12 @@ public class FileUtil {
 		}
 		return fList;
 	}
+
+	public static String getPathFromUrl(String url) {
+		final int indexOfQuestion = url.indexOf("?");
+		final int indexOfSharp;
+		return url.substring(url.indexOf("//") + 1, (indexOfQuestion > 0 ? indexOfQuestion : (indexOfSharp  = url.indexOf("#")) > 0 ? indexOfSharp : url.length()));
+	}
 	
 	public static String getFileNameFromUrl(String url) {
 		int slashIndex = url.lastIndexOf("/");
@@ -191,5 +197,15 @@ public class FileUtil {
 			throw new RuntimeException("cannot initialize MD5 hash function", e);
 		}
 	}
+	
+	public static String getExtension(final String fName) {
+		if (fName != null) {
+			int lastIndexOf = fName.lastIndexOf(".");
+			if (lastIndexOf >= 0)
+				return fName.substring(++lastIndexOf).toLowerCase();
+		}
+		return "";
+	}
+
 
 }
