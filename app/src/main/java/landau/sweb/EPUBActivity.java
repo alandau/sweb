@@ -16,8 +16,6 @@ import java.util.regex.*;
 import landau.sweb.utils.*;
 import nl.siegmann.epublib.domain.*;
 import nl.siegmann.epublib.epub.*;
-import org.jsoup.*;
-import org.jsoup.nodes.*;
 import android.webkit.*;
 
 public class EPUBActivity extends Activity {
@@ -26,7 +24,7 @@ public class EPUBActivity extends Activity {
 	
 	public static File externalLogFilesDir;
 	private Pattern HTML_PATTERN = Pattern.compile(".*?\\.[xds]?ht(m?|ml)", Pattern.CASE_INSENSITIVE);
-	private Pattern IMAGE_PATTERN = Pattern.compile(".*?\\.(jpe?g|gif|png|webp|pcx|bmp|tiff?)", Pattern.CASE_INSENSITIVE);
+	private Pattern IMAGE_PATTERN = Pattern.compile(".*?\\.(jpe?g|gif|png|webp|pcx|bmp|tiff?|wmf|ico)", Pattern.CASE_INSENSITIVE);
 	
 	private EditText coverImageET, titleET, authorET, fileET, saveToET, startPageET, includeET, excludeET;
 
@@ -106,7 +104,6 @@ public class EPUBActivity extends Activity {
 			try {
 				final Book book = new Book();
 
-				TreeMap<String, List<String>> tm = new TreeMap<>();
 				final String path = fileET.getText().toString().trim();
 				final File f = new File(path);
 				int lengthDir = path.length();
@@ -119,12 +116,16 @@ public class EPUBActivity extends Activity {
 						lengthDir = f.getParent().length();
 					}
 					final Metadata metadata = book.getMetadata();
+					
 					final String title = titleET.getText().toString().trim();
+					ExceptionLogger.d("title", title);
+					String epubName = "";
 					if (title.length() > 0) {
 						metadata.addTitle(title);
-						ExceptionLogger.d("title", title);
+						epubName += title;
 					}
 					final String author = authorET.getText().toString().trim();
+					ExceptionLogger.d("author", author);
 					if (author.length() > 0) {
 						final int idx = author.lastIndexOf(" ");
 						if (idx > 0) {
@@ -133,20 +134,24 @@ public class EPUBActivity extends Activity {
 						} else {
 							metadata.addAuthor(new Author("", author));
 						}
-						ExceptionLogger.d("author", author);
+						if (epubName.length() > 0) {
+							epubName += " - " + author;
+						} else {
+							epubName = author;
+						}
 					}
 
 					final String startPage = startPageET.getText().toString().trim();
+					ExceptionLogger.d("startPage", startPage);
 					final File fstart = new File(startPage);
 					if (startPage.length() > 0 && fstart.exists() && fstart.isFile()) {
 						book.addSection(fstart.getName(),
 										getResource(startPage, lengthDir));
-						ExceptionLogger.d("startPage", startPage);
 					}
 					final String coverImage = coverImageET.getText().toString().trim();
-					if (coverImage.length() > 0 && new File(coverImage).exists()) {
+					ExceptionLogger.d("coverImage", coverImage);
+					if (coverImage.length() > 0 && new File(coverImage).exists() && IMAGE_PATTERN.matcher(coverImage).matches()) {
 						book.setCoverImage(getResource(coverImage, lengthDir));
-						ExceptionLogger.d("coverImage", coverImage);
 					}
 					Pattern includePat = null, excludePat = null;
 					final String include = includeET.getText().toString().trim();
@@ -157,49 +162,47 @@ public class EPUBActivity extends Activity {
 					if (exclude.length() > 0) {
 						excludePat = Pattern.compile(exclude, Pattern.CASE_INSENSITIVE);
 					}
+					final Pattern numPat = Pattern.compile(".*?(\\d+).*?");
 					final List<File> fs = FileUtil.getFiles(f, includePat, excludePat);
 					Collections.sort(fs, new Comparator<File>() {
 							@Override
 							public int compare(final File file1, final File file2) {
+								final Matcher matcher1 = numPat.matcher(file1.getName());
+								final Matcher matcher2 = numPat.matcher(file2.getName());
+								if (matcher1.matches() && matcher2.matches()) {
+									final Integer valueOf1 = Integer.valueOf(matcher1.group(1));
+									final Integer valueOf2 = Integer.valueOf(matcher2.group(1));
+									if (valueOf1 != valueOf2)
+										return valueOf1 - valueOf2;
+								}
 								return file1.getAbsolutePath().compareToIgnoreCase(file2.getAbsolutePath());
 							}
 						});
 					String name;
-					Document doc;
+					String doc;
 					String htmlTitle;
-					String absolutePath;
-					String parent;
+					String filePath;
 					for (File ff : fs) {
-						absolutePath = ff.getAbsolutePath();
-						if (!startPage.equalsIgnoreCase(absolutePath)
-							&& !coverImage.equalsIgnoreCase(absolutePath)) {
+						filePath = ff.getAbsolutePath();
+						ExceptionLogger.d(TAG, "filePath " + filePath);
+						if (!startPage.equalsIgnoreCase(filePath)
+							&& (!coverImage.equalsIgnoreCase(filePath) || !IMAGE_PATTERN.matcher(coverImage).matches())) {
 							name = ff.getName();
 							if (HTML_PATTERN.matcher(name).matches()) {
-								doc = Jsoup.parse(ff, null);
-								htmlTitle = doc.title();
-								ExceptionLogger.d("htmlTitle", htmlTitle);
-								//ExceptionLogger.d("readHtml", FileUtil.readHtml(ff));
+								doc = FileUtil.readFileByMetaTag(ff);//Jsoup.parse(ff, null);
+								htmlTitle = HtmlUtil.getTagValue("title", doc).trim();//doc.title();
+								ExceptionLogger.d("htmlTitle ", htmlTitle);
+
 								if (htmlTitle != null && htmlTitle.length() > 0) {
-									book.addSection(htmlTitle + "_" + name,
-													getResource(absolutePath, lengthDir));
+									book.addSection(htmlTitle,// + "_" + name,
+													getResource(filePath, lengthDir));
 								} else {
 									book.addSection(name,
-													getResource(absolutePath, lengthDir));
+													getResource(filePath, lengthDir));
 								}
 							} else {
 								book.getResources().add(
-									getResource(absolutePath, lengthDir));
-								if (IMAGE_PATTERN.matcher(name).matches()) {
-									parent = ff.getParent().substring(lengthDir);
-									List<String> l = tm.get(parent);
-									if (l != null) {
-										l.add(absolutePath);
-									} else {
-										l = new LinkedList<String>();
-										l.add(absolutePath);
-										tm.put(parent, l);
-									}
-								}
+									getResource(filePath, lengthDir));
 							}
 						}
 					}
@@ -208,7 +211,11 @@ public class EPUBActivity extends Activity {
 						final File file = new File(saveTo);
 						if (file.exists()) {
 							if (file.isDirectory()) {
-								name = file.getAbsolutePath() + "/" + f.getName() + ".epub";
+								if (epubName.length() > 0) {
+									name = file.getAbsolutePath() + "/" + epubName + ".epub";
+								} else {
+									name = file.getAbsolutePath() + "/" + f.getName() + ".epub";
+								}
 							} else {
 								name = file.getAbsolutePath();
 								if (!name.toLowerCase().endsWith(".epub")) {

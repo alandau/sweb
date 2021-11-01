@@ -5,16 +5,17 @@ import java.io.*;
 import java.util.*;
 import java.util.regex.*;
 import landau.sweb.utils.*;
-import org.jsoup.*;
-import org.jsoup.nodes.*;
 import java.security.MessageDigest;
 import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
+import org.mozilla.universalchardet.*;
+import java.nio.channels.*;
+import java.nio.*;
 
 public class FileUtil {
 	
 	private static final String TAG = "FileUtil";
-	
+	private static final String ISO_8859_1 = "ISO-8859-1";
 	public static void close(final Closeable... closable) {
 		if (closable != null && closable.length > 0) {
 			for (Closeable c : closable) {
@@ -69,14 +70,34 @@ public class FileUtil {
 			throw new IOException("File is bigger than " + Util.nf.format(Integer.MAX_VALUE) + " bytes");
 		}
 	}
-	
-	public static String readHtml(final File ff) throws IOException {
-		final Document doc = Jsoup.parse(ff, null);
-		ExceptionLogger.d("charset", doc.charset().toString());
-		
-		return doc.outerHtml();
+
+	public static String readFileByMetaTag(File file)
+	throws FileNotFoundException, IOException {
+		final byte[] byteArr = FileUtil.readFileToMemory(file);
+		final String encoding = UniversalDetector.detectCharset(new ByteArrayInputStream(byteArr));
+		final String content = new String(byteArr, encoding == null ? "utf-8" : encoding);
+		final String charsetName = HtmlUtil.readValue(content, "charset");
+		if (charsetName.length() > 0) {
+			Log.d(TAG, file.getAbsolutePath() + " charset: " + charsetName);
+			return new String(byteArr, charsetName);
+		} else {
+			return content;
+		}
 	}
 
+	public static String readFileWithCheckEncode(File filePath)
+	throws FileNotFoundException, IOException,
+	UnsupportedEncodingException {
+		final byte[] byteArr = FileUtil.readFileToMemory(filePath);
+		return readFileWithCheckEncode(filePath, byteArr);
+	}
+
+	public static String readFileWithCheckEncode(File f, byte[] byteArr) throws IOException {
+		final String encoding = UniversalDetector.detectCharset(f);
+		Log.d(TAG, f.getAbsolutePath() + " detectCharset: " + encoding);
+		return new String(byteArr, encoding);
+	}
+	
 	public static List<File> getFiles(final File f, final Pattern includePat, final Pattern excludePat) {
 		ExceptionLogger.d(TAG, "getFiles " + f.getAbsolutePath() + ", includePat " + includePat + ", excludePat " + excludePat);
 		final List<File> fList = new LinkedList<File>();
@@ -186,7 +207,59 @@ public class FileUtil {
 		}
 		return savedFile.getAbsolutePath();
 	}
+
+	public static void isAppendFile(final InputStream is, final String fileName) throws IOException {
+		final FileOutputStream fos = new FileOutputStream(fileName, true);
+		final BufferedOutputStream bos = new BufferedOutputStream(fos);
+		final BufferedInputStream bis = new BufferedInputStream(is);
+		final byte[] barr = new byte[32768];
+		int read = 0;
+		try {
+			while ((read = bis.read(barr)) > 0) {
+				bos.write(barr, 0, read);
+			}
+		} finally {
+			close(is, bis);
+			flushClose(bos, fos);
+		}
+	}
 	
+	public static void is2File(final InputStream is, final String fileName) throws IOException {
+		final File file = new File(fileName);
+		file.getParentFile().mkdirs();
+		final File tempFile = new File(fileName + ".tmp");
+		final FileOutputStream fos = new FileOutputStream(tempFile);
+		final BufferedOutputStream bos = new BufferedOutputStream(fos);
+		final BufferedInputStream bis = new BufferedInputStream(is);
+		final byte[] barr = new byte[32768];
+		int read = 0;
+		try {
+			while ((read = bis.read(barr)) > 0) {
+				bos.write(barr, 0, read);
+			}
+		} finally {
+			close(is, bis);
+			flushClose(bos, fos);
+			file.delete();
+			tempFile.renameTo(file);
+		}
+	}
+
+	public static void writeFileAsCharset(File file, String contents,
+										  String newCharset) throws IOException {
+		if (!file.getParentFile().exists()) {
+			file.getParentFile().mkdirs();
+		}
+		final FileOutputStream fos = new FileOutputStream(file);
+		final FileChannel fileChannel = fos.getChannel();
+		fileChannel.write(ByteBuffer.wrap(contents.getBytes(newCharset)));
+		fileChannel.force(true);
+		close(fileChannel);
+		flushClose(fos);
+		file.delete();
+	}
+	
+
 	public static String getPathHash(final String filepath) {
 		try {
 			final MessageDigest md = MessageDigest.getInstance("MD5");

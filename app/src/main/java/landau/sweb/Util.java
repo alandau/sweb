@@ -21,11 +21,28 @@ public class Util {
 
 	public static final String SPECIAL_CHAR_PATTERNSTR = "([{}^$.\\[\\]|*+?()\\\\])";
 	
-//	public static CharsetMatch getCharset(final byte [] byteData) {
-//		final CharsetDetector detector = new CharsetDetector();
-//		detector.setText(byteData);
-//		final CharsetMatch match = detector.detect();
-//		ExceptionLogger.d(TAG, "match " + match.getName());
-//		return match;
-//	}
+
+
+	public static String replaceAll(String s, String as[], String as1[]) {
+		// long millis = System.currentTimeMillis();
+		StringBuilder sb = new StringBuilder();
+		for (int k = 0; k < as.length; k++) {
+			if (as[k].length() > 0) {
+				int i = 0;
+				sb.setLength(0);
+				int j;
+				while ((j = s.indexOf(as[k], i)) >= 0) {
+					sb.append(s, i, j);
+					sb.append(as1[k]);
+					// LOGGER.info("replaced " + as[k] + " = " + as1[k]);
+					i = j + as[k].length();
+				}
+				sb.append(s, i, s.length());
+				s = sb.toString();
+			}
+		}
+		// LOGGER.info("replaced result: " + s);
+		return s;
+	}
+	
 }

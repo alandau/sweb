@@ -55,11 +55,11 @@ public class MainActivity extends Activity {
 	private String SCRAP_PATH;
 	private static final Pattern FAVICON_PATTERN = Pattern.compile(".*?/favicon\\.(ico|png|bmp)", Pattern.CASE_INSENSITIVE);
 	
-	private static final String IMAGE_PAT = ".*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico|svg).*?";
-	private static final String MEDIA_PAT = ".*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram).*?";
-	private static final String CSS_PAT = ".*?css.*?";
-	private static final String JAVASCRIPT_PAT = ".*?[\\./]js.*?";
-	private static final String FONT_PAT = ".*?\\.(otf|ttf|ttc|woff|woff2).*?";
+	private static final String IMAGE_PAT = "[^\\s]*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico|svg)[^\\s]*?";
+	private static final String MEDIA_PAT = "[^\\s]*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram|m4a|3gpp?)[^\\s]*?";
+	private static final String CSS_PAT = "[^\\s]*?[\\./]css[^\\s]*?";
+	private static final String JAVASCRIPT_PAT = "[^\\s]*?[\\./]js[^\\s]*?";
+	private static final String FONT_PAT = "[^\\s]*?\\.(otf|ttf|ttc|woff|woff2)[^\\s]*?";
 	private static final Pattern IMAGES_PATTERN = Pattern.compile(IMAGE_PAT, Pattern.CASE_INSENSITIVE);
 	private static final Pattern MEDIA_PATTERN = Pattern.compile(MEDIA_PAT, Pattern.CASE_INSENSITIVE);
 	private static final Pattern CSS_PATTERN = Pattern.compile(CSS_PAT, Pattern.CASE_INSENSITIVE);
@@ -129,16 +129,18 @@ public class MainActivity extends Activity {
 	}
 	boolean textChanged;
 	boolean skipTextChange = false;
-	private class Tab {
+	class Tab {
         Tab(CustomWebView w, boolean isIncognito) {
             this.webview = w;
 			this.isIncognito = isIncognito;
+			this.webview.tab = this;
         }
 		String userAgent = MainActivity.this.userAgentString;
 		String customUAType = MainActivity.this.customUAType;
 		int progress;
 		WebView printWeb;
 		boolean saveAndClose = false;
+		boolean openAndClose = false;
 		boolean loading;
         CustomWebView webview;
         boolean isDesktopUA;
@@ -155,7 +157,6 @@ public class MainActivity extends Activity {
 		boolean blockCSS;
 		boolean blockJavaScript;
 		boolean blockNetworkLoads;
-		boolean saveResources;
 		String source;
 		ArrayList<String> resourcesList = new ArrayList<>();
 		String includePatternStr;
@@ -168,10 +169,20 @@ public class MainActivity extends Activity {
 //		transient Pattern includeUrlPattern;
 //		transient Pattern excludeUrlPattern;
 		boolean saveImage = false;
-		volatile ArrayList<DownloadInfo> downloadInfos = new ArrayList<>(4096);
-		volatile ArrayList<DownloadInfo> downloadedInfos = new ArrayList<>(4096);
+		boolean saveResources;
+		volatile ArrayList<DownloadInfo> downloadInfos = new ArrayList<>();
+		volatile ArrayList<DownloadInfo> downloadedInfos = new ArrayList<>();
 		LogArrayAdapter logAdapter;
 		boolean showLog = false;
+		String getName(final String name) {
+			for (int i = 0; i < downloadedInfos.size(); i++) {
+				final DownloadInfo di = downloadedInfos.get(i);
+				if (name.equals(di.name)) {
+					return di.savedPath;
+				}
+			}
+			return null;
+		}
 		boolean addImage(final String url) {
 			final String onlyName = FileUtil.getFileNameFromUrl(url);
 			try {
@@ -212,6 +223,7 @@ public class MainActivity extends Activity {
 			this.blockCSS = srcTab.blockCSS;
 			this.blockJavaScript = srcTab.blockJavaScript;
 			this.saveImage = srcTab.saveImage;
+			this.saveResources = srcTab.saveResources;
 			this.includePatternStr = srcTab.includePatternStr;
 			this.excludePatternStr = srcTab.excludePatternStr;
 			this.includePattern = srcTab.includePattern;
@@ -311,6 +323,7 @@ public class MainActivity extends Activity {
 	private boolean blockCSS;
 	private boolean blockJavaScript;
 	private boolean autoHideToolbar;
+	private boolean autoHideAddressbar;
 	private int renderMode;
 	private boolean removeIdentifyingHeaders;
 	private String downloadLocation;
@@ -318,6 +331,7 @@ public class MainActivity extends Activity {
 	private int backgroundColor;
 	private String textEncoding;
 	private String deleteAfter;
+	private boolean saveImage;
 	private boolean saveResources;
 	private int cacheMode;
 	private boolean isDesktopUA;
@@ -751,7 +765,7 @@ public class MainActivity extends Activity {
 						for (Tab t : tabs) {
 							t.webview.setOnTouchListener(new TouchListener());
 						}
-					} else {
+					} else if (!autoHideToolbar && !autoHideAddressbar) {
 						for (Tab t : tabs) {
 							t.webview.setOnTouchListener(null);
 						}
@@ -761,6 +775,29 @@ public class MainActivity extends Activity {
 				@Override
 				public boolean getAsBoolean() {
 					return autoHideToolbar;
+				}
+			}),
+		new MenuAction("Auto Hide Addressbar", 0, new Runnable() {
+				@Override
+				public void run() {
+					autoHideAddressbar = !autoHideAddressbar;
+					prefs.edit().putBoolean("autoHideAddressbar", autoHideAddressbar).apply();
+					if (autoHideAddressbar) {
+						for (Tab t : tabs) {
+							t.webview.setOnTouchListener(new TouchListener());
+						}
+					} else {
+						address.setVisibility(View.VISIBLE);
+						if (!autoHideToolbar)
+							for (Tab t : tabs) {
+							t.webview.setOnTouchListener(null);
+						}
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return autoHideAddressbar;
 				}
 			}),
 		new MenuAction("Download Location", 0, new Runnable() {
@@ -841,15 +878,10 @@ public class MainActivity extends Activity {
 					return isNightMode;
 				}
 			}),
-		new MenuAction("Show address bar", R.drawable.url_bar, new Runnable() {
+		new MenuAction("Show Log", R.drawable.url_bar, new Runnable() {
 				@Override
 				public void run() {
-					address.setVisibility(address.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
-				}
-			}, new MyBooleanSupplier() {
-				@Override
-				public boolean getAsBoolean() {
-					return address.getVisibility() == View.VISIBLE;
+					requestList.setVisibility(requestList.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
 				}
 			}),
 		new MenuAction("Full screen", R.drawable.fullscreen, new Runnable() {
@@ -1229,6 +1261,21 @@ public class MainActivity extends Activity {
 					getCurrentWebView().pageDown(true);
 				}
 			}),
+		new MenuAction("Save Images", 0, new Runnable() {
+				@Override
+				public void run() {
+					saveImage = !saveImage;
+					prefs.edit().putBoolean("saveImage", saveImage).apply();
+					for (Tab t : tabs) {
+						t.saveImage = saveImage;
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return saveImage;
+				}
+			}),
 		new MenuAction("Save Resources", 0, new Runnable() {
 				@Override
 				public void run() {
@@ -1318,6 +1365,18 @@ public class MainActivity extends Activity {
 				@Override
 				public void run() {
 					deleteAllBookmarks();
+				}
+			}),
+		new MenuAction("Export custom filters", R.drawable.bookmarks_export, new Runnable() {
+				@Override
+				public void run() {
+					exportFilters();
+				}
+			}),
+		new MenuAction("Import custom filters", R.drawable.bookmarks_export, new Runnable() {
+				@Override
+				public void run() {
+					importFilters();
 				}
 			}),
 		new MenuAction("Delete all debug logs", R.drawable.ic_delete_white_36dp, new Runnable() {
@@ -1800,11 +1859,11 @@ public class MainActivity extends Activity {
 		{"Show Bookmarks", "Show History", "Add bookmark"},
 		{"Save Page", "Night mode", "Full screen"},
 		{"Show tabs", "New tab", "Close tab"},
-		{"Menu", "Find on page", "Show address bar"},
+		{"Menu", "Find on page", "Show Log"},
     };
 
     final String[] shortMenu = {
-		"Full menu", "New tab", "Desktop UA", "Show History", "Tab history", "Show address bar", 
+		"Full menu", "New tab", "Desktop UA", "Show History", "Tab history", "Show Log", 
 		"Find on page", "Block Images", "Add bookmark", "Full screen", "Close tab"
     };
 
@@ -1862,7 +1921,7 @@ public class MainActivity extends Activity {
 				public void onProgressChanged(final WebView view, final int newProgress) {
 					super.onProgressChanged(view, newProgress);
 					//injectCSS(view);
-					final Tab tabOfWebView = tabOfWebView(view);
+					final Tab tabOfWebView = ((CustomWebView)view).tab;
 					tabOfWebView.progress = newProgress;
 					if (getCurrentTab() == tabOfWebView) {
 						if (newProgress == 100) {
@@ -1950,14 +2009,16 @@ public class MainActivity extends Activity {
 //						et.setSelection(0);
 //						view.requestFocus();
 //					}
-					final Tab currentTab = tabOfWebView(view);
+					final Tab currentTab = ((CustomWebView)view).tab;
 					if (getCurrentTab() == currentTab) {
 						progressBar.setProgress(0);
 						progressBar.setVisibility(View.VISIBLE);
+						skipTextChange = true;
 						et.setText(url);
-						et.setSelection(0);
+						//et.setSelection(0);
 						view.requestFocus();
 						goStop.setImageResource(R.drawable.stop);
+						skipTextChange = false;
 						textChanged = false;
 					}
 					currentTab.progress = 0;
@@ -2004,7 +2065,7 @@ public class MainActivity extends Activity {
 //						"click.openImage(this.src,this.pos);" +
 //						"}}})()";
 //                    view.loadUrl(jsCode);
-					final Tab tabOfWebView = tabOfWebView(view);
+					final Tab tabOfWebView = ((CustomWebView)view).tab;
 					tabOfWebView.progress = 100;
 					tabOfWebView.printWeb = view;
 					if (saveHistory 
@@ -2039,12 +2100,22 @@ public class MainActivity extends Activity {
 								log("", false);
 							}
 					}
+					if (tabOfWebView.openAndClose) {
+						if (tabs.contains(tabOfWebView)) {
+							if (tabs.size() > 1) {
+								closeTab(view, tabs.indexOf(tabOfWebView));
+							} else {
+								newBackgroundTab("about:blank", false, null);
+								closeTab(view, tabs.indexOf(tabOfWebView));
+							}
+						}
+					}
 					if (tabOfWebView.saveAndClose) {
 						saveWebArchive(view, new ValueCallback<String>() {
 								@Override
 								public void onReceiveValue(final String p1) {
 									ExceptionLogger.d(TAG, "onReceiveValue " + p1);
-									if (tabOfWebView != null) {
+									if (tabs.contains(tabOfWebView)) {
 										if (tabs.size() > 1) {
 											closeTab(view, tabs.indexOf(tabOfWebView));
 										} else {
@@ -2080,108 +2151,112 @@ public class MainActivity extends Activity {
 				String lastMainPage = "";
 				@Override
 				public WebResourceResponse shouldInterceptRequest(final WebView view, final WebResourceRequest request) {
-					
-					final Uri url = request.getUrl();
-					if (adBlocker != null) {
-						if (request.isForMainFrame()) {
-							lastMainPage = url.toString();
-						}
-						if (adBlocker.shouldBlock(url, lastMainPage)) {
-							return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-						}
-					}
-					final String fileName = url.getLastPathSegment();
-					final String scheme = url.getScheme();
-					final String urlToString = url.toString();
-					ExceptionLogger.d(TAG, "url.getLastPathSegment() = " + fileName + ", " + scheme + ", " + urlToString);
-					if (fileName != null && !request.isForMainFrame()
-						&& (scheme.startsWith("http")
-						|| scheme.startsWith("ftp"))) {
-						final Tab currentTab = tabOfWebView(view);
-						
-						if (FAVICON_PATTERN.matcher(fileName).matches()) {
-							if (currentTab.favicon == null &&
-								url.getHost().equals(URI.create(currentTab.favHref).getHost())) {
-//								ExceptionLogger.d(TAG, "shouldInterceptRequest.currentTab.favHref " + currentTab.favHref);
-								new DownloadFAVTask(faviconImage, currentTab)
-									.execute(urlToString);
+					try {
+						final Uri url = request.getUrl();
+						if (adBlocker != null) {
+							if (request.isForMainFrame()) {
+								lastMainPage = url.toString();
 							}
-						} else if (IMAGES_PATTERN.matcher(fileName).matches()) {
-							final boolean isNew = currentTab.addImage(urlToString);
-							if (isNew && currentTab.saveImage && (currentTab.diTask == null || currentTab.diTask.getStatus() == AsyncTask.Status.FINISHED)) {
-								currentTab.diTask = new DownloadImageTask<>(currentTab);
-								synchronized (currentTab.diTask) {
-									if (currentTab.diTask.getStatus() == AsyncTask.Status.PENDING)
-										currentTab.diTask.execute();
-								}
-							}
-							if (currentTab.blockImages) {
-								final WebResourceResponse res = setRespond(currentTab, fileName, urlToString);
-								if (res != null) {
-									return res;
-								} else 
-									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-							}
-						} 
-						if (currentTab.saveResources && !MEDIA_PATTERN.matcher(fileName).matches()) {
-							saveRes(currentTab, urlToString);
-						} 
-						if (currentTab.blockMedia && MEDIA_PATTERN.matcher(fileName).matches()) {
-							return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
-						} else if (currentTab.blockCSS && CSS_PATTERN.matcher(fileName).matches()
-							|| currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(fileName).matches()
-							|| currentTab.blockFonts && FONT_PATTERN.matcher(fileName).matches()) {
-							final WebResourceResponse res = setRespond(currentTab, fileName, urlToString);
-							if (res != null) {
-								return res;
-							} else 
+							if (adBlocker.shouldBlock(url, lastMainPage)) {
 								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+							}
 						}
-						final Map<String, String> requestHeaders = request.getRequestHeaders();
-						if (requestSaveData) {
-							requestHeaders.put("Save-Data", "on");
-						} else {
-							requestHeaders.remove("Save-Data");
+						final String fileName = url.getLastPathSegment();
+						final String scheme = url.getScheme();
+						final String urlToString = url.toString();
+						ExceptionLogger.d(TAG, "urlToString = " + urlToString);
+						if (fileName != null && !request.isForMainFrame()
+							&& (scheme.startsWith("http")
+							|| scheme.startsWith("ftp"))) {
+							final Tab currentTab = ((CustomWebView)view).tab;
+							if (FAVICON_PATTERN.matcher(fileName).matches()) {
+								if (currentTab.favicon == null &&
+									url.getHost().equals(URI.create(currentTab.favHref).getHost())) {
+//								ExceptionLogger.d(TAG, "shouldInterceptRequest.currentTab.favHref " + currentTab.favHref);
+									downloadFAV(faviconImage, currentTab, urlToString);
+								}
+							} else if (IMAGES_PATTERN.matcher(fileName).matches()) {
+								if (currentTab != null) {
+									currentTab.addImage(urlToString);
+									downloadImages(currentTab);
+									if (currentTab.blockImages) {
+										final WebResourceResponse res = setRespond(currentTab, fileName, urlToString);
+										ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
+										if (res != null) {
+											return res;
+										} else 
+											return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+									}
+								}
+							} 
+							if (MEDIA_PATTERN.matcher(fileName).matches()) {
+								if (currentTab.blockMedia)
+									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+							} else {
+								currentTab.resourcesList.add(urlToString);
+								downloadResources(currentTab);
+								if (currentTab.blockCSS && CSS_PATTERN.matcher(fileName).matches()
+									|| currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(fileName).matches()
+									|| currentTab.blockFonts && FONT_PATTERN.matcher(fileName).matches()) {
+									final WebResourceResponse res = setRespond(currentTab, fileName, urlToString);
+									ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
+									if (res != null) {
+										return res;
+									} else 
+										return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+								}
+							} 
+
+							final Map<String, String> requestHeaders = request.getRequestHeaders();
+							if (requestSaveData) {
+								requestHeaders.put("Save-Data", "on");
+							} else {
+								requestHeaders.remove("Save-Data");
+							}
+							if (doNotTrack) {
+								requestHeaders.put("DNT", "1");
+							} else {
+								requestHeaders.remove("DNT");
+							}
+							if (removeIdentifyingHeaders) {
+								requestHeaders.put("X-Requested-With", "");
+								requestHeaders.put("X-Wap-Profile", "");
+							} else {
+								requestHeaders.remove("X-Requested-With");
+								requestHeaders.remove("X-Wap-Profile");
+							}
 						}
-						if (doNotTrack) {
-							requestHeaders.put("DNT", "1");
-						} else {
-							requestHeaders.remove("DNT");
-						}
-						if (removeIdentifyingHeaders) {
-							requestHeaders.put("X-Requested-With", "");
-							requestHeaders.put("X-Wap-Profile", "");
-						} else {
-							requestHeaders.remove("X-Requested-With");
-							requestHeaders.remove("X-Wap-Profile");
-						}
+					} catch (Throwable t) {
+						ExceptionLogger.e(TAG, t.getMessage());
 					}
-						
+
 					return super.shouldInterceptRequest(view, request);
 				}
 
-				private void saveRes(MainActivity.Tab currentTab, String urlToString) {
-					if (currentTab.saveResources) {
-						currentTab.resourcesList.add(urlToString);
-						if (currentTab.resTask == null || currentTab.resTask.getStatus() == AsyncTask.Status.FINISHED) {
-							currentTab.resTask = new DownloadResourceTask<>(currentTab);
-							synchronized (currentTab.resTask) {
-								if (currentTab.resTask.getStatus() == AsyncTask.Status.PENDING)
-									currentTab.resTask.execute();
-							}
-						}
-					}
-				}
-
-				private WebResourceResponse setRespond(Tab currentTab, final String fileName, final String urlToString) {
+				private WebResourceResponse setRespond(final Tab currentTab, final String fileName, final String urlToString) {
 					final String mimeTypeFromExtension = MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(fileName));
 					final File file = new File(SCRAP_PATH + FileUtil.getPathFromUrl(urlToString));
-					ExceptionLogger.d(TAG, mimeTypeFromExtension + ", exists " + file.exists() + ", " + file.getAbsolutePath());
+					ExceptionLogger.d(TAG, "setRespond Ok " + file.exists() + ", " + file.getAbsolutePath());
 					try {
-						return new WebResourceResponse(mimeTypeFromExtension, null, new BufferedInputStream(new FileInputStream(file)));
-					} catch (Throwable e) {
+						if (file.exists()) {
+							if (mimeTypeFromExtension.startsWith("text")) {
+								return new WebResourceResponse(mimeTypeFromExtension, "utf-8", new FileInputStream(file));
+							} else {
+								return new WebResourceResponse(mimeTypeFromExtension, null, new FileInputStream(file));
+							}
+						} else {
+							if (mimeTypeFromExtension.startsWith("image")) {
+								final String downloadedFilePath = currentTab.getName(fileName);
+								if (downloadedFilePath != null) {
+									return new WebResourceResponse(mimeTypeFromExtension, null, new FileInputStream(downloadedFilePath));
+								}
+							}
+							return null;
+						}
+					} catch (FileNotFoundException e) {
+						return null;
 					}
-					return null;
+					
 				}
 
 				@Override
@@ -2206,7 +2281,7 @@ public class MainActivity extends Activity {
 				@Override
 				public void onLoadResource(final WebView view, final String url) {
 					if (isLogRequests) {
-						final Tab currentTab = tabOfWebView(view);
+						final Tab currentTab = ((CustomWebView)view).tab;
 						currentTab.requestsLog.add(url);
 						if (currentTab.logAdapter != null) {
 							currentTab.logAdapter.notifyDataSetChanged();
@@ -2333,6 +2408,41 @@ public class MainActivity extends Activity {
         return webview;
     }
 
+	private void downloadImages(final Tab currentTab) {
+		final ArrayList<DownloadInfo> downloadInfos = currentTab.downloadInfos;
+		//ExceptionLogger.d(TAG, "download " + downloadInfos);
+		if (currentTab.saveImage && downloadInfos != null && downloadInfos.size() > 0) {
+			try {
+				DownloadInfo downloadInfo;
+				String url;
+				while (downloadInfos.size() > 0) {
+					downloadInfo = downloadInfos.remove(0);
+					url = downloadInfo.url;
+					ExceptionLogger.d(TAG, "DownloadImageTask.url " + url);
+					if (currentTab.includePattern != null && currentTab.includePattern.matcher(url).matches()) {
+						downloadInfo.savedPath = save(url, SCRAP_PATH);
+					} else {
+						if (currentTab.excludePattern != null) {
+							if (!currentTab.excludePattern.matcher(url).matches()) {
+								downloadInfo.savedPath = save(url, SCRAP_PATH);
+							}
+						} else {
+							downloadInfo.savedPath = save(url, SCRAP_PATH);
+						}
+					}
+					if (downloadInfo.savedPath != null) {
+						currentTab.downloadedInfos.add(downloadInfo);
+						if (currentTab.logAdapter != null && currentTab.logAdapter.showImages) {
+							currentTab.logAdapter.notifyDataSetChanged();
+						}
+					}
+				}
+			} catch (Exception e) {
+				ExceptionLogger.e(TAG, e.getMessage());
+			}
+		}
+	}
+
 	private class DownloadImageTask extends AsyncTask<Void, String, Void> {
 
 		final Tab tab;
@@ -2341,57 +2451,14 @@ public class MainActivity extends Activity {
 		}
 
 		protected Void doInBackground(final Void... v) {
-			final ArrayList<DownloadInfo> downloadInfos = tab.downloadInfos;
-			//ExceptionLogger.d(TAG, "download " + downloadInfos);
-			if (downloadInfos != null && downloadInfos.size() > 0) {
-				try {
-					DownloadInfo downloadInfo;
-					String url;
-					while (downloadInfos.size() > 0) {
-						downloadInfo = downloadInfos.remove(0);
-						url = downloadInfo.url;
-						ExceptionLogger.d(TAG, "downloadInfo.url " + url);
-						if (tab.includePattern != null && tab.includePattern.matcher(url).matches()) {
-							downloadInfo.savedPath = save(url, SCRAP_PATH);
-						} else {
-							if (tab.excludePattern != null) {
-								if (!tab.excludePattern.matcher(url).matches()) {
-									downloadInfo.savedPath = save(url, SCRAP_PATH);
-								}
-							} else {
-								downloadInfo.savedPath = save(url, SCRAP_PATH);
-							}
-						}
-						if (downloadInfo.savedPath != null) {
-							tab.downloadedInfos.add(downloadInfo);
-							if (tab.logAdapter != null && tab.logAdapter.showImages) {
-								tab.logAdapter.notifyDataSetChanged();
-							}
-						}
-					}
-				} catch (Exception e) {
-					ExceptionLogger.e(TAG, e.getMessage());
-				}
-			}
+			downloadImages(tab);
 			return null;
-		}
-
-		@Override
-		protected void onPostExecute(final Void result) {
-			//AndroidUtils.toast(MainActivity.this, "Finish saving images");
 		}
 	}
 
-
-    private class DownloadResourceTask extends AsyncTask<Void, String, Void> {
-		
-		final Tab tab;
-		public DownloadResourceTask(final Tab t) {
-			this.tab = t;
-		}
-		
-		protected Void doInBackground(final Void... v) {
-			final ArrayList<String> resources = tab.resourcesList;
+	private void downloadResources(final Tab currentTab) {
+		if (currentTab.saveResources) {
+			final ArrayList<String> resources = currentTab.resourcesList;
 			//ExceptionLogger.d(TAG, "download " + downloadInfos);
 			if (resources != null && resources.size() > 0) {
 				try {
@@ -2405,12 +2472,19 @@ public class MainActivity extends Activity {
 					ExceptionLogger.e(TAG, e.getMessage());
 				}
 			}
-			return null;
+		}
+	}
+
+    private class DownloadResourceTask extends AsyncTask<Void, String, Void> {
+		
+		final Tab tab;
+		public DownloadResourceTask(final Tab t) {
+			this.tab = t;
 		}
 		
-		@Override
-		protected void onPostExecute(final Void result) {
-			//AndroidUtils.toast(MainActivity.this, "Finish saving resources");
+		protected Void doInBackground(final Void... v) {
+			downloadResources(tab);
+			return null;
 		}
 	}
 
@@ -2427,56 +2501,68 @@ public class MainActivity extends Activity {
 		return file.getAbsolutePath();
 	}
 	
-	private class DownloadFAVTask extends AsyncTask<String, Void, Bitmap> {
-		final ImageView bmImage;
-		final Tab tab;
-		public DownloadFAVTask(final ImageView bmImage, final Tab t) {
-			this.bmImage = bmImage;
-			this.tab = t;
-		}
-		protected Bitmap doInBackground(final String... urls) {
-			final String urldisplay = urls[0];
-			ExceptionLogger.d(TAG, "download favicon " + urldisplay);
-			Bitmap mIcon11 = null;
-			if (urldisplay != null) {
-				try {
-					mIcon11 = BitmapFactory.decodeFile(save(urldisplay, SCRAP_PATH));
-				} catch (Exception e) {
-					ExceptionLogger.e("Error", e.getMessage());
-				}
+	private void downloadFAV(final ImageView bmImage, final Tab tab, final String urldisplay) {
+		Bitmap mIcon11 = null;
+		if (urldisplay != null) {
+			try {
+				mIcon11 = BitmapFactory.decodeFile(save(urldisplay, SCRAP_PATH));
+			} catch (Exception e) {
+				ExceptionLogger.e("Error", e.getMessage());
 			}
-			return mIcon11;
 		}
-		protected void onPostExecute(final Bitmap result) {
-			if (result != null) {
-				bmImage.clearColorFilter();
-				bmImage.setImageBitmap(result);
-				tab.favicon = result;
-			} else {
-				faviconImage.setImageResource(R.drawable.page_info);
-				bmImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-				bmImage.setBackgroundColor(backgroundColor);
-				tab.favicon = null;
-				//tab.favHref = null;
-			}
+		if (mIcon11 != null) {
+			bmImage.clearColorFilter();
+			bmImage.setImageBitmap(mIcon11);
+			tab.favicon = mIcon11;
+		} else {
+			faviconImage.setImageResource(R.drawable.page_info);
+			bmImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+			bmImage.setBackgroundColor(backgroundColor);
+			tab.favicon = null;
+			//tab.favHref = null;
 		}
 	}
-
-	private Tab tabOfWebView(final WebView view) {
-		for (Tab t : tabs) {
-			if (t.webview == view) {
-				return t;
-			}
-		}
-		return null;
-	}
+//	private class DownloadFAVTask extends AsyncTask<String, Void, Bitmap> {
+//		final ImageView bmImage;
+//		final Tab tab;
+//		public DownloadFAVTask(final ImageView bmImage, final Tab t) {
+//			this.bmImage = bmImage;
+//			this.tab = t;
+//		}
+//		protected Bitmap doInBackground(final String... urls) {
+//			final String urldisplay = urls[0];
+//			ExceptionLogger.d(TAG, "download favicon " + urldisplay);
+//			Bitmap mIcon11 = null;
+//			if (urldisplay != null) {
+//				try {
+//					mIcon11 = BitmapFactory.decodeFile(save(urldisplay, SCRAP_PATH));
+//				} catch (Exception e) {
+//					ExceptionLogger.e("Error", e.getMessage());
+//				}
+//			}
+//			return mIcon11;
+//		}
+//		protected void onPostExecute(final Bitmap result) {
+//			if (result != null) {
+//				bmImage.clearColorFilter();
+//				bmImage.setImageBitmap(result);
+//				tab.favicon = result;
+//			} else {
+//				faviconImage.setImageResource(R.drawable.page_info);
+//				bmImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+//				bmImage.setBackgroundColor(backgroundColor);
+//				tab.favicon = null;
+//				//tab.favHref = null;
+//			}
+//		}
+//	}
 	
     void showLongPressMenu(final String linkUrl, final String imageUrl, final String text) {
         final String url;
         final String title;
-        String[] options = new String[]{"Open in background", "Open in new tab", "Add Bookmark", "Copy link text", "Copy link", "Show link", "Share link", "Download", "Save & Close", "Block"};
+        String[] options = new String[]{"Open in background", "Open in new tab", "Add Bookmark", "Copy link text", "Copy link", "Show link", "Share link", "Download", "Open & Close", "Save & Close", "Block"};
 		final String[] imageOptions = new String[]{
-			"Open in background", "Open in new tab", "Add Bookmark", "Copy link text", "Copy link", "Show link", "Share link", "Download", "Save & Close", "Block",
+			"Open in background", "Open in new tab", "Add Bookmark", "Copy link text", "Copy link", "Show link", "Share link", "Download", "Open & Close", "Save & Close", "Block",
 			"Open image in background", "Open image in new tab", "Copy image link", "Show image link", "Share image link", "Download image"};
 		
         if (imageUrl == null) {
@@ -2533,39 +2619,46 @@ public class MainActivity extends Activity {
 							startDownload(url, null);
 							break;
 						case 8:
-							final CustomWebView webview = createWebView(null);
+							CustomWebView webview = createWebView(null);
+							tab = newTabCommon(webview, false);
+							tab.copyTab(getCurrentTab());
+							tab.openAndClose = true;
+							loadUrl(url, webview);
+							break;
+						case 9:
+							webview = createWebView(null);
 							tab = newTabCommon(webview, false);
 							tab.copyTab(getCurrentTab());
 							tab.saveAndClose = true;
 							loadUrl(url, webview);
 							break;
-						case 9:
+						case 10:
 							if (!url.startsWith("/") && !url.startsWith("file")) {
 								final Uri parse = Uri.parse(url);
 								//ExceptionLogger.d(TAG, url + ", Authority " + parse.getAuthority() + ", Host " + parse.getHost() + ", LastPathSegment " + parse.getLastPathSegment() + ", Fragment " + parse.getFragment() + ", Path " + parse.getPath());
 								addBlockRules(parse.getHost());
 							}
 							break;
-						case 10:
+						case 11:
 							tab = newBackgroundTab(imageUrl, getCurrentTab().isIncognito, getCurrentTab());
 							break;
-						case 11:
+						case 12:
 							tab = newForegroundTab(imageUrl, getCurrentTab().isIncognito, getCurrentTab());
 							break;
-						case 12:
+						case 13:
 							copyClipboard("URL", imageUrl);
 							break;
-						case 13:
+						case 14:
 							new AlertDialog.Builder(MainActivity.this)
 								.setTitle("Full imageUrl")
 								.setMessage(imageUrl)
 								.setPositiveButton("OK", new EmptyOnClickListener())
 								.show();
 							break;
-						case 14:
+						case 15:
 							shareUrl(imageUrl);
 							break;
-						case 15:
+						case 16:
 							startDownload(imageUrl, null);
 							break;
 					}
@@ -2713,6 +2806,9 @@ public class MainActivity extends Activity {
         if (autoHideToolbar) {
 			webview.setOnTouchListener(new TouchListener());
 		}
+		if (autoHideAddressbar) {
+			webview.setOnTouchListener(new TouchListener());
+		}
 		setRenderMode(webview, renderMode);
 		webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
@@ -2724,7 +2820,8 @@ public class MainActivity extends Activity {
         tab.blockJavaScript = blockJavaScript;
         tab.blockNetworkLoads = blockNetworkLoads;
 		tab.saveResources = saveResources;
-        tab.isDesktopUA = isDesktopUA;
+        tab.saveImage = saveImage;
+		tab.isDesktopUA = isDesktopUA;
         tabs.add(tab);
         webviews.addView(webview);
         setTabCountText(tabs.size());
@@ -3428,8 +3525,10 @@ public class MainActivity extends Activity {
 		isFullMenu = prefs.getBoolean("isFullMenu", false);
 		saveFormData = prefs.getBoolean("saveFormData", true);
 		autoHideToolbar = prefs.getBoolean("autoHideToolbar", false);
-        removeIdentifyingHeaders = prefs.getBoolean("removeIdentifyingHeaders", false);
+        autoHideAddressbar = prefs.getBoolean("autoHideAddressbar", false);
+		removeIdentifyingHeaders = prefs.getBoolean("removeIdentifyingHeaders", true);
 		saveResources = prefs.getBoolean("saveResources", true);
+		saveImage = prefs.getBoolean("saveImage", true);
 		
 		javaScriptEnabled = prefs.getBoolean("javaScriptEnabled", true);
 		appCacheEnabled = prefs.getBoolean("appCacheEnabled", true);
@@ -4344,6 +4443,74 @@ public class MainActivity extends Activity {
 		AndroidUtils.toast(MainActivity.this, "Added " + url + " to bookmarks");
 	}
 
+    private void exportFilters() {
+        if (!hasOrRequestPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
+									null,
+									PERMISSION_REQUEST_EXPORT_BOOKMARKS)) {
+            return;
+        }
+        final File customFilterFile = new File(getExternalFilesDir("adblock").getAbsolutePath(), "customFilter.txt");
+		final File exportFilterFile = new File(Environment.getExternalStorageDirectory(), "customFilter.txt");
+		if (!customFilterFile.exists()) {
+			AndroidUtils.toast(this, "There is no custom filter file");
+		} else {
+			if (exportFilterFile.exists()) {
+				new AlertDialog.Builder(this)
+					.setTitle("Export custom filters")
+					.setMessage("The file customfilters.txt already exists on SD card. Overwrite?")
+					.setNegativeButton("Cancel", new EmptyOnClickListener())
+					.setPositiveButton("Overwrite", new OnClickListener() {
+						public void onClick(DialogInterface dialog, int which) {
+							//noinspection ResultOfMethodCallIgnored
+							exportFilterFile.delete();
+							exportFilters();
+						}})
+					.show();
+				return;
+			}
+		}
+		
+        try {
+            FileUtil.is2File(new FileInputStream(customFilterFile), exportFilterFile.getAbsolutePath());
+            AndroidUtils.toast(this, "Custom Filters exported to customfilters.txt on SD card");
+        } catch (IOException e) {
+            new AlertDialog.Builder(this)
+				.setTitle("Export custom filters error")
+				.setMessage(e.toString())
+				.setPositiveButton("OK", new EmptyOnClickListener())
+				.show();
+        }
+    }
+
+    @SuppressLint("DefaultLocale")
+    private void importFilters() {
+        if (!hasOrRequestPermission(Manifest.permission.READ_EXTERNAL_STORAGE,
+									null,
+									PERMISSION_REQUEST_IMPORT_BOOKMARKS)) {
+            return;
+        }
+        final File customFilterFile = new File(getExternalFilesDir("adblock").getAbsolutePath(), "customFilter.txt");
+		final File exportFilterFile = new File(Environment.getExternalStorageDirectory(), "customFilter.txt");
+		try {
+            FileUtil.isAppendFile(new FileInputStream(exportFilterFile), customFilterFile.getAbsolutePath());
+            AndroidUtils.toast(this, "Custom Filters exported to customfilters.txt on SD card");
+        } catch (FileNotFoundException e) {
+            new AlertDialog.Builder(this)
+				.setTitle("Custom filters error")
+				.setMessage("Custom filters should be placed in a customFilter.txt file on the SD Card")
+				.setPositiveButton("OK", new EmptyOnClickListener())
+				.show();
+            return;
+        } catch (IOException e) {
+            new AlertDialog.Builder(this)
+				.setTitle("Import custom filters error")
+				.setMessage(e.toString())
+				.setPositiveButton("OK", new EmptyOnClickListener())
+				.show();
+            return;
+        }
+    }
+
     private void exportBookmarks() {
         if (placesDb == null) {
             new AlertDialog.Builder(this)
@@ -4812,10 +4979,20 @@ public class MainActivity extends Activity {
                 location = y;
             } else if (action == MotionEvent.ACTION_UP) {
                 float distance = y - location;
-                if (distance > SCROLL_UP_THRESHOLD && view.getScrollY() < SCROLL_UP_THRESHOLD) {
-                    toolbar.setVisibility(View.VISIBLE);
+                if (distance > SCROLL_UP_THRESHOLD) {// && view.getScrollY() < SCROLL_UP_THRESHOLD
+					if (autoHideAddressbar) {
+						address.setVisibility(View.GONE);
+					}
+                    if (autoHideToolbar) {
+                    	toolbar.setVisibility(View.VISIBLE);
+					}
                 } else if (distance < -SCROLL_UP_THRESHOLD) {
-                    toolbar.setVisibility(View.GONE);
+					if (autoHideToolbar) {
+                    	toolbar.setVisibility(View.GONE);
+					}
+					if (autoHideAddressbar) {
+						address.setVisibility(View.VISIBLE);
+					}
                 }
                 location = 0f;
             }
@@ -4938,7 +5115,7 @@ public class MainActivity extends Activity {
 		if (url.startsWith("/")) {
 			url = Uri.fromFile(new File(Uri.decode(url))).toString();
 		}
-        final Tab currentTab = tabOfWebView(webview);
+        final Tab currentTab = ((CustomWebView)webview).tab;
 		if (url.startsWith("javascript:") 
 			|| url.startsWith("file:") 
 			|| url.startsWith("data:")) {
