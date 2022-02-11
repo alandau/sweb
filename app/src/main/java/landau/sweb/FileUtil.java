@@ -78,7 +78,7 @@ public class FileUtil {
 		final String content = new String(byteArr, encoding == null ? "utf-8" : encoding);
 		final String charsetName = HtmlUtil.readValue(content, "charset");
 		if (charsetName.length() > 0) {
-			Log.d(TAG, file.getAbsolutePath() + " charset: " + charsetName);
+			ExceptionLogger.d(TAG, file.getAbsolutePath() + " charset: " + charsetName);
 			return new String(byteArr, charsetName);
 		} else {
 			return content;
@@ -94,7 +94,7 @@ public class FileUtil {
 
 	public static String readFileWithCheckEncode(File f, byte[] byteArr) throws IOException {
 		final String encoding = UniversalDetector.detectCharset(f);
-		Log.d(TAG, f.getAbsolutePath() + " detectCharset: " + encoding);
+		ExceptionLogger.d(TAG, f.getAbsolutePath() + " detectCharset: " + encoding);
 		return new String(byteArr, encoding);
 	}
 	
@@ -142,64 +142,73 @@ public class FileUtil {
 		return fList;
 	}
 
-	public static String getPathFromUrl(String url) {
-		final int indexOfQuestion = url.indexOf("?");
-		final int indexOfSharp;
-		return url.substring(url.indexOf("//") + 1, (indexOfQuestion > 0 ? indexOfQuestion : (indexOfSharp  = url.indexOf("#")) > 0 ? indexOfSharp : url.length()));
+	public static String getPathFromUrl(String url, final boolean includeQuestion) {
+		if (includeQuestion) {
+			return url.substring(url.indexOf("//") + 1).replaceAll("\\?", "@");
+		} else {
+			final int indexOfQuestion = url.indexOf("?");
+			final int indexOfSharp;
+			return url.substring(url.indexOf("//") + 1, (indexOfQuestion > 0 ? indexOfQuestion : (indexOfSharp  = url.indexOf("#")) > 0 ? indexOfSharp : url.length()));
+		}
 	}
 	
-	public static String getFileNameFromUrl(String url) {
+	public static String getFileNameFromUrl(String url, final boolean includeQuestion) {
 		int slashIndex = url.lastIndexOf("/");
 		if (slashIndex >= 0) {
 			url = url.substring(++slashIndex);
 		}
-		final int indexOfQuestion = url.indexOf("?");
-		final int indexOfSharp;
-		return url.substring(0, (indexOfQuestion > 0 ? indexOfQuestion : (indexOfSharp  = url.indexOf("#")) > 0 ? indexOfSharp : url.length()));
+		if (includeQuestion) {
+			return url.replaceAll("\\?", "@");
+		} else {
+			final int indexOfQuestion = url.indexOf("?");
+			final int indexOfSharp;
+			return url.substring(0, (indexOfQuestion > 0 ? indexOfQuestion : (indexOfSharp  = url.indexOf("#")) > 0 ? indexOfSharp : url.length()));
+		}
 	}
 	
-	public static String saveISToFile(final InputStream is, String dirParent, String url, final boolean autoRename, final boolean overwrite) throws IOException {
-		Log.d(TAG, "saveISToFile " + url + ", autoRename: " + autoRename + ", overwrite " + overwrite);
+	public static String saveISToFile(final InputStream is, String dirParent, String name, final boolean autoRename, final boolean overwrite) throws IOException {
+		ExceptionLogger.d(TAG, "saveISToFile " + name + ", autoRename: " + autoRename + ", overwrite " + overwrite);
 		if (!dirParent.endsWith("/")) {
 			dirParent = dirParent + "/";
 		}
-		final int slashIndex = url.lastIndexOf("/");
-		if (slashIndex >= 0) {
-			url = url.substring(slashIndex + 1);
-		}
-		final int indexOfQuestion = url.indexOf("?");
-		final int indexOfSharp = url.indexOf("#");
-		String name = url.substring(0, (indexOfQuestion > 0 ? indexOfQuestion : indexOfSharp > 0 ? indexOfSharp : url.length()));
+//		final int slashIndex = url.lastIndexOf("/");
+//		if (slashIndex >= 0) {
+//			url = url.substring(slashIndex + 1);
+//		}
+//		final int indexOfQuestion = url.indexOf("?");
+//		final int indexOfSharp = url.indexOf("#");
+//		String name = url.substring(0, (indexOfQuestion > 0 ? indexOfQuestion : indexOfSharp > 0 ? indexOfSharp : url.length()));
 		final int lastIndexOfDot = name.lastIndexOf(".");
 		final String ext = lastIndexOfDot >= 0 ? name.substring(lastIndexOfDot, name.length()) : "";
+		String newName = name;
 		if (lastIndexOfDot >= 0) {
-			url = name;
 			name = name.substring(0, lastIndexOfDot);
-		} else {
-			url = name;
-		}
-		final File file = new File(dirParent, url);
-		file.getParentFile().mkdirs();
-		Log.d(TAG, url + ", exists " + file.exists());
+		} 
+		final File file = new File(dirParent, newName);
 		if (file.exists()) {
 			if (autoRename) {
 				int inc = 2;
-				while (new File(dirParent, url = (name+"_"+inc++ +ext)).exists()) {
+				while (new File(dirParent, newName = (name+"_"+inc++ +ext)).exists()) {
 				}
 			} else if (!overwrite) {
-				return dirParent + url;
+				return dirParent + newName;
 			}
+		} else {
+			file.getParentFile().mkdirs();
 		}
-		final File savedFile = new File(dirParent, url);
+		final File savedFile = new File(dirParent, newName);
 		final FileOutputStream fos = new FileOutputStream(savedFile);
 		final BufferedOutputStream bos = new BufferedOutputStream(fos);
 		final BufferedInputStream bis = new BufferedInputStream(is);
 		final byte[] barr = new byte[65536];
 		int read = 0;
+		int size = 0;
 		try {
 			while ((read = bis.read(barr)) > 0) {
 				bos.write(barr, 0, read);
+				size += read;
 			}
+			ExceptionLogger.d(TAG, newName + " size " + size);
 		} finally {
 			close(bis, is);
 			flushClose(bos);

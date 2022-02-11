@@ -27,6 +27,15 @@ public class ExceptionLogger {
 	}
 
 	@SuppressLint("SimpleDateFormat")
+    public static void e(final String tag, final String st, final Throwable e) {
+        Log.e(tag, st, e);
+        printWriter.println(simpleDateFormat.format(new Date()) + ": " + st);
+		e.printStackTrace(printWriter);
+		printWriter.flush();
+		e.printStackTrace();
+    }
+
+	@SuppressLint("SimpleDateFormat")
     public static void e(final String tag, final Throwable e) {
         Log.w(tag, e);
         printWriter.println(simpleDateFormat.format(new Date()) + " Exception on ");
@@ -39,6 +48,12 @@ public class ExceptionLogger {
     public static void e(final String tag, final String st) {
         Log.e(tag, st);
         printWriter.println(simpleDateFormat.format(new Date()) + " Exception on " + st);
+		printWriter.flush();
+    }
+
+	public static void i(final String tag, final String st) {
+		Log.i(tag, st);
+        printWriter.println(simpleDateFormat.format(new Date()) + ": " + tag + ": " + st);
 		printWriter.flush();
     }
 

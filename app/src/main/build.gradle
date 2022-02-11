@@ -8,7 +8,7 @@ android {
         minSdkVersion 21
         targetSdkVersion 24
         versionCode 9
-        versionName "1.5.6j"
+        versionName "1.5.7d"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         resValue "string", "app_name", "SWeb"
     }
@@ -54,6 +54,9 @@ repositories {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile 'at.pardus.android:webview-gm-lib:1.2.0+'
+    compile 'at.pardus.android:webview-gm-ui:1.2.0+'
+    
 	//compile 'com.daandtu:android-web-scraper:1.0.1'//1.0.1'
     //compile 'com.android.support:support-annotations:24.1.1'
 	//compile ('nl.siegmann.epublib:epublib-core:+') {
@@ -63,7 +66,12 @@ dependencies {
     //compile 'org.slf4j:slf4j-android:1.7.25'
 	//compile 'org.slf4j:slf4j-api:1.7.25'
 	//compile "net.sf.kxml:kxml2:2.3.0"
-	
+	//compile 'org.apache.tika:tika-parsers:1.27'
+	//compile "com.squareup.okhttp3:okhttp:3.13.0"
+	//compile "com.squareup.okio:okio:1.17.3"
+    //compile "com.squareup.okhttp3:logging-interceptor"
+ 
+	//compile 'com.github.albfernandez:juniversalchardet:2.4.0'
 	//compile 'org.jsoup:jsoup:1.14.2'
 	//compile 'com.ibm.icu:icu4j:69.1'
 	//compile 'edu.uci.ics:crawler4j:4.4.0'

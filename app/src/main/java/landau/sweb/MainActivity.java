@@ -46,6 +46,7 @@ import android.view.View.OnTouchListener;
 import android.webkit.CookieManager;
 import android.widget.LinearLayout.LayoutParams;
 import landau.sweb.MainActivity.*;
+import javax.net.ssl.*;
 
 public class MainActivity extends Activity {
 	 
@@ -53,7 +54,8 @@ public class MainActivity extends Activity {
 	private static final int DARK_BACKGROUND = 0xffc0c0c0;
 	private static final int LIGHT_BACKGROUND = 0xfffffff0;
 	private String SCRAP_PATH;
-	private static final Pattern FAVICON_PATTERN = Pattern.compile(".*?/favicon\\.(ico|png|bmp)", Pattern.CASE_INSENSITIVE);
+	private static final Pattern FAVICON_PATTERN = Pattern.compile(".*?/favicon\\.(ico|png|bmp|jpe?g|gif)", Pattern.CASE_INSENSITIVE);
+	private Pattern HTML_PATTERN = Pattern.compile(".*?\\.[xds]?ht(m?|ml)", Pattern.CASE_INSENSITIVE);
 	
 	private static final String IMAGE_PAT = "[^\\s]*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico|svg)[^\\s]*?";
 	private static final String MEDIA_PAT = "[^\\s]*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram|m4a|3gpp?)[^\\s]*?";
@@ -107,9 +109,9 @@ public class MainActivity extends Activity {
 		String savedPath;
 		String name;
 
-		DownloadInfo(final String url) {
+		DownloadInfo(final String url, boolean exact) {
 			this.url = url;
-			this.name = FileUtil.getFileNameFromUrl(url);
+			this.name = FileUtil.getFileNameFromUrl(url, exact);
 		}
 
 		@Override
@@ -117,7 +119,7 @@ public class MainActivity extends Activity {
 			if (o == null) {
 				return false;
 			} else if (o instanceof DownloadInfo) {
-				return url.equalsIgnoreCase(((DownloadInfo) o).url);
+				return url.equals(((DownloadInfo) o).url);
 			} else {
 				return false;
 			}
@@ -127,8 +129,6 @@ public class MainActivity extends Activity {
 			return url.compareTo(p1.url);
 		}
 	}
-	boolean textChanged;
-	boolean skipTextChange = false;
 	class Tab {
         Tab(CustomWebView w, boolean isIncognito) {
             this.webview = w;
@@ -147,31 +147,46 @@ public class MainActivity extends Activity {
 		long lastDownload = -1L;
 		String sourceName;
 		boolean isIncognito = false;
-		ArrayList<String> requestsLog = new ArrayList<>();
+		LinkedList<String> requestsLog = new LinkedList<>();
 		CharSequence recentConstraint;
+		boolean useAdBlocker;
+		boolean enableCookies;
+		boolean accept3PartyCookies;
+		boolean offscreenPreRaster;
+		boolean requestSaveData;
+		boolean removeIdentifyingHeaders;
+		boolean doNotTrack;
+		boolean javaScriptCanOpenWindowsAutomatically;
+		boolean textReflow;
 		Bitmap favicon;
-		String favHref;
 		boolean blockImages;
 		boolean blockMedia;
 		boolean blockFonts;
 		boolean blockCSS;
 		boolean blockJavaScript;
 		boolean blockNetworkLoads;
+		boolean loadWithOverviewMode;
 		String source;
 		ArrayList<String> resourcesList = new ArrayList<>();
 		String includePatternStr;
 		String excludePatternStr;
 		Pattern includePattern;
 		Pattern excludePattern;
+		String batchLinkPatternStr;
+		int from = -1;
+		int to = -1;
 		
 //		transient String includeUrlPatternStr;
 //		transient String excludeUrlPatternStr;
 //		transient Pattern includeUrlPattern;
 //		transient Pattern excludeUrlPattern;
+		boolean saveHtml = false;
 		boolean saveImage = false;
+		boolean exactImageUrl = true;
 		boolean saveResources;
+		int autoReload = 0;
 		volatile ArrayList<DownloadInfo> downloadInfos = new ArrayList<>();
-		volatile ArrayList<DownloadInfo> downloadedInfos = new ArrayList<>();
+		volatile LinkedList<DownloadInfo> downloadedInfos = new LinkedList<>();
 		LogArrayAdapter logAdapter;
 		boolean showLog = false;
 		String getName(final String name) {
@@ -183,26 +198,42 @@ public class MainActivity extends Activity {
 			}
 			return null;
 		}
-		boolean addImage(final String url) {
-			final String onlyName = FileUtil.getFileNameFromUrl(url);
+		boolean addImage(final String url, final boolean exact) {
+			final String onlyName = FileUtil.getFileNameFromUrl(url, false);
 			try {
-				for (int i = 0; i < downloadInfos.size(); i++) {
-					if (onlyName.equals(downloadInfos.get(i).name)) {
-						return false;
+				if (exact) {
+					for (int i = 0; i < downloadInfos.size(); i++) {
+						if (url.equals(downloadInfos.get(i).url)) {
+							return false;
+						}
+					}
+				} else {
+					for (int i = 0; i < downloadInfos.size(); i++) {
+						if (onlyName.equals(downloadInfos.get(i).name)) {
+							return false;
+						}
+					}
+				}
+				if (exact) {
+					for (int i = 0; i < downloadedInfos.size(); i++) {
+						if (url.equals(downloadedInfos.get(i).url)) {
+							return false;
+						}
+					}
+				} else {
+					for (int i = 0; i < downloadedInfos.size(); i++) {
+						if (onlyName.equals(downloadedInfos.get(i).name)) {
+							return false;
+						}
 					}
 				}
 			} catch (Throwable t) {
 			}
-			for (int i = 0; i < downloadedInfos.size(); i++) {
-				if (onlyName.equals(downloadedInfos.get(i).name)) {
-					return false;
-				}
-			}
-			downloadInfos.add(new DownloadInfo(url));
+			downloadInfos.add(new DownloadInfo(url, exact));
 			return true;
 		}
-		volatile DownloadImageTask diTask;
-		volatile DownloadResourceTask resTask;
+		volatile DownloadImageResourceTask diTask;
+		volatile BatchDownloadTask resTask;
 		
 		int delay = 1000;
 		boolean isScrolling = false;
@@ -224,10 +255,21 @@ public class MainActivity extends Activity {
 			this.blockJavaScript = srcTab.blockJavaScript;
 			this.saveImage = srcTab.saveImage;
 			this.saveResources = srcTab.saveResources;
+			this.saveHtml = srcTab.saveHtml;
+			this.loadWithOverviewMode = srcTab.loadWithOverviewMode;
 			this.includePatternStr = srcTab.includePatternStr;
 			this.excludePatternStr = srcTab.excludePatternStr;
 			this.includePattern = srcTab.includePattern;
 			this.excludePattern = srcTab.excludePattern;
+			this.useAdBlocker = srcTab.useAdBlocker;
+			this.enableCookies = srcTab.enableCookies;
+			this.accept3PartyCookies = srcTab.accept3PartyCookies;
+			this.offscreenPreRaster = srcTab.offscreenPreRaster;
+			this.requestSaveData = srcTab.requestSaveData;
+			this.doNotTrack = srcTab.doNotTrack;
+			this.javaScriptCanOpenWindowsAutomatically = srcTab.javaScriptCanOpenWindowsAutomatically;
+			this.removeIdentifyingHeaders = srcTab.removeIdentifyingHeaders;
+			this.textReflow = srcTab.textReflow;
 		}
 	}
 	
@@ -298,7 +340,6 @@ public class MainActivity extends Activity {
 	private boolean javaScriptEnabled;
 	//private boolean pluginsEnabled;
 	private boolean appCacheEnabled;
-	private boolean allowContentAccess;
 	private boolean mediaPlaybackRequiresUserGesture;
 	private boolean loadWithOverviewMode;
 	private boolean textReflow;
@@ -315,6 +356,7 @@ public class MainActivity extends Activity {
 	//private boolean lightTouchEnabled;
 	//private boolean useDoubleTree;
 	private boolean allowFileAccess;
+	private boolean allowContentAccess;
 	private boolean allowFileAccessFromFileURLs;
 	private boolean allowUniversalAccessFromFileURLs;
 	private boolean blockNetworkLoads;
@@ -333,6 +375,7 @@ public class MainActivity extends Activity {
 	private String deleteAfter;
 	private boolean saveImage;
 	private boolean saveResources;
+	private boolean keepTheScreenOn;
 	private int cacheMode;
 	private boolean isDesktopUA;
 	private boolean requestSaveData;
@@ -349,7 +392,8 @@ public class MainActivity extends Activity {
 	//private WebViewHandler webViewHandler = new WebViewHandler(this);
     private int SCROLL_UP_THRESHOLD = 50;//dpToPx(10f);
 	private float maxFling = 50;
-	GestureDetector gestureDetector;// = new GestureDetector(this, new CustomGestureListener());
+	private GestureDetector gestureDetector;// = new GestureDetector(this, new CustomGestureListener());
+	private boolean textChanged; 
 	
 	private float[] negativeColorArray = new float[] {
 		-1.0f, 0f, 0f, 0f, 255f, // red
@@ -882,6 +926,16 @@ public class MainActivity extends Activity {
 				@Override
 				public void run() {
 					requestList.setVisibility(requestList.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+					Tab currentTab = getCurrentTab();
+					if (requestList.getVisibility() == View.VISIBLE) {
+						currentTab.recentConstraint = ".";
+						currentTab.showLog = true;
+						log(null, true);
+						currentTab.logAdapter.showImages = true;
+						requestList.requestFocus();
+					} else {
+						currentTab.showLog = false;
+					}
 				}
 			}),
 		new MenuAction("Full screen", R.drawable.fullscreen, new Runnable() {
@@ -1292,6 +1346,23 @@ public class MainActivity extends Activity {
 				}
 			}),
 		
+		new MenuAction("Keep the screen on", 0, new Runnable() {
+				@Override
+				public void run() {
+					keepTheScreenOn = !keepTheScreenOn;
+					if (keepTheScreenOn) {
+						getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+					} else {
+						getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+					}
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return keepTheScreenOn;
+				}
+			}),
+
 		new MenuAction("Keep History", R.drawable.ic_history_black_36dp, new Runnable() {
 				@Override
 				public void run() {
@@ -1895,10 +1966,23 @@ public class MainActivity extends Activity {
     }
 	
 	@JavascriptInterface
-	public void showSource(final String tabId, final String html) {
+	public void showSource(final String tabId, final String html, final String url) {
 		for (Tab t : tabs) {
 			if (t.toString().equals(tabId)) {
 				t.source = html;
+				if (t.saveHtml) {
+					try {
+						final String path = url.substring(url.indexOf("//") + 1, url.lastIndexOf("/"));
+						final String savedFilePath = SCRAP_PATH + path;
+						final String fileNameFromUrl = FileUtil.getFileNameFromUrl(url, false);
+						//final File file = new File(savedFilePath, fileNameFromUrl);
+						//ExceptionLogger.d(TAG, "save exist " + file.exists() + ", " + file.getAbsolutePath());
+						final String s = FileUtil.saveISToFile(new ByteArrayInputStream(html.getBytes()), savedFilePath, fileNameFromUrl, false, false);
+						ExceptionLogger.d(TAG, "saved successfully " + s);
+					} catch (IOException e) {
+						ExceptionLogger.e(TAG, e.getMessage(), e);
+					}
+				}
 			}
 		}
 	}
@@ -1911,7 +1995,7 @@ public class MainActivity extends Activity {
             webview.restoreState(bundle);
         }
 		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
-        webview.setBackgroundColor(isNightMode ? DARK_BACKGROUND : LIGHT_BACKGROUND);
+        webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
         final WebSettings settings = webview.getSettings();
         settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
         settings.setBuiltInZoomControls(true);
@@ -1920,7 +2004,7 @@ public class MainActivity extends Activity {
 				@Override
 				public void onProgressChanged(final WebView view, final int newProgress) {
 					super.onProgressChanged(view, newProgress);
-					//injectCSS(view);
+					injectCSS(view);
 					final Tab tabOfWebView = ((CustomWebView)view).tab;
 					tabOfWebView.progress = newProgress;
 					if (getCurrentTab() == tabOfWebView) {
@@ -1936,7 +2020,7 @@ public class MainActivity extends Activity {
 				public void onShowCustomView(final View view, final CustomViewCallback callback) {
 					fullScreenView[0] = view;
 					fullScreenCallback[0] = callback;
-					MainActivity.this.findViewById(R.id.main_layout).setVisibility(View.INVISIBLE);
+					main_layout.setVisibility(View.INVISIBLE);
 					ViewGroup fullscreenLayout = (ViewGroup) MainActivity.this.findViewById(R.id.fullScreenVideo);
 					fullscreenLayout.addView(view);
 					fullscreenLayout.setVisibility(View.VISIBLE);
@@ -1951,7 +2035,7 @@ public class MainActivity extends Activity {
 					fullscreenLayout.setVisibility(View.GONE);
 					fullScreenView[0] = null;
 					fullScreenCallback[0] = null;
-					MainActivity.this.findViewById(R.id.main_layout).setVisibility(View.VISIBLE);
+					main_layout.setVisibility(View.VISIBLE);
 				}
 
 				@Override
@@ -1994,6 +2078,39 @@ public class MainActivity extends Activity {
 					fileUploadCallback = null;
 					return false;
 				}
+				
+				@Override
+				public void onReceivedTitle(final WebView view, final String title) {
+					if (view.getVisibility() == View.VISIBLE) {
+						if (!textChanged) {
+							et.setTag(title);
+							et.setText(title);
+						}
+					}
+				}
+				
+				@Override
+				public void onReceivedIcon(final WebView view, final Bitmap icon) {
+					final Tab tab = ((CustomWebView)view).tab;
+					if (icon != null && view.getVisibility() == View.VISIBLE) {
+						faviconImage.clearColorFilter();
+						faviconImage.setImageBitmap(icon);
+					}
+					tab.favicon = icon;
+				}
+				
+//				@Override
+//				public boolean onConsoleMessage(@NonNull ConsoleMessage cm ) {
+//					ExceptionLogger.d(TAG, cm.message() + " -- From line " + cm.lineNumber() + " of " + cm.sourceId());
+//					return false ;
+//				}
+//				
+//				@Override
+//				public boolean onJsAlert(WebView view, String url, String message, JsResult result ) {
+//					ExceptionLogger.d(TAG, " onJsAlert " + message);
+//					return false ;
+//				}
+				
 			});
 //        String[] imgs = returnImageUrlsFromHtml(htmlData);
 //		webview.addJavascriptInterface(new ImageJavascriptInterface(MainActivity.this, imgs), "click");
@@ -2002,60 +2119,42 @@ public class MainActivity extends Activity {
 				@Override
 				public void onPageStarted(final WebView view, final String url, final Bitmap favicon) {
 					super.onPageStarted(view, url, favicon);
-					//ExceptionLogger.d(TAG, "onPageStarted " + url + ", favicon " + favicon);
-					
-//					if (view.getVisibility() == View.VISIBLE) {
-//						et.setText(url);
-//						et.setSelection(0);
-//						view.requestFocus();
-//					}
-					final Tab currentTab = ((CustomWebView)view).tab;
-					if (getCurrentTab() == currentTab) {
+					ExceptionLogger.d(TAG, "onPageStarted " + url + ", favicon " + favicon + ", VISIBLE " + (view.getVisibility() == View.VISIBLE));
+					final Tab tabOfWebView = ((CustomWebView)view).tab;
+					if (view.getVisibility() == View.VISIBLE) {
 						progressBar.setProgress(0);
 						progressBar.setVisibility(View.VISIBLE);
-						skipTextChange = true;
+						et.setTag(url);
 						et.setText(url);
-						//et.setSelection(0);
-						view.requestFocus();
 						goStop.setImageResource(R.drawable.stop);
-						skipTextChange = false;
-						textChanged = false;
-					}
-					currentTab.progress = 0;
-					currentTab.printWeb = null;
-					currentTab.favHref = url;
-					if (favicon == null) {
 						faviconImage.setImageResource(R.drawable.page_info);
 						faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-						faviconImage.setBackgroundColor(backgroundColor);
-						currentTab.favicon = null;
-					} else {
-						faviconImage.clearColorFilter();
-						faviconImage.setImageBitmap(favicon);
-						currentTab.favicon = favicon;
 					}
-					currentTab.loading = true;
-					//injectCSS(view);
+					tabOfWebView.favicon = null;
+					tabOfWebView.progress = 0;
+					tabOfWebView.printWeb = null;
+					tabOfWebView.loading = true;
+					injectCSS(view);
 				}
 
 				@Override
 				public void onPageFinished(final WebView view, final String url) {
 					super.onPageFinished(view, url);
-					//ExceptionLogger.d(TAG, "onPageFinished " + url + ", getFavicon " + view.getFavicon());
-					if (view == getCurrentWebView()) {
+					ExceptionLogger.d(TAG, "onPageFinished " + url + ", favicon " + view.getFavicon());
+					final Tab tabOfWebView = ((CustomWebView)view).tab;
+					tabOfWebView.loading = false;
+					if (view.getVisibility() == View.VISIBLE) {
 						// Don't use the argument url here since navigation to that URL might have been
 						// cancelled due to SSL error
-						final Tab currentTab = getCurrentTab();
-						if (!textChanged) {
-							skipTextChange = true;
-							et.setText(currentTab.webview.getTitle());
-							skipTextChange = false;
-						}
-						if (et.getSelectionStart() == 0 && et.getSelectionEnd() == 0 && et.getText().toString().equals(view.getUrl())) {
-							// If user haven't started typing anything, focus on webview
-							view.requestFocus();
-						}
 						goStop.setImageResource(R.drawable.reload);
+						if (et.isFocused()) {
+							if (et.getText().toString().equals(view.getUrl()))
+							// If user haven't started typing anything, focus on webview
+								view.requestFocus();
+						} else {
+							et.setTag(view.getTitle());
+							et.setText(view.getTitle());
+						}
 					}
 //					String jsCode = "javascript:(function(){" +
 //						"var imgs=document.getElementsByTagName(\"img\");" +
@@ -2065,7 +2164,6 @@ public class MainActivity extends Activity {
 //						"click.openImage(this.src,this.pos);" +
 //						"}}})()";
 //                    view.loadUrl(jsCode);
-					final Tab tabOfWebView = ((CustomWebView)view).tab;
 					tabOfWebView.progress = 100;
 					tabOfWebView.printWeb = view;
 					if (saveHistory 
@@ -2074,23 +2172,8 @@ public class MainActivity extends Activity {
 						&& !url.equals("about:blank")) {
 						addHistory(view, url);
 					}
-					//ExceptionLogger.d(TAG, "javascript:window.HTMLOUT.showSource(" + currentTab.toString() + ", document.documentElement.outerHTML)" + ", tabId.toString() " + currentTab.toString());
-					view.loadUrl("javascript:window.HTMLOUT.showSource(\"" + tabOfWebView.toString() + "\", document.documentElement.outerHTML)");
-					final Bitmap favicon = view.getFavicon();
-					if (favicon != null) {
-						if (view == getCurrentWebView()) {
-							faviconImage.clearColorFilter();
-							faviconImage.setImageBitmap(favicon);
-						}
-						tabOfWebView.favicon = favicon;
-					} else {
-						faviconImage.setImageResource(R.drawable.page_info);
-						faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-						faviconImage.setBackgroundColor(backgroundColor);
-						tabOfWebView.favicon = null;
-					}
-					tabOfWebView.favHref = url;
-					tabOfWebView.loading = false;
+					//ExceptionLogger.d(TAG, "javascript:window.HTMLOUT.showSource(\"" + tabOfWebView.toString() + "\", document.documentElement.outerHTML, \"" + url + "\")");
+					view.loadUrl("javascript:window.HTMLOUT.showSource(\"" + tabOfWebView.toString() + "\", document.documentElement.outerHTML, \"" + url + "\")");
 					if (requestList.getVisibility() == View.VISIBLE
 						&& view.getVisibility() == View.VISIBLE
 						&& tabOfWebView.logAdapter != null) {
@@ -2126,7 +2209,12 @@ public class MainActivity extends Activity {
 								}
 						});
 					}
-					//injectCSS(view);
+					injectCSS(view);
+					view.evaluateJavascript("", new ValueCallback<String>() {
+							@Override
+							public void onReceiveValue(String s) {
+								//ExceptionLogger.d("js", s);
+							}});
 				}
 
 				@Override
@@ -2146,117 +2234,116 @@ public class MainActivity extends Activity {
 								handler.cancel();}}).show();
 				}
 
-				final InputStream emptyInputStream = new ByteArrayInputStream(new byte[0]);
-
+				final WebResourceResponse emptyResponse = new WebResourceResponse("text/plain", "UTF-8", new ByteArrayInputStream(new byte[0]));
+				
 				String lastMainPage = "";
 				@Override
 				public WebResourceResponse shouldInterceptRequest(final WebView view, final WebResourceRequest request) {
+					final Tab currentTab = ((CustomWebView)view).tab;
 					try {
 						final Uri url = request.getUrl();
-						if (adBlocker != null) {
+						if (currentTab.useAdBlocker) {//adBlocker != null) {
 							if (request.isForMainFrame()) {
 								lastMainPage = url.toString();
 							}
 							if (adBlocker.shouldBlock(url, lastMainPage)) {
-								return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+								return emptyResponse;
 							}
 						}
 						final String fileName = url.getLastPathSegment();
 						final String scheme = url.getScheme();
 						final String urlToString = url.toString();
-						ExceptionLogger.d(TAG, "urlToString = " + urlToString);
-						if (fileName != null && !request.isForMainFrame()
-							&& (scheme.startsWith("http")
-							|| scheme.startsWith("ftp"))) {
-							final Tab currentTab = ((CustomWebView)view).tab;
-							if (FAVICON_PATTERN.matcher(fileName).matches()) {
-								if (currentTab.favicon == null &&
-									url.getHost().equals(URI.create(currentTab.favHref).getHost())) {
-//								ExceptionLogger.d(TAG, "shouldInterceptRequest.currentTab.favHref " + currentTab.favHref);
-									downloadFAV(faviconImage, currentTab, urlToString);
-								}
-							} else if (IMAGES_PATTERN.matcher(fileName).matches()) {
+						ExceptionLogger.d(TAG, "lastPathSegment " + fileName + ", urlToString = " + urlToString + ", isForMainFrame " + request.isForMainFrame());
+						if (request.isForMainFrame()) {
+							if (fileName != null
+								&& ((currentTab.saveResources && (CSS_PATTERN.matcher(fileName).matches() || JAVASCRIPT_PATTERN.matcher(fileName).matches() || FONT_PATTERN.matcher(fileName).matches()))
+								|| (currentTab.saveImage && IMAGES_PATTERN.matcher(fileName).matches()))) {
+								final String path = save(urlToString, SCRAP_PATH, true);
+								final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
+								//ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
+								return res == null ? emptyResponse : res;
+							}
+						} else if (fileName != null
+								   && (scheme.startsWith("http")
+								   || scheme.startsWith("ftp"))) {
+							if (IMAGES_PATTERN.matcher(fileName).matches()) {
 								if (currentTab != null) {
-									currentTab.addImage(urlToString);
-									downloadImages(currentTab);
+									currentTab.addImage(urlToString, currentTab.exactImageUrl);
+									downloadImagesResources(currentTab);
 									if (currentTab.blockImages) {
-										final WebResourceResponse res = setRespond(currentTab, fileName, urlToString);
-										ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
-										if (res != null) {
-											return res;
-										} else 
-											return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+										final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
+										ExceptionLogger.d(TAG, "image.res = " + res + ", " + urlToString);
+										return res == null ? emptyResponse : res;
 									}
 								}
-							} 
-							if (MEDIA_PATTERN.matcher(fileName).matches()) {
+							} else if (MEDIA_PATTERN.matcher(fileName).matches()) {
 								if (currentTab.blockMedia)
-									return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+									return emptyResponse;
 							} else {
-								currentTab.resourcesList.add(urlToString);
-								downloadResources(currentTab);
+								if (currentTab.saveResources && (CSS_PATTERN.matcher(fileName).matches() || JAVASCRIPT_PATTERN.matcher(fileName).matches() || FONT_PATTERN.matcher(fileName).matches())) {
+									currentTab.resourcesList.add(urlToString);
+									downloadResources(currentTab);
+								}
 								if (currentTab.blockCSS && CSS_PATTERN.matcher(fileName).matches()
 									|| currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(fileName).matches()
 									|| currentTab.blockFonts && FONT_PATTERN.matcher(fileName).matches()) {
-									final WebResourceResponse res = setRespond(currentTab, fileName, urlToString);
+									final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
 									ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
-									if (res != null) {
-										return res;
-									} else 
-										return new WebResourceResponse("text/plain", "UTF-8", emptyInputStream);
+									return res == null ? emptyResponse : res;
 								}
 							} 
-
-							final Map<String, String> requestHeaders = request.getRequestHeaders();
-							if (requestSaveData) {
-								requestHeaders.put("Save-Data", "on");
-							} else {
-								requestHeaders.remove("Save-Data");
-							}
-							if (doNotTrack) {
-								requestHeaders.put("DNT", "1");
-							} else {
-								requestHeaders.remove("DNT");
-							}
-							if (removeIdentifyingHeaders) {
-								requestHeaders.put("X-Requested-With", "");
-								requestHeaders.put("X-Wap-Profile", "");
-							} else {
-								requestHeaders.remove("X-Requested-With");
-								requestHeaders.remove("X-Wap-Profile");
-							}
 						}
 					} catch (Throwable t) {
-						ExceptionLogger.e(TAG, t.getMessage());
+						ExceptionLogger.e(TAG, t.getMessage(), t);
+					}
+
+					final Map<String, String> requestHeaders = request.getRequestHeaders();
+					if (currentTab.requestSaveData) {
+						requestHeaders.put("Save-Data", "on");
+					} else {
+						requestHeaders.remove("Save-Data");
+					}
+					if (currentTab.doNotTrack) {
+						requestHeaders.put("DNT", "1");
+					} else {
+						requestHeaders.remove("DNT");
+					}
+					if (currentTab.removeIdentifyingHeaders) {
+						requestHeaders.put("X-Requested-With", "");
+						requestHeaders.put("X-Wap-Profile", "");
+					} else {
+						requestHeaders.remove("X-Requested-With");
+						requestHeaders.remove("X-Wap-Profile");
 					}
 
 					return super.shouldInterceptRequest(view, request);
 				}
 
-				private WebResourceResponse setRespond(final Tab currentTab, final String fileName, final String urlToString) {
-					final String mimeTypeFromExtension = MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(fileName));
-					final File file = new File(SCRAP_PATH + FileUtil.getPathFromUrl(urlToString));
-					ExceptionLogger.d(TAG, "setRespond Ok " + file.exists() + ", " + file.getAbsolutePath());
+				private WebResourceResponse setRespond(final Tab currentTab, final String fileName, final String urlToString, final boolean includeQuestion) {
+					final String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(fileName));
+					final String pathFromUrl = SCRAP_PATH + FileUtil.getPathFromUrl(urlToString, includeQuestion);
+					final File file = new File(pathFromUrl);
+					ExceptionLogger.d(TAG, "setRespond exists " + file.exists() + ", " + mimeType + ", pathFromUrl " + pathFromUrl + ", urlToString " + urlToString);
 					try {
 						if (file.exists()) {
-							if (mimeTypeFromExtension.startsWith("text")) {
-								return new WebResourceResponse(mimeTypeFromExtension, "utf-8", new FileInputStream(file));
+							if (mimeType != null && mimeType.startsWith("text")) {
+								return new WebResourceResponse(mimeType, null, new BufferedInputStream(new FileInputStream(file)));
 							} else {
-								return new WebResourceResponse(mimeTypeFromExtension, null, new FileInputStream(file));
+								return new WebResourceResponse("application/octet-stream", null, new BufferedInputStream(new FileInputStream(file)));
 							}
 						} else {
-							if (mimeTypeFromExtension.startsWith("image")) {
-								final String downloadedFilePath = currentTab.getName(fileName);
+							if (mimeType != null && mimeType.startsWith("image")) {
+								final String downloadedFilePath = currentTab.getName(FileUtil.getFileNameFromUrl(urlToString, true));
+								ExceptionLogger.d(TAG, "setRespond downloadedFilePath " + downloadedFilePath);
 								if (downloadedFilePath != null) {
-									return new WebResourceResponse(mimeTypeFromExtension, null, new FileInputStream(downloadedFilePath));
+									return new WebResourceResponse(mimeType, null, new FileInputStream(downloadedFilePath));
 								}
 							}
-							return null;
 						}
-					} catch (FileNotFoundException e) {
-						return null;
+					} catch (Throwable e) {
+						ExceptionLogger.e(TAG,  e.getMessage(), e);
 					}
-					
+					return null;
 				}
 
 				@Override
@@ -2308,6 +2395,7 @@ public class MainActivity extends Activity {
 						.show();
 				}
         });
+		
         webview.setOnLongClickListener(new View.OnLongClickListener() {
 				public boolean onLongClick(android.view.View v) {
 					String url = null, imageUrl = null, text = "";
@@ -2372,13 +2460,14 @@ public class MainActivity extends Activity {
         webview.setDownloadListener(new DownloadListener() {
 				public void onDownloadStart(final String url, final String userAgent, final String contentDisposition, final String mimetype, final long contentLength) {
 					ExceptionLogger.d("onDownloadStart", url + ", userAgent " + userAgent + ", contentDisposition" + contentDisposition +", contentLength " + contentLength + ", mimetype " + mimetype);
-					final String filename = URLUtil.guessFileName(url, contentDisposition, mimetype);
+					final String filename = FileUtil.getFileNameFromUrl(url, false);//URLUtil.guessFileName(url, contentDisposition, mimetype);
 					new AlertDialog.Builder(MainActivity.this)
 						.setTitle("Download")
-						.setMessage(String.format("Filename: %s\nSize: %.2f MB\nURL: %s",
+						.setMessage(String.format("Filename: %s\nSize: %.2f MB\nURL: %s\nMime type: %s",
 												  filename,
 												  contentLength / 1024.0 / 1024.0,
-												  url))
+												  url,
+												  mimetype))
 						.setPositiveButton("Download", new OnClickListener() {
 							public void onClick(DialogInterface dialog, int which) {
 								startDownload(url, filename);}})
@@ -2407,10 +2496,10 @@ public class MainActivity extends Activity {
 				}});
         return webview;
     }
-
-	private void downloadImages(final Tab currentTab) {
+	
+	private void downloadImagesResources(final Tab currentTab) {
 		final ArrayList<DownloadInfo> downloadInfos = currentTab.downloadInfos;
-		//ExceptionLogger.d(TAG, "download " + downloadInfos);
+		ExceptionLogger.d(TAG, "downloadImages " + downloadInfos.size());
 		if (currentTab.saveImage && downloadInfos != null && downloadInfos.size() > 0) {
 			try {
 				DownloadInfo downloadInfo;
@@ -2418,47 +2507,48 @@ public class MainActivity extends Activity {
 				while (downloadInfos.size() > 0) {
 					downloadInfo = downloadInfos.remove(0);
 					url = downloadInfo.url;
-					ExceptionLogger.d(TAG, "DownloadImageTask.url " + url);
-					if (currentTab.includePattern != null && currentTab.includePattern.matcher(url).matches()) {
-						downloadInfo.savedPath = save(url, SCRAP_PATH);
+					ExceptionLogger.d(TAG, "downloadImages.url " + url);
+					if (currentTab.includePattern != null && currentTab.includePattern.matcher(url).matches()
+						&& (currentTab.excludePattern == null || !currentTab.excludePattern.matcher(url).matches())) {
+						downloadInfo.savedPath = save(url, SCRAP_PATH, false);
 					} else {
 						if (currentTab.excludePattern != null) {
 							if (!currentTab.excludePattern.matcher(url).matches()) {
-								downloadInfo.savedPath = save(url, SCRAP_PATH);
+								downloadInfo.savedPath = save(url, SCRAP_PATH, false);
 							}
 						} else {
-							downloadInfo.savedPath = save(url, SCRAP_PATH);
+							downloadInfo.savedPath = save(url, SCRAP_PATH, false);
 						}
 					}
 					if (downloadInfo.savedPath != null) {
-						currentTab.downloadedInfos.add(downloadInfo);
+						currentTab.downloadedInfos.addFirst(downloadInfo);
 						if (currentTab.logAdapter != null && currentTab.logAdapter.showImages) {
 							currentTab.logAdapter.notifyDataSetChanged();
 						}
 					}
 				}
-			} catch (Exception e) {
-				ExceptionLogger.e(TAG, e.getMessage());
+			} catch (Throwable e) {
+				ExceptionLogger.e(TAG, e.getMessage(), e);
 			}
 		}
 	}
 
-	private class DownloadImageTask extends AsyncTask<Void, String, Void> {
+	private class DownloadImageResourceTask extends AsyncTask<Void, String, Void> {
 
 		final Tab tab;
-		public DownloadImageTask(final Tab t) {
+		public DownloadImageResourceTask(final Tab t) {
 			this.tab = t;
 		}
 
 		protected Void doInBackground(final Void... v) {
-			downloadImages(tab);
+			downloadImagesResources(tab);
 			return null;
 		}
 	}
 
-	private void downloadResources(final Tab currentTab) {
-		if (currentTab.saveResources) {
-			final ArrayList<String> resources = currentTab.resourcesList;
+	private void downloadResources(final Tab tab) {
+		if (tab.saveResources) {
+			final ArrayList<String> resources = tab.resourcesList;
 			//ExceptionLogger.d(TAG, "download " + downloadInfos);
 			if (resources != null && resources.size() > 0) {
 				try {
@@ -2466,96 +2556,96 @@ public class MainActivity extends Activity {
 					while (resources.size() > 0) {
 						url = resources.remove(0);
 						ExceptionLogger.d(TAG, "resources.url " + url);
-						save(url, SCRAP_PATH);
+						save(url, SCRAP_PATH, true);
 					}
-				} catch (Exception e) {
-					ExceptionLogger.e(TAG, e.getMessage());
+				} catch (Throwable e) {
+					ExceptionLogger.e(TAG, e.getMessage(), e);
 				}
 			}
 		}
 	}
 
-    private class DownloadResourceTask extends AsyncTask<Void, String, Void> {
+    private class BatchDownloadTask extends AsyncTask<Void, String, Void> {
 		
 		final Tab tab;
-		public DownloadResourceTask(final Tab t) {
+		public BatchDownloadTask(final Tab t) {
 			this.tab = t;
 		}
 		
 		protected Void doInBackground(final Void... v) {
-			downloadResources(tab);
+			if (tab.saveResources) {
+				final ArrayList<String> resources = tab.resourcesList;
+				//ExceptionLogger.d(TAG, "download " + downloadInfos);
+				if (resources != null && resources.size() > 0) {
+					try {
+						String url;
+						while (resources.size() > 0) {
+							url = resources.remove(0);
+							ExceptionLogger.d(TAG, "resources.url " + url);
+							save(url, SCRAP_PATH, true);
+						}
+					} catch (Throwable e) {
+						ExceptionLogger.e(TAG, e.getMessage(), e);
+					}
+				}
+			}
 			return null;
 		}
 	}
 
-	private String save(final String url, final String parentPath) throws IOException {
+	private String save(final String url, final String parentPath, final boolean includeQuestion) throws IOException {
 		final String path = url.substring(url.indexOf("//") + 1, url.lastIndexOf("/"));
 		final String savedFilePath = parentPath + path;
-		final File file = new File(savedFilePath, FileUtil.getFileNameFromUrl(url));
+		final String fileNameFromUrl = FileUtil.getFileNameFromUrl(url, includeQuestion);
+		final File file = new File(savedFilePath, fileNameFromUrl);
 		ExceptionLogger.d(TAG, "save exist " + file.exists() + ", " + file.getAbsolutePath());
 		if (!file.exists()) {
-			final InputStream in = new java.net.URL(url).openStream();
-			final String s = FileUtil.saveISToFile(in, savedFilePath, url, false, false);
+			final InputStream in;
+			if (url.startsWith("https")) {
+				final String cookies = CookieManager.getInstance().getCookie(url);
+				final HttpsURLConnection conn = (HttpsURLConnection)(new URL(url).openConnection());
+				conn.addRequestProperty("Cookie", cookies);
+				int status = conn.getResponseCode();
+				ExceptionLogger.d(TAG, "ContentLength " + conn.getContentLength() + ", status " + status);
+				in = conn.getInputStream();
+			} else {
+				in = new java.net.URL(url).openStream();
+			}
+			final String s = FileUtil.saveISToFile(in, savedFilePath, fileNameFromUrl, false, false);
 			ExceptionLogger.d(TAG, "saved successfully " + s);
 		}
 		return file.getAbsolutePath();
 	}
 	
-	private void downloadFAV(final ImageView bmImage, final Tab tab, final String urldisplay) {
-		Bitmap mIcon11 = null;
-		if (urldisplay != null) {
-			try {
-				mIcon11 = BitmapFactory.decodeFile(save(urldisplay, SCRAP_PATH));
-			} catch (Exception e) {
-				ExceptionLogger.e("Error", e.getMessage());
-			}
+	private void enableWVCache(final WebView webView) {
+
+		webView.getSettings().setDomStorageEnabled(true);
+
+		// Set cache size to 8 mb by default. should be more than enough
+		//@java.lang.Deprecated()
+		//webView.getSettings().setAppCacheMaxSize(1024*1024*8);
+
+		File dir = new File(SCRAP_PATH);//getCacheDir();
+		ExceptionLogger.d(TAG, "getCacheDir: " + getCacheDir().getAbsolutePath());
+		if (!dir.exists()) {
+            dir.mkdirs();
 		}
-		if (mIcon11 != null) {
-			bmImage.clearColorFilter();
-			bmImage.setImageBitmap(mIcon11);
-			tab.favicon = mIcon11;
-		} else {
-			faviconImage.setImageResource(R.drawable.page_info);
-			bmImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-			bmImage.setBackgroundColor(backgroundColor);
-			tab.favicon = null;
-			//tab.favHref = null;
+		webView.getSettings().setAppCachePath(dir.getPath());
+		webView.getSettings().setAllowFileAccess(true);
+		webView.getSettings().setAppCacheEnabled(true);
+
+		webView.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
+		
+		if (!isNetworkAvailable()) {//loading offline
+			webView.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
 		}
 	}
-//	private class DownloadFAVTask extends AsyncTask<String, Void, Bitmap> {
-//		final ImageView bmImage;
-//		final Tab tab;
-//		public DownloadFAVTask(final ImageView bmImage, final Tab t) {
-//			this.bmImage = bmImage;
-//			this.tab = t;
-//		}
-//		protected Bitmap doInBackground(final String... urls) {
-//			final String urldisplay = urls[0];
-//			ExceptionLogger.d(TAG, "download favicon " + urldisplay);
-//			Bitmap mIcon11 = null;
-//			if (urldisplay != null) {
-//				try {
-//					mIcon11 = BitmapFactory.decodeFile(save(urldisplay, SCRAP_PATH));
-//				} catch (Exception e) {
-//					ExceptionLogger.e("Error", e.getMessage());
-//				}
-//			}
-//			return mIcon11;
-//		}
-//		protected void onPostExecute(final Bitmap result) {
-//			if (result != null) {
-//				bmImage.clearColorFilter();
-//				bmImage.setImageBitmap(result);
-//				tab.favicon = result;
-//			} else {
-//				faviconImage.setImageResource(R.drawable.page_info);
-//				bmImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-//				bmImage.setBackgroundColor(backgroundColor);
-//				tab.favicon = null;
-//				//tab.favHref = null;
-//			}
-//		}
-//	}
+	
+	private boolean isNetworkAvailable() {
+		ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService( CONNECTIVITY_SERVICE );
+		NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+		return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+	}
 	
     void showLongPressMenu(final String linkUrl, final String imageUrl, final String text) {
         final String url;
@@ -2711,22 +2801,22 @@ public class MainActivity extends Activity {
 		} else {
 			c.moveToFirst();
 			final String name = getClass().getName();
-			Log.d(name,
+			ExceptionLogger.d(name,
 				  "COLUMN_ID: "
 				  + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_ID)));
-			Log.d(name,
+			ExceptionLogger.d(name,
 				  "COLUMN_BYTES_DOWNLOADED_SO_FAR: "
 				  + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)));
-			Log.d(name,
+			ExceptionLogger.d(name,
 				  "COLUMN_LAST_MODIFIED_TIMESTAMP: "
 				  + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)));
-			Log.d(name,
+			ExceptionLogger.d(name,
 				  "COLUMN_LOCAL_URI: "
 				  + c.getString(c.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)));
-			Log.d(name,
+			ExceptionLogger.d(name,
 				  "COLUMN_STATUS: "
 				  + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS)));
-			Log.d(name,
+			ExceptionLogger.d(name,
 				  "COLUMN_REASON: "
 				  + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_REASON)));
 			AndroidUtils.toast(MainActivity.this, statusMessage(c));
@@ -2812,6 +2902,8 @@ public class MainActivity extends Activity {
 		setRenderMode(webview, renderMode);
 		webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
+		enableWVCache(webview);
+		
         final Tab tab = new Tab(webview, isIncognito);
 		tab.blockCSS = blockCSS;
         tab.blockFonts = blockFonts;
@@ -2822,6 +2914,17 @@ public class MainActivity extends Activity {
 		tab.saveResources = saveResources;
         tab.saveImage = saveImage;
 		tab.isDesktopUA = isDesktopUA;
+		
+		tab.loadWithOverviewMode = loadWithOverviewMode;
+		tab.useAdBlocker = useAdBlocker;
+		tab.enableCookies = enableCookies;
+		tab.accept3PartyCookies = accept3PartyCookies;
+		tab.offscreenPreRaster = offscreenPreRaster;
+		tab.requestSaveData = requestSaveData;
+		tab.doNotTrack = doNotTrack;
+		tab.javaScriptCanOpenWindowsAutomatically = javaScriptCanOpenWindowsAutomatically;
+		tab.removeIdentifyingHeaders = removeIdentifyingHeaders;
+		tab.textReflow = textReflow;
         tabs.add(tab);
         webviews.addView(webview);
         setTabCountText(tabs.size());
@@ -2869,19 +2972,19 @@ public class MainActivity extends Activity {
 			faviconImage.setImageResource(R.drawable.page_info);
 			return;
 		}
-		skipTextChange = true;
 		if (currentTab.favicon != null) {
 			faviconImage.clearColorFilter();
 			faviconImage.setImageBitmap(currentTab.favicon);
 		} else {
 			faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-			faviconImage.setBackgroundColor(backgroundColor);
 			faviconImage.setImageResource(R.drawable.page_info);
 		}
 		if (currentTab.loading) {
-      		et.setText(currentTab.webview.getUrl());
+      		et.setTag(currentTab.webview.getUrl());
+			et.setText(currentTab.webview.getUrl());
 			goStop.setImageResource(R.drawable.stop);
 		} else {
+			et.setTag(currentTab.webview.getTitle());
 			et.setText(currentTab.webview.getTitle());
 			goStop.setImageResource(R.drawable.reload);
 		}
@@ -2902,6 +3005,7 @@ public class MainActivity extends Activity {
 			progressBar.setVisibility(View.GONE);
 		} else {
 			progressBar.setVisibility(View.VISIBLE);
+			progressBar.setProgress(currentTab.progress);
 		}
 		requestList.setAdapter(currentTab.logAdapter);
 		if (currentTab.showLog) {
@@ -2910,9 +3014,8 @@ public class MainActivity extends Activity {
 		} else {
 			requestList.setVisibility(View.GONE);
 		}
-		textChanged = false;
-		skipTextChange = false;
-    }
+		toolbar.setVisibility(View.VISIBLE);
+	}
 
     private void updateFullScreen() {
         final int flags = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
@@ -2929,7 +3032,7 @@ public class MainActivity extends Activity {
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 		externalLogFilesDir = getExternalFilesDir("logs");
-		//externalDownloadFilesDir = getExternalFilesDir("Downloads");
+		
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             private Thread.UncaughtExceptionHandler defaultUEH = Thread.getDefaultUncaughtExceptionHandler();
             @Override
@@ -2972,6 +3075,20 @@ public class MainActivity extends Activity {
 		requestList = (ListView)findViewById(R.id.requestList);
 		progressBar = (ProgressBar) findViewById(R.id.progressbar);
 		
+		//requestList.setScrollBarSize(0);
+		//requestList.setScrollbarFadingEnabled(true);
+//		requestList.setHorizontalScrollBarEnabled(false);
+//		requestList.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
+//		requestList.setVerticalScrollBarEnabled(true);
+		//requestList.setSelector(R.drawable.top);
+		
+		requestList.setSmoothScrollbarEnabled(true);
+        requestList.setScrollingCacheEnabled(true);
+        requestList.setFocusable(true);
+        requestList.setFocusableInTouchMode(true);
+        requestList.setFastScrollEnabled(true);
+		requestList.setCacheColorHint(Color.WHITE);
+		
 		faviconImage.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View button) {
@@ -3002,6 +3119,42 @@ public class MainActivity extends Activity {
 											} else {
 												AndroidUtils.toast(MainActivity.this, "WebPage not fully loaded");
 											}
+										}
+									}));
+					actions.add(new MenuAction("Auto Reload", 0, new Runnable() {
+										@Override
+										public void run() {
+											final EditText editView = new EditText(MainActivity.this);
+											final Handler handler = new Handler();
+											final Runnable r = new Runnable() {
+												@Override
+												public void run() {
+													currentTab.webview.reload();
+													handler.postDelayed(this, currentTab.autoReload*1000*60);
+												}
+											};
+											editView.setInputType(InputType.TYPE_CLASS_NUMBER);
+											editView.setText(currentTab.autoReload + "");
+											editView.selectAll();
+											editView.requestFocus();
+											new AlertDialog.Builder(MainActivity.this)
+												.setTitle("Auto Reload Every (min)")
+												.setView(editView)
+												.setPositiveButton("Apply", new OnClickListener() {
+													public void onClick(DialogInterface dialog, int which) {
+														currentTab.autoReload = Integer.valueOf(editView.getText().toString());
+														handler.removeCallbacks(r);
+														if (currentTab.autoReload > 0) {
+															handler.post(r);
+														} 
+													}})
+												.setNegativeButton("Cancel", new EmptyOnClickListener())
+												.show();
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.autoReload > 0;
 										}
 									}));
 					actions.add(new MenuAction("Auto Scroll", 0, new Runnable() {
@@ -3043,12 +3196,23 @@ public class MainActivity extends Activity {
 											return currentTab.isScrolling;
 										}
 									}));
+					actions.add(new MenuAction("Save Html", 0, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.saveHtml = !currentTab.saveHtml;
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.saveHtml;
+										}
+									}));
 					actions.add(new MenuAction("Save Images", 0, new Runnable() {
 										@Override
 										public void run() {
 											final View saveImageLayout = getLayoutInflater().inflate(R.layout.save_image, null);
 											new AlertDialog.Builder(MainActivity.this)
-												.setTitle("Save Images")
+												.setTitle("Auto Save")
 												.setView(saveImageLayout)
 												.setPositiveButton("Start", new OnClickListener() {
 													public void onClick(DialogInterface dialog, int which) {
@@ -3061,14 +3225,32 @@ public class MainActivity extends Activity {
 															}
 															final Tab currentTab = getCurrentTab();
 															currentTab.saveImage = true;
-															currentTab.includePatternStr = ((EditText)saveImageLayout.findViewById(R.id.image_include_pattern)).getText().toString().trim();
+															
+															currentTab.batchLinkPatternStr = ((EditText)saveImageLayout.findViewById(R.id.batch_link_pattern)).getText().toString().trim();
+															ExceptionLogger.d(TAG, "batchLinkPatternStr " + currentTab.batchLinkPatternStr);
+															if (currentTab.batchLinkPatternStr.length() > 0) {
+																String from = ((EditText)saveImageLayout.findViewById(R.id.from_link)).getText().toString().trim();
+																if (from.length() > 0) {
+																	currentTab.from = Integer.valueOf(from);
+																}
+
+																String to = ((EditText)saveImageLayout.findViewById(R.id.to_link)).getText().toString().trim();
+																if (to.length() > 0) {
+																	currentTab.to = Integer.valueOf(to);
+																}
+															} else {
+																currentTab.batchLinkPatternStr = "";
+																currentTab.from = -1;
+																currentTab.to = -1;
+															}
+															currentTab.includePatternStr = ((EditText)saveImageLayout.findViewById(R.id.include_pattern)).getText().toString().trim();
 															ExceptionLogger.d(TAG, "includePatternStr " + currentTab.includePatternStr);
 															if (currentTab.includePatternStr.length() > 0) {
 																currentTab.includePattern = Pattern.compile(currentTab.includePatternStr, Pattern.CASE_INSENSITIVE);
 															} else {
 																currentTab.includePattern = null;
 															}
-															currentTab.excludePatternStr = ((EditText)saveImageLayout.findViewById(R.id.image_exclude_pattern)).getText().toString().trim();
+															currentTab.excludePatternStr = ((EditText)saveImageLayout.findViewById(R.id.exclude_pattern)).getText().toString().trim();
 															ExceptionLogger.d(TAG, "excludePatternStr " + currentTab.excludePatternStr);
 															if (currentTab.excludePatternStr.length() > 0) {
 																currentTab.excludePattern = Pattern.compile(currentTab.excludePatternStr, Pattern.CASE_INSENSITIVE);
@@ -3076,7 +3258,7 @@ public class MainActivity extends Activity {
 																currentTab.excludePattern = null;
 															}
 															if (currentTab.diTask == null || currentTab.diTask.getStatus() == AsyncTask.Status.FINISHED) {
-																currentTab.diTask = new DownloadImageTask<>(currentTab);
+																currentTab.diTask = new DownloadImageResourceTask<>(currentTab);
 																currentTab.diTask.execute();
 															}
 															uaAdapter.notifyDataSetChanged();
@@ -3176,7 +3358,7 @@ public class MainActivity extends Activity {
 										@Override
 										public void run() {
 											currentTab.blockNetworkLoads = !currentTab.blockNetworkLoads;
-											WebSettings settings = currentTab.webview.getSettings();
+											final WebSettings settings = currentTab.webview.getSettings();
 											settings.setBlockNetworkLoads(currentTab.blockNetworkLoads);
 										}
 									}, new MyBooleanSupplier() {
@@ -3205,6 +3387,136 @@ public class MainActivity extends Activity {
 										@Override
 										public boolean getAsBoolean() {
 											return currentTab.isDesktopUA;
+										}
+									}));
+					actions.add(new MenuAction("Load With Overview Mode", 0, new Runnable() {
+							@Override
+							public void run() {
+								currentTab.loadWithOverviewMode = !currentTab.loadWithOverviewMode;
+								final WebSettings settings = currentTab.webview.getSettings();
+								settings.setLoadWithOverviewMode(currentTab.loadWithOverviewMode);
+							}
+						}, new MyBooleanSupplier() {
+							@Override
+							public boolean getAsBoolean() {
+								return currentTab.loadWithOverviewMode;
+							}
+						}));
+					actions.add(new MenuAction("Ad Blocker", R.drawable.adblocker, new Runnable() {
+							@Override
+							public void run() {
+								currentTab.useAdBlocker = !currentTab.useAdBlocker;
+							}
+						}, new MyBooleanSupplier() {
+							@Override
+							public boolean getAsBoolean() {
+								return currentTab.useAdBlocker;
+							}
+						}));
+					actions.add(new MenuAction("Offscreen PreRaster", R.drawable.adblocker, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.offscreenPreRaster = !currentTab.offscreenPreRaster;
+											final WebSettings settings = currentTab.webview.getSettings();
+											settings.setOffscreenPreRaster(currentTab.offscreenPreRaster);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.offscreenPreRaster;
+										}
+									}));
+					actions.add(new MenuAction("Popup Windows", R.drawable.adblocker, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.javaScriptCanOpenWindowsAutomatically = !currentTab.javaScriptCanOpenWindowsAutomatically;
+											currentTab.webview.getSettings().setJavaScriptCanOpenWindowsAutomatically(currentTab.javaScriptCanOpenWindowsAutomatically);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.javaScriptCanOpenWindowsAutomatically;
+										}
+									}));
+					actions.add(new MenuAction("Request 'Save-Data'", R.drawable.adblocker, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.requestSaveData = !currentTab.requestSaveData;
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.requestSaveData;
+										}
+									}));
+					actions.add(new MenuAction("Do Not Track", R.drawable.adblocker, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.doNotTrack = !currentTab.doNotTrack;
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.doNotTrack;
+										}
+									}));
+					actions.add(new MenuAction("Remove Identifying Headers", R.drawable.adblocker, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.removeIdentifyingHeaders = !currentTab.removeIdentifyingHeaders;
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.removeIdentifyingHeaders;
+										}
+									}));
+					actions.add(new MenuAction("3rd party cookies", R.drawable.adblocker, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.accept3PartyCookies = !currentTab.accept3PartyCookies;
+											currentTab.webview.getSettings().setAcceptThirdPartyCookies(currentTab.accept3PartyCookies);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.accept3PartyCookies;
+										}
+									}));
+					actions.add(new MenuAction("Enable Cookies", R.drawable.adblocker, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.enableCookies = !currentTab.enableCookies;
+											CookieManager.getInstance().setAcceptCookie(currentTab.enableCookies);
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return CookieManager.getInstance().acceptCookie();
+										}
+									}));
+					actions.add(new MenuAction("Text Reflow", R.drawable.adblocker, new Runnable() {
+										@Override
+										public void run() {
+											currentTab.textReflow = !currentTab.textReflow;
+											WebSettings settings = currentTab.webview.getSettings();
+											if (currentTab.textReflow) {
+												settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
+												try {
+													settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING);
+												} catch (Exception e) {
+													// This shouldn't be necessary, but there are a number
+													// of KitKat devices that crash trying to set this
+													ExceptionLogger.e("Problem setting LayoutAlgorithm to TEXT_AUTOSIZING", e.getMessage());
+												}
+											} else {
+												settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
+											}
+										}
+									}, new MyBooleanSupplier() {
+										@Override
+										public boolean getAsBoolean() {
+											return currentTab.textReflow;
 										}
 									}));
 					actions.add(new MenuAction("Text Encoding", 0, new Runnable() {
@@ -3405,55 +3717,64 @@ public class MainActivity extends Activity {
 							  }}));
         et.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 				public void onItemClick(final AdapterView<?> parent, final View view, final int position, final long id) {
+					
 					loadUrl(et.getText().toString(), getCurrentWebView());
 				}});
 
 		et.setOnKeyListener(new View.OnKeyListener() {
 				public boolean onKey(final View v, final int keyCode, final KeyEvent event) {
 					if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
+						
 						loadUrl(et.getText().toString(), getCurrentWebView());
 						return true;
 					} else {
 						return false;
 					}
 				}});
+				
 		et.addTextChangedListener(new TextWatcher() {
 				@Override
 				public void beforeTextChanged(final CharSequence p1, int p2, int p3, int p4) {
 				}
 				@Override
 				public void onTextChanged(final CharSequence p1, final int p2, final int p3, final int p4) {
-					if (!skipTextChange) {
+					final String newTextStr = p1.toString();
+					if (p1.length() > 0 
+						&& !"about:blank".equals(newTextStr)
+						&& !newTextStr.equals(et.getTag())) {
+						goStop.setImageResource(R.drawable.forward);
 						textChanged = true;
-						if (p1.length() > 0 && !"about:blank".equalsIgnoreCase(p1.toString()))
-							goStop.setImageResource(R.drawable.forward);
+						et.setTag("");
+					} else {
+						textChanged = false;
 					}
 				}
 				@Override
 				public void afterTextChanged(final Editable p1) {
 				}
-		});
+			});
+		
 		et.setOnFocusChangeListener(new OnFocusChangeListener() {          
 				@Override
 				public void onFocusChange(View v, boolean hasFocus) {
-					skipTextChange = true;
-					textChanged = false;
 					final Tab currentTab = getCurrentTab();
 					if (hasFocus) {
 						if (!currentTab.loading) {
-							et.setText(getCurrentWebView().getUrl());
+							et.setTag(currentTab.webview.getUrl());
+							et.setText(currentTab.webview.getUrl());
 						}
 						et.setSelection(0, et.getText().length());
 					} else {
 						if (currentTab.loading) {
-							et.setText(getCurrentWebView().getUrl());
+							et.setTag(currentTab.webview.getUrl());
+							et.setText(currentTab.webview.getUrl());
 							goStop.setImageResource(R.drawable.stop);
 						} else {
-							et.setText(getCurrentWebView().getTitle());
+							et.setTag(currentTab.webview.getTitle());
+							et.setText(currentTab.webview.getTitle());
 							goStop.setImageResource(R.drawable.reload);
 						}
 					}
-					skipTextChange = false;
 				}
 			});
         goStop.setOnClickListener(new View.OnClickListener() {
@@ -3474,7 +3795,7 @@ public class MainActivity extends Activity {
 							goStop.setImageResource(R.drawable.stop);
 						}
 					}
-					textChanged = false;
+					//et.requestFocus();
 				}
 		});
         
@@ -3555,10 +3876,13 @@ public class MainActivity extends Activity {
 		downloadLocation = prefs.getString("downloadLocation", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
 		textEncoding = prefs.getString("textEncoding", "UTF-8");
 		deleteAfter = prefs.getString("deleteAfter", "30");
-		SCRAP_PATH = downloadLocation + "/sweb";//externalDownloadFilesDir.getAbsolutePath();
+		SCRAP_PATH = downloadLocation + "/sweb";
+		ExceptionLogger.d(TAG, "Cache dir " + SCRAP_PATH);
 		if (placesDb != null)
 			placesDb.execSQL("DELETE FROM history WHERE date_created < DATETIME('now', '-" + deleteAfter + " day')", new Object[] {});
-		
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+			WebView.setWebContentsDebuggingEnabled(true);
+		}
 		setupToolbar(toolbar);
 		newBackgroundTab(et.getText().toString(), false, null);
         final WebView currentWebView = getCurrentWebView();
@@ -3566,6 +3890,7 @@ public class MainActivity extends Activity {
         onNightModeChange();
 		gestureDetector = new GestureDetector(this, new CustomGestureListener());
     }
+	
 	@Override
     protected void onResume() {
         super.onResume();
@@ -3959,12 +4284,12 @@ public class MainActivity extends Activity {
     }
 	
     private void initAdblocker() {
-        if (useAdBlocker) {
+        //if (useAdBlocker) {
             File externalFilesDir = getExternalFilesDir("adblock");
 			adBlocker = new AdBlocker(externalFilesDir);
-        } else {
-            adBlocker = null;
-        }
+        //} else {
+        //    adBlocker = null;
+        //}
 		ExceptionLogger.d(TAG, "adBlocker " + adBlocker);
     }
 	
@@ -4203,10 +4528,7 @@ public class MainActivity extends Activity {
 				public void onClick(DialogInterface dialog, int which) {
 					cursorHistory.moveToPosition(which);
 					String url = cursorHistory.getString(cursorHistory.getColumnIndex("url"));
-					//et.requestFocus();
-					skipTextChange = true;
 					et.setText(url);
-					skipTextChange = false;
 					loadUrl(url, getCurrentWebView());
 					cursorHistory.close();
 				}})
@@ -4265,10 +4587,14 @@ public class MainActivity extends Activity {
 												.setView(editView)
 												.setPositiveButton("Change URL", new OnClickListener() {
 													public void onClick(DialogInterface dlg, int which) {
-														bookmarkCursor.close();
-														placesDb.execSQL("UPDATE bookmarks SET url=? WHERE _id=?", new Object[] {editView.getText(), rowid});
-														bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
-														bookmarkAdapter.swapCursor(bookmarkCursor);
+														try {
+															bookmarkCursor.close();
+															placesDb.execSQL("UPDATE bookmarks SET url=? WHERE _id=?", new Object[] {editView.getText(), rowid});
+															bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
+															bookmarkAdapter.swapCursor(bookmarkCursor);
+														} catch (Throwable t) {
+															Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_LONG).show();
+														}
 													}})
 												.setNegativeButton("Cancel", new EmptyOnClickListener())
 												.show();
@@ -4375,10 +4701,7 @@ public class MainActivity extends Activity {
 				public void onClick(DialogInterface dialog, int which) {
 					bookmarkCursor.moveToPosition(which);
 					String url = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("url"));
-					//et.requestFocus();
-					skipTextChange = true;
 					et.setText(url);
-					skipTextChange = false;
 					loadUrl(url, getCurrentWebView());
 					bookmarkCursor.close();
 				}})
@@ -4640,9 +4963,13 @@ public class MainActivity extends Activity {
             placesDb.beginTransaction();
             SQLiteStatement stmt = placesDb.compileStatement("INSERT INTO bookmarks (title, url) VALUES (?,?)");
             for (TitleAndUrl pair : bookmarks) {
-                stmt.bindString(1, pair.title);
-                stmt.bindString(2, pair.url);
-                stmt.execute();
+				try {
+					stmt.bindString(1, pair.title);
+					stmt.bindString(2, pair.url);
+					stmt.execute();
+				} catch (SQLiteConstraintException e) {
+					ExceptionLogger.e(TAG, e.getMessage() + ", title " + pair.title + ", url " + pair.url);
+				}
             }
             placesDb.setTransactionSuccessful();
             AndroidUtils.toast(this, String.format("Imported %d bookmarks", bookmarks.size()));
@@ -4727,11 +5054,12 @@ public class MainActivity extends Activity {
 		} else {
 			et.setCompoundDrawables(null, null, null, null);
 		}
-		skipTextChange = true;
 		if (currentTab.loading) {
-     		et.setText(webView.getUrl());
+     		et.setTag(webView.getUrl());
+			et.setText(webView.getUrl());
 			goStop.setImageResource(R.drawable.stop);
 		} else {
+			et.setTag(webView.getTitle());
 			et.setText(webView.getTitle());
 			goStop.setImageResource(R.drawable.reload);
 		}
@@ -4741,7 +5069,6 @@ public class MainActivity extends Activity {
 			faviconImage.setImageBitmap(currentTab.favicon);
 		} else {
 			faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-			faviconImage.setBackgroundColor(backgroundColor);
 			faviconImage.setImageResource(R.drawable.page_info);
 		}
 		currentTab.webview.requestFocus();
@@ -4752,8 +5079,6 @@ public class MainActivity extends Activity {
 		} else {
 			requestList.setVisibility(View.GONE);
 		}
-		textChanged = false;
-		skipTextChange = false;
 	}
 
     private String getUrlFromIntent(final Intent intent) {
@@ -4780,9 +5105,12 @@ public class MainActivity extends Activity {
 					final int itemCount = clip.getItemCount();
 					if (itemCount > 0) {
 						uri = clip.getItemAt(0).getUri();
-						return AndroidUtils.getPath(MainActivity.this, uri);
+						if (uri != null) {
+							return AndroidUtils.getPath(MainActivity.this, uri);
+						}
 					}
 				}
+				return intent.getStringExtra(Intent.EXTRA_TEXT);
 			}
 		}
         if (Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
@@ -4813,42 +5141,36 @@ public class MainActivity extends Activity {
 	
     private void onNightModeChange() {
 		if (isNightMode) {
-            textColor = Color.rgb(0xe0, 0xe0, 0xe0);
-            backgroundColor = Color.rgb(0x22, 0x22, 0x22);
+            textColor = Color.rgb(0xf0, 0xf0, 0xf0);
+            backgroundColor = Color.rgb(0x42, 0x42, 0x42);
             progressBar.setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x00ffff00, 0)));
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             getWindow().setNavigationBarColor(Color.BLACK);
-			for (Tab tab : tabs) {
-				tab.webview.setBackgroundColor(DARK_BACKGROUND);
-			}
         } else {
             textColor = Color.BLACK;
             backgroundColor = Color.rgb(0xe0, 0xe0, 0xe0);
             progressBar.setProgressTintList(ColorStateList.valueOf(Color.rgb(0, 0x00cc00cc, 0)));
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-			for (Tab tab : tabs) {
-				tab.webview.setBackgroundColor(LIGHT_BACKGROUND);
-			}
         }
+		main_layout.setBackgroundColor(backgroundColor);
 		et.setTextColor(textColor);
 		et.setBackgroundColor(backgroundColor);
-		Drawable compoundDrawables = et.getCompoundDrawables()[0];
+		toolbar.setBackgroundColor(backgroundColor);
+		goStop.setColorFilter(textColor);
+		
+		final Drawable compoundDrawables = et.getCompoundDrawables()[0];
 		if (compoundDrawables != null)
 			compoundDrawables.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-		goStop.setColorFilter(textColor);
-		goStop.setBackgroundColor(backgroundColor);
-		faviconImage.setBackgroundColor(backgroundColor);
 		
+		if (getCurrentTab().favicon == null) {
+			faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
+		}
 		searchEdit.setTextColor(textColor);
-		searchEdit.setBackgroundColor(backgroundColor);
 		searchCount.setTextColor(textColor);
-		searchCount.setBackgroundColor(backgroundColor);
-		requestList.setBackgroundColor(backgroundColor);
-		searchPane.setBackgroundColor(backgroundColor);
 		searchFindPrev.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 		searchFindNext.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 		searchClose.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
-		toolbar.setBackgroundColor(backgroundColor);
+		
 		final int childCount = toolbar.getChildCount();
 		for (int i = 0; i < childCount; i++) {
 			final View v = toolbar.getChildAt(i);
@@ -4864,10 +5186,10 @@ public class MainActivity extends Activity {
 			final TextView txtText = (TextView)v.findViewById(R.id.txtText);
 			txtText.setTextColor(textColor);
 		}
-//        for (int i = 0; i < tabs.size(); i++) {
-//            tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
-//            injectCSS(tabs.get(i).webview);
-//        }
+        for (int i = 0; i < tabs.size(); i++) {
+            tabs.get(i).webview.setBackgroundColor(isNightMode ? Color.BLACK : Color.WHITE);
+            injectCSS(tabs.get(i).webview);
+        }
     }
 
     /**
@@ -5209,7 +5531,7 @@ public class MainActivity extends Activity {
 				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6, displayMetrics));
 		}
 		currentTab.loading = true;
-		//textChanged = false;
+		//
 		webview.loadUrl(url, requestHeaders);
 		if (currentTab == getCurrentTab()) {
 			goStop.setImageResource(R.drawable.stop);
@@ -5248,7 +5570,7 @@ public class MainActivity extends Activity {
 
 	@Override
 	public boolean onKeyLongPress(int keyCode, KeyEvent event) {
-		Log.d(TAG, "onKeyLongPress.keyCode=" + keyCode + ", event=" + event);
+		ExceptionLogger.d(TAG, "onKeyLongPress.keyCode=" + keyCode + ", event=" + event);
 		if (keyCode == KeyEvent.KEYCODE_BACK
 			&& event.getAction() == KeyEvent.ACTION_DOWN) {
 			super.onBackPressed();
@@ -5511,7 +5833,7 @@ public class MainActivity extends Activity {
 				textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13.f);
 			}
 		}
-		public LogArrayAdapter(@NonNull Context context, int resource, @NonNull ArrayList objects) {
+		public LogArrayAdapter(@NonNull Context context, int resource, @NonNull LinkedList objects) {
             super(context, resource, objects);
 		}
 		

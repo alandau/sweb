@@ -113,6 +113,9 @@ public class AndroidUtils {
 	
 	@TargetApi(Build.VERSION_CODES.KITKAT)
     public static String getPath(final Context context, final Uri uri) {
+		if (uri == null) {
+			return null;
+		}
 		ExceptionLogger.d(TAG, "uri.authority " + uri.getAuthority() + ", uri.path " + uri.getPath());
 //		ExceptionLogger.d(TAG, "DocumentsContract.isDocumentUri " + DocumentsContract.isDocumentUri(context, uri));
 //      ExceptionLogger.d(TAG, "DocumentsContract.isTreeUri " + DocumentsContract.isTreeUri(uri));

@@ -8,52 +8,108 @@
 	android:paddingRight="16dp"
 	android:paddingTop="12dp">
 
+	<CheckBox
+		android:id="@+id/batch_link"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="Link Pattern: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:checked="true"
+		android:textSize="14dip" />
+
+	<EditText
+		android:id="@+id/batch_link_pattern"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_weight="1"
+		android:singleLine="false"
+		android:text=""
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="14dip" />
+
+
 	<LinearLayout
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
 		android:orientation="horizontal" >
-		<TextView
-			android:id="@+id/image_include"
+		<CheckBox
+			android:id="@+id/from"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:text="Image Include Pattern: "
+			android:text="From: "
 			android:textAppearance="?android:attr/textAppearanceLarge"
 			android:textSize="14dip" />
 
 		<EditText
-			android:id="@+id/image_include_pattern"
-			android:layout_width="0dp"
+			android:id="@+id/from_link"
+			android:layout_width="fill_parent"
 			android:layout_height="wrap_content"
 			android:layout_weight="1"
-			android:singleLine="true"
-			android:text=".*?\\.(jpg|jpeg|webp)"
+			android:singleLine="false"
+			android:inputType="number"
+			android:text="0"
 			android:textAppearance="?android:attr/textAppearanceLarge"
 			android:textSize="14dip" />
+
+		<CheckBox
+			android:id="@+id/to"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="To: "
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<EditText
+			android:id="@+id/to_link"
+			android:layout_width="fill_parent"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="false"
+			android:inputType="number"
+			android:text="0"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:checked="true"
+			android:textSize="14dip" />
 	</LinearLayout>
-	
-    <LinearLayout
-		android:layout_width="match_parent"
+
+
+	<CheckBox
+		android:id="@+id/include"
+		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:orientation="horizontal" >
+		android:text="Include Pattern: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:checked="true"
+		android:textSize="14dip" />
 
-		<TextView
-			android:id="@+id/image_exclude"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="Image Exclude Pattern: "
-			android:textAppearance="?android:attr/textAppearanceLarge"
-			android:textSize="14dip" />
+	<EditText
+		android:id="@+id/include_pattern"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_weight="1"
+		android:singleLine="false"
+		android:text=".*?\\.(jpg|jpeg|webp)"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:checked="true"
+		android:textSize="14dip" />
 
-		<EditText
-			android:id="@+id/image_exclude_pattern"
-			android:layout_width="0dp"
-			android:layout_height="wrap_content"
-			android:layout_weight="1"
-			android:singleLine="true"
-			android:text=".*?/(44884218_345707102882519_2446069589734326272_n.jpg|68d99ba29cc8.png|1b47f9d0e595.png|bcd90c1d4868.png|1075ddfe0f68.png|.*?\.png).*?"
-			android:textAppearance="?android:attr/textAppearanceLarge"
-			android:textSize="14dip" />
+	<CheckBox
+		android:id="@+id/exclude"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="Exclude Pattern: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:checked="true"
+		android:textSize="14dip" />
 
-	</LinearLayout>
-	
+	<EditText
+		android:id="@+id/exclude_pattern"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_weight="1"
+		android:singleLine="false"
+		android:text=".*?(44884218_345707102882519_2446069589734326272_n.jpg|68d99ba29cc8.png|1b47f9d0e595.png|bcd90c1d4868.png|1075ddfe0f68.png|77929eccc37e.png|.*?\.png).*?"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="14dip" />
+
 </LinearLayout>
