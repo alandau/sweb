@@ -186,13 +186,7 @@ public class MainActivity extends Activity {
 		boolean saveResources;
 		int autoReload = 0;
 		final Handler handler = new Handler();
-		final Runnable autoRerun = new Runnable() {
-			@Override
-			public void run() {
-				webview.reload();
-				handler.postDelayed(this, autoReload*1000*60);
-			}
-		};
+		Runnable autoRerun;
 		volatile ArrayList<DownloadInfo> downloadInfos = new ArrayList<>();
 		volatile LinkedList<DownloadInfo> downloadedInfos = new LinkedList<>();
 		LogArrayAdapter logAdapter;
@@ -933,16 +927,20 @@ public class MainActivity extends Activity {
 		new MenuAction("Show Log", R.drawable.url_bar, new Runnable() {
 				@Override
 				public void run() {
-					requestList.setVisibility(requestList.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
 					Tab currentTab = getCurrentTab();
 					if (requestList.getVisibility() == View.VISIBLE) {
-						currentTab.recentConstraint = ".";
-						currentTab.showLog = true;
-						log(null, true);
-						currentTab.logAdapter.showImages = true;
-						requestList.requestFocus();
-					} else {
+						requestList.setVisibility(View.GONE);
 						currentTab.showLog = false;
+					} else {
+						requestList.setVisibility(View.VISIBLE);
+						currentTab.showLog = true;
+						if (currentTab.logAdapter == null || currentTab.saveImage == true) {
+							//currentTab.recentConstraint = ".";
+							log(null, true);
+							requestList.requestFocus();
+						} else {
+							log(null, false);
+						}
 					}
 				}
 			}),
@@ -3144,6 +3142,13 @@ public class MainActivity extends Activity {
 													public void onClick(DialogInterface dialog, int which) {
 														currentTab.autoReload = Integer.valueOf(editView.getText().toString());
 														currentTab.handler.removeCallbacks(currentTab.autoRerun);
+														currentTab.autoRerun = new Runnable() {
+															@Override
+															public void run() {
+																currentTab.webview.reload();
+																currentTab.handler.postDelayed(this, currentTab.autoReload*1000*60);
+															}
+														};
 														if (currentTab.autoReload > 0) {
 															currentTab.handler.post(currentTab.autoRerun);
 														} 
@@ -3588,7 +3593,7 @@ public class MainActivity extends Activity {
 												requestList.setVisibility(View.GONE);
 												currentTab.showLog = false;
 											} else {
-												currentTab.recentConstraint = ".";
+												//currentTab.recentConstraint = ".";
 												log(null, true);
 											}
 										}
@@ -4027,13 +4032,13 @@ public class MainActivity extends Activity {
         //onStopListener?.invoke();
     }
 
-	private void log(final String pat, final boolean show) {
+	//image = null, all=.
+	private void log(final String pat, final boolean showImages) {
 		final Tab currentTab = getCurrentTab();
-		if (!show) {
+		if (!showImages) {
 			currentTab.logAdapter = new LogArrayAdapter(MainActivity.this,
 													 R.layout.image,
 													 currentTab.requestsLog);
-			currentTab.logAdapter.showImages = show;
 			currentTab.logAdapter.setNotifyOnChange(true);
 			requestList.setAdapter(currentTab.logAdapter);
 			currentTab.logAdapter.getFilter().filter(pat);
@@ -4041,33 +4046,14 @@ public class MainActivity extends Activity {
 			currentTab.logAdapter = new LogArrayAdapter(MainActivity.this,
 													 R.layout.image,
 													 currentTab.downloadedInfos);
-			currentTab.logAdapter.showImages = show;
 			requestList.setAdapter(currentTab.logAdapter);
 		}
+		currentTab.logAdapter.showImages = showImages;
 		currentTab.showLog = true;
 		requestList.setVisibility(View.VISIBLE);
 		currentTab.logAdapter.notifyDataSetChanged();
 	}
 
-//	private void log(final String pat, final boolean show) {
-//		if (requestList.getVisibility() == View.GONE) {
-//			LogArrayAdapter adapter = (LogArrayAdapter) requestList.getAdapter();
-//			if (adapter == null) {
-//				adapter = new LogArrayAdapter(MainActivity.this,
-//														 android.R.layout.simple_list_item_1,
-//														 getCurrentTab().requestsLog);
-//				requestList.setAdapter(adapter);
-//			}
-//			adapter.show = show;
-//			adapter.getFilter().filter(pat);
-//			requestList.setVisibility(View.VISIBLE);
-//		} else {
-//			final LogArrayAdapter adapter = (LogArrayAdapter) requestList.getAdapter();
-//			adapter.show = show;
-//			adapter.getFilter().filter(pat);
-//		}
-//	}
-	
     private void setTabCountText(final int count) {
         if (txtTabCount != null) {
             txtTabCount.setText(String.valueOf(count));
@@ -5903,9 +5889,9 @@ public class MainActivity extends Activity {
 					}
 					getCurrentTab().recentConstraint = constraint;
 					FilterResults results = new FilterResults();
-					ArrayList<String> FilteredArrayNames = new ArrayList<String>();
+					ArrayList<String> filteredArrayNames = new ArrayList<String>();
 					if (constraint == null) {
-						FilteredArrayNames.addAll(getCurrentTab().requestsLog);
+						filteredArrayNames.addAll(getCurrentTab().requestsLog);
 					} else {
 						// perform your search here using the searchConstraint String.
 						constraint = constraint.toString().toLowerCase();
@@ -5913,12 +5899,12 @@ public class MainActivity extends Activity {
 						Tab currentTab = getCurrentTab();
 						for (String s : currentTab.requestsLog) {
 							if (pattern.matcher(s.toLowerCase()).matches())  {
-								FilteredArrayNames.add(s);
+								filteredArrayNames.add(s);
 							}
 						}
 					}
-					results.count = FilteredArrayNames.size();
-					results.values = FilteredArrayNames;
+					results.count = filteredArrayNames.size();
+					results.values = filteredArrayNames;
 					//Log.e("VALUES", results.values.toString());
 					return results;
 				}
