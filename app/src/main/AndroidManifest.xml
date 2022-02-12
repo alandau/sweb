@@ -9,15 +9,15 @@
 	>
 
     <uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+	<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 	<uses-permission android:name="android.permission.WRITE_MEDIA_STORAGE"/>
 	<uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION"/>
 	<uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
     <uses-permission android:name="android.permission.SET_WALLPAPER"/>
-		
+	
 		
     <application
         android:allowBackup="true"
@@ -36,7 +36,7 @@
                android:value="true" />
         <meta-data
 			android:name="android.webkit.WebView.EnableSafeBrowsing"
-			android:value="true" />
+			android:value="false" />
         <activity
             android:name="landau.sweb.MainActivity"
             android:label="SWeb"

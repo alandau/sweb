@@ -185,6 +185,14 @@ public class MainActivity extends Activity {
 		boolean exactImageUrl = true;
 		boolean saveResources;
 		int autoReload = 0;
+		final Handler handler = new Handler();
+		final Runnable autoRerun = new Runnable() {
+			@Override
+			public void run() {
+				webview.reload();
+				handler.postDelayed(this, autoReload*1000*60);
+			}
+		};
 		volatile ArrayList<DownloadInfo> downloadInfos = new ArrayList<>();
 		volatile LinkedList<DownloadInfo> downloadedInfos = new LinkedList<>();
 		LogArrayAdapter logAdapter;
@@ -3125,14 +3133,6 @@ public class MainActivity extends Activity {
 										@Override
 										public void run() {
 											final EditText editView = new EditText(MainActivity.this);
-											final Handler handler = new Handler();
-											final Runnable r = new Runnable() {
-												@Override
-												public void run() {
-													currentTab.webview.reload();
-													handler.postDelayed(this, currentTab.autoReload*1000*60);
-												}
-											};
 											editView.setInputType(InputType.TYPE_CLASS_NUMBER);
 											editView.setText(currentTab.autoReload + "");
 											editView.selectAll();
@@ -3143,9 +3143,9 @@ public class MainActivity extends Activity {
 												.setPositiveButton("Apply", new OnClickListener() {
 													public void onClick(DialogInterface dialog, int which) {
 														currentTab.autoReload = Integer.valueOf(editView.getText().toString());
-														handler.removeCallbacks(r);
+														currentTab.handler.removeCallbacks(currentTab.autoRerun);
 														if (currentTab.autoReload > 0) {
-															handler.post(r);
+															currentTab.handler.post(currentTab.autoRerun);
 														} 
 													}})
 												.setNegativeButton("Cancel", new EmptyOnClickListener())
@@ -4816,7 +4816,7 @@ public class MainActivity extends Activity {
 		final File exportFilterFile = new File(Environment.getExternalStorageDirectory(), "customFilter.txt");
 		try {
             FileUtil.isAppendFile(new FileInputStream(exportFilterFile), customFilterFile.getAbsolutePath());
-            AndroidUtils.toast(this, "Custom Filters exported to customfilters.txt on SD card");
+            AndroidUtils.toast(this, "Custom Filters was imported from customfilters.txt on SD card");
         } catch (FileNotFoundException e) {
             new AlertDialog.Builder(this)
 				.setTitle("Custom filters error")
@@ -5057,10 +5057,13 @@ public class MainActivity extends Activity {
 		if (currentTab.loading) {
      		et.setTag(webView.getUrl());
 			et.setText(webView.getUrl());
+			progressBar.setVisibility(View.VISIBLE);
+			progressBar.setProgress(webView.getProgress());
 			goStop.setImageResource(R.drawable.stop);
 		} else {
 			et.setTag(webView.getTitle());
 			et.setText(webView.getTitle());
+			progressBar.setVisibility(View.GONE);
 			goStop.setImageResource(R.drawable.reload);
 		}
 		setTabCountText(tabs.size());
