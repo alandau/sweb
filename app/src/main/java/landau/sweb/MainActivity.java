@@ -935,7 +935,6 @@ public class MainActivity extends Activity {
 						requestList.setVisibility(View.VISIBLE);
 						currentTab.showLog = true;
 						if (currentTab.logAdapter == null || currentTab.saveImage == true) {
-							//currentTab.recentConstraint = ".";
 							log(null, true);
 							requestList.requestFocus();
 						} else {
@@ -3593,7 +3592,6 @@ public class MainActivity extends Activity {
 												requestList.setVisibility(View.GONE);
 												currentTab.showLog = false;
 											} else {
-												//currentTab.recentConstraint = ".";
 												log(null, true);
 											}
 										}
@@ -3606,7 +3604,7 @@ public class MainActivity extends Activity {
 					actions.add(new MenuAction("All Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && currentTab.recentConstraint == null) {
+											if (currentTab.showLog && currentTab.logAdapter != null && currentTab.recentConstraint == null && !currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
 												currentTab.showLog = false;
 											} else {
@@ -3616,13 +3614,13 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && currentTab.recentConstraint == null;
+											return currentTab.showLog && currentTab.logAdapter != null && currentTab.recentConstraint == null && !currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("CSS Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && CSS_PAT.equals(getCurrentTab().recentConstraint)) {
+											if (currentTab.showLog && currentTab.logAdapter != null && CSS_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
 												currentTab.showLog = false;
 											} else {
@@ -3632,13 +3630,13 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && CSS_PAT.equals(getCurrentTab().recentConstraint);
+											return currentTab.showLog && currentTab.logAdapter != null && CSS_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("Media Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && MEDIA_PAT.equals(getCurrentTab().recentConstraint)) {
+											if (currentTab.showLog && currentTab.logAdapter != null && MEDIA_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
 												currentTab.showLog = false;
 												requestList.setVisibility(View.GONE);
 											} else {
@@ -3648,13 +3646,13 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && MEDIA_PAT.equals(getCurrentTab().recentConstraint);
+											return currentTab.showLog && currentTab.logAdapter != null && MEDIA_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("Image Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && IMAGE_PAT.equals(getCurrentTab().recentConstraint)) {
+											if (currentTab.showLog && currentTab.logAdapter != null && IMAGE_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
 												currentTab.showLog = false;
 											} else {
@@ -3664,13 +3662,13 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && IMAGE_PAT.equals(getCurrentTab().recentConstraint);
+											return currentTab.showLog && currentTab.logAdapter != null && IMAGE_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("JavaScript Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(getCurrentTab().recentConstraint)) {
+											if (currentTab.showLog && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
 												currentTab.showLog = false;
 											} else {
@@ -3680,7 +3678,7 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(getCurrentTab().recentConstraint);
+											return currentTab.showLog && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
 										}
 									}));
 					

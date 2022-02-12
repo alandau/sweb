@@ -54,8 +54,8 @@ repositories {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'at.pardus.android:webview-gm-lib:1.2.0+'
-    compile 'at.pardus.android:webview-gm-ui:1.2.0+'
+    //compile 'at.pardus.android:webview-gm-lib:1.2.0+'
+    //compile 'at.pardus.android:webview-gm-ui:1.2.0+'
     
 	//compile 'com.daandtu:android-web-scraper:1.0.1'//1.0.1'
     //compile 'com.android.support:support-annotations:24.1.1'
@@ -77,6 +77,8 @@ dependencies {
 	//compile 'edu.uci.ics:crawler4j:4.4.0'
 	//compile 'net.sourceforge.htmlunit:htmlunit:+'
 	//compile 'org.seleniumhq.selenium:selenium-java:+'
+	
+	
 	
     //testImplementation 'junit:junit:4.12'
     //androidTestImplementation 'com.android.support.test:runner:1.0.1'
