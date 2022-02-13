@@ -137,7 +137,6 @@ public class MainActivity extends Activity {
         }
 		String userAgent = MainActivity.this.userAgentString;
 		String customUAType = MainActivity.this.customUAType;
-		int progress;
 		WebView printWeb;
 		boolean saveAndClose = false;
 		boolean openAndClose = false;
@@ -172,9 +171,11 @@ public class MainActivity extends Activity {
 		String excludePatternStr;
 		Pattern includePattern;
 		Pattern excludePattern;
-		String batchLinkPatternStr;
-		int from = -1;
-		int to = -1;
+		String batchLinkPatternStr = "";
+		int from = 0;
+		int to = 0;
+		LinkedList<String> batchDownloadList = new LinkedList<>();
+		TreeSet<String> batchDownloadedSet = new TreeSet<>();
 		
 //		transient String includeUrlPatternStr;
 //		transient String excludeUrlPatternStr;
@@ -190,7 +191,7 @@ public class MainActivity extends Activity {
 		volatile ArrayList<DownloadInfo> downloadInfos = new ArrayList<>();
 		volatile LinkedList<DownloadInfo> downloadedInfos = new LinkedList<>();
 		LogArrayAdapter logAdapter;
-		boolean showLog = false;
+		boolean showRequestList = false;
 		String getName(final String name) {
 			for (int i = 0; i < downloadedInfos.size(); i++) {
 				final DownloadInfo di = downloadedInfos.get(i);
@@ -930,10 +931,10 @@ public class MainActivity extends Activity {
 					Tab currentTab = getCurrentTab();
 					if (requestList.getVisibility() == View.VISIBLE) {
 						requestList.setVisibility(View.GONE);
-						currentTab.showLog = false;
+						currentTab.showRequestList = false;
 					} else {
 						requestList.setVisibility(View.VISIBLE);
-						currentTab.showLog = true;
+						currentTab.showRequestList = true;
 						if (currentTab.logAdapter == null || currentTab.saveImage == true) {
 							log(null, true);
 							requestList.requestFocus();
@@ -2011,7 +2012,6 @@ public class MainActivity extends Activity {
 					super.onProgressChanged(view, newProgress);
 					injectCSS(view);
 					final Tab tabOfWebView = ((CustomWebView)view).tab;
-					tabOfWebView.progress = newProgress;
 					if (getCurrentTab() == tabOfWebView) {
 						if (newProgress == 100) {
 							progressBar.setVisibility(View.GONE);
@@ -2136,7 +2136,6 @@ public class MainActivity extends Activity {
 						faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 					}
 					tabOfWebView.favicon = null;
-					tabOfWebView.progress = 0;
 					tabOfWebView.printWeb = null;
 					tabOfWebView.loading = true;
 					injectCSS(view);
@@ -2169,7 +2168,6 @@ public class MainActivity extends Activity {
 //						"click.openImage(this.src,this.pos);" +
 //						"}}})()";
 //                    view.loadUrl(jsCode);
-					tabOfWebView.progress = 100;
 					tabOfWebView.printWeb = view;
 					if (saveHistory 
 						&& !tabOfWebView.isIncognito
@@ -2220,6 +2218,14 @@ public class MainActivity extends Activity {
 							public void onReceiveValue(String s) {
 								//ExceptionLogger.d("js", s);
 							}});
+					if (tabOfWebView.batchDownloadList.size() > 0) {
+						requestList.post(new Runnable() {
+								@Override
+								public void run() {
+									view.loadUrl(tabOfWebView.batchDownloadList.remove(0));
+								}
+						});
+					}
 				}
 
 				@Override
@@ -2907,7 +2913,7 @@ public class MainActivity extends Activity {
 		setRenderMode(webview, renderMode);
 		webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         webview.setVisibility(View.GONE);
-		enableWVCache(webview);
+		//enableWVCache(webview);
 		
         final Tab tab = new Tab(webview, isIncognito);
 		tab.blockCSS = blockCSS;
@@ -2988,10 +2994,13 @@ public class MainActivity extends Activity {
       		et.setTag(currentTab.webview.getUrl());
 			et.setText(currentTab.webview.getUrl());
 			goStop.setImageResource(R.drawable.stop);
+			progressBar.setVisibility(View.VISIBLE);
+			progressBar.setProgress(currentTab.webview.getProgress());
 		} else {
 			et.setTag(currentTab.webview.getTitle());
 			et.setText(currentTab.webview.getTitle());
 			goStop.setImageResource(R.drawable.reload);
+			progressBar.setVisibility(View.GONE);
 		}
 		if (currentTab.isIncognito) {
 			final DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
@@ -3006,16 +3015,11 @@ public class MainActivity extends Activity {
 			et.setCompoundDrawables(null, null, null, null);
 		}
 		currentTab.webview.requestFocus();
-		if (currentTab.progress == 100) {
-			progressBar.setVisibility(View.GONE);
-		} else {
-			progressBar.setVisibility(View.VISIBLE);
-			progressBar.setProgress(currentTab.progress);
-		}
 		requestList.setAdapter(currentTab.logAdapter);
-		if (currentTab.showLog) {
-			currentTab.logAdapter.notifyDataSetChanged();
+		if (currentTab.showRequestList) {
 			requestList.setVisibility(View.VISIBLE);
+			currentTab.logAdapter.notifyDataSetChanged();
+			requestList.requestFocus();
 		} else {
 			requestList.setVisibility(View.GONE);
 		}
@@ -3211,12 +3215,25 @@ public class MainActivity extends Activity {
 											return currentTab.saveHtml;
 										}
 									}));
-					actions.add(new MenuAction("Save Images", 0, new Runnable() {
+					actions.add(new MenuAction("Auto Download / Save Images", 0, new Runnable() {
 										@Override
 										public void run() {
+											final Tab currentTab = getCurrentTab();
 											final View saveImageLayout = getLayoutInflater().inflate(R.layout.save_image, null);
+											final EditText batchLinkPattern = (EditText)saveImageLayout.findViewById(R.id.batch_link_pattern);
+											batchLinkPattern.setText(currentTab.batchLinkPatternStr.length() == 0 && !"about:blank".equals(currentTab.webview.getUrl()) ? currentTab.webview.getUrl() : currentTab.batchLinkPatternStr);
+											final CheckBox batchLink = (CheckBox)saveImageLayout.findViewById(R.id.batch_link);
+											
+											final EditText from_link = (EditText)saveImageLayout.findViewById(R.id.from_link);
+											from_link.setText(currentTab.from == 0 ? "" : currentTab.from + "");
+											
+											final EditText to_link = (EditText)saveImageLayout.findViewById(R.id.to_link);
+											to_link.setText(currentTab.to == 0 ? "" : currentTab.to + "");
+											
+											final CheckBox includeCbx = (CheckBox)saveImageLayout.findViewById(R.id.include);
+											final CheckBox excludeCbx = (CheckBox)saveImageLayout.findViewById(R.id.exclude);
 											new AlertDialog.Builder(MainActivity.this)
-												.setTitle("Auto Save")
+												.setTitle("Auto Download / Save Images")
 												.setView(saveImageLayout)
 												.setPositiveButton("Start", new OnClickListener() {
 													public void onClick(DialogInterface dialog, int which) {
@@ -3227,41 +3244,62 @@ public class MainActivity extends Activity {
 																AndroidUtils.toast(MainActivity.this, "No permission to save images");
 																return;
 															}
-															final Tab currentTab = getCurrentTab();
-															currentTab.saveImage = true;
 															
-															currentTab.batchLinkPatternStr = ((EditText)saveImageLayout.findViewById(R.id.batch_link_pattern)).getText().toString().trim();
+															currentTab.batchLinkPatternStr = batchLinkPattern.getText().toString().trim();
 															ExceptionLogger.d(TAG, "batchLinkPatternStr " + currentTab.batchLinkPatternStr);
-															if (currentTab.batchLinkPatternStr.length() > 0) {
-																String from = ((EditText)saveImageLayout.findViewById(R.id.from_link)).getText().toString().trim();
+															if (batchLink.isChecked() && currentTab.batchLinkPatternStr.length() > 0) {
+																final String from = from_link.getText().toString().trim();
 																if (from.length() > 0) {
 																	currentTab.from = Integer.valueOf(from);
+																} else {
+																	currentTab.from = 0;
 																}
 
-																String to = ((EditText)saveImageLayout.findViewById(R.id.to_link)).getText().toString().trim();
+																final String to = to_link.getText().toString().trim();
 																if (to.length() > 0) {
 																	currentTab.to = Integer.valueOf(to);
+																} else {
+																	currentTab.to = 0;
 																}
+																if (currentTab.from > 0) {
+																	if (currentTab.to > 0) {
+																		for (int i = currentTab.from; i <= currentTab.to; i++) {
+																			currentTab.batchDownloadList.add(currentTab.batchLinkPatternStr.replace("*", i + ""));
+																		}
+																	} else {
+																		currentTab.batchDownloadList.add(currentTab.batchLinkPatternStr.replace("*", from));
+																	}
+																} else {
+																	currentTab.batchDownloadList.add(currentTab.batchLinkPatternStr);
+																}
+																currentTab.saveHtml = true;
+																currentTab.webview.loadUrl(currentTab.batchDownloadList.remove(0));
 															} else {
 																currentTab.batchLinkPatternStr = "";
-																currentTab.from = -1;
-																currentTab.to = -1;
+																currentTab.from = 0;
+																currentTab.to = 0;
 															}
 															currentTab.includePatternStr = ((EditText)saveImageLayout.findViewById(R.id.include_pattern)).getText().toString().trim();
 															ExceptionLogger.d(TAG, "includePatternStr " + currentTab.includePatternStr);
-															if (currentTab.includePatternStr.length() > 0) {
-																currentTab.includePattern = Pattern.compile(currentTab.includePatternStr, Pattern.CASE_INSENSITIVE);
+															if (includeCbx.isChecked()) {
+																currentTab.saveImage = true;
+																if (currentTab.includePatternStr.length() > 0) {
+																	currentTab.includePattern = Pattern.compile(currentTab.includePatternStr, Pattern.CASE_INSENSITIVE);
+																} else {
+																	currentTab.includePattern = null;
+																}
 															} else {
+																currentTab.saveImage = false;
 																currentTab.includePattern = null;
 															}
 															currentTab.excludePatternStr = ((EditText)saveImageLayout.findViewById(R.id.exclude_pattern)).getText().toString().trim();
 															ExceptionLogger.d(TAG, "excludePatternStr " + currentTab.excludePatternStr);
-															if (currentTab.excludePatternStr.length() > 0) {
+															if (excludeCbx.isChecked() && currentTab.excludePatternStr.length() > 0) {
 																currentTab.excludePattern = Pattern.compile(currentTab.excludePatternStr, Pattern.CASE_INSENSITIVE);
 															} else {
 																currentTab.excludePattern = null;
 															}
-															if (currentTab.diTask == null || currentTab.diTask.getStatus() == AsyncTask.Status.FINISHED) {
+															if (currentTab.saveImage && (currentTab.diTask == null || currentTab.diTask.getStatus() == AsyncTask.Status.FINISHED)) {
 																currentTab.diTask = new DownloadImageResourceTask<>(currentTab);
 																currentTab.diTask.execute();
 															}
@@ -3275,6 +3313,7 @@ public class MainActivity extends Activity {
 														final Tab currentTab = getCurrentTab();
 														currentTab.saveImage = false;
 														uaAdapter.notifyDataSetChanged();
+														currentTab.batchDownloadList.clear();
 														if (currentTab.diTask != null && currentTab.diTask.getStatus() != AsyncTask.Status.FINISHED) {
 															currentTab.diTask.cancel(true);
 														}
@@ -3588,9 +3627,9 @@ public class MainActivity extends Activity {
 					actions.add(new MenuAction("Image Viewer", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && currentTab.logAdapter.showImages) {
+											if (currentTab.showRequestList && currentTab.logAdapter != null && currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
-												currentTab.showLog = false;
+												currentTab.showRequestList = false;
 											} else {
 												log(null, true);
 											}
@@ -3598,15 +3637,15 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && currentTab.logAdapter.showImages;
+											return currentTab.showRequestList && currentTab.logAdapter != null && currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("All Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && currentTab.recentConstraint == null && !currentTab.logAdapter.showImages) {
+											if (currentTab.showRequestList && currentTab.logAdapter != null && currentTab.recentConstraint == null && !currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
-												currentTab.showLog = false;
+												currentTab.showRequestList = false;
 											} else {
 												log(null, false);
 											}
@@ -3614,15 +3653,15 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && currentTab.recentConstraint == null && !currentTab.logAdapter.showImages;
+											return currentTab.showRequestList && currentTab.logAdapter != null && currentTab.recentConstraint == null && !currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("CSS Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && CSS_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
+											if (currentTab.showRequestList && currentTab.logAdapter != null && CSS_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
-												currentTab.showLog = false;
+												currentTab.showRequestList = false;
 											} else {
 												log(CSS_PAT, false);
 											}
@@ -3630,14 +3669,14 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && CSS_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
+											return currentTab.showRequestList && currentTab.logAdapter != null && CSS_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("Media Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && MEDIA_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
-												currentTab.showLog = false;
+											if (currentTab.showRequestList && currentTab.logAdapter != null && MEDIA_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
+												currentTab.showRequestList = false;
 												requestList.setVisibility(View.GONE);
 											} else {
 												log(MEDIA_PAT, false);
@@ -3646,15 +3685,15 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && MEDIA_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
+											return currentTab.showRequestList && currentTab.logAdapter != null && MEDIA_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("Image Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && IMAGE_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
+											if (currentTab.showRequestList && currentTab.logAdapter != null && IMAGE_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
-												currentTab.showLog = false;
+												currentTab.showRequestList = false;
 											} else {
 												log(IMAGE_PAT, false);
 											}
@@ -3662,15 +3701,15 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && IMAGE_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
+											return currentTab.showRequestList && currentTab.logAdapter != null && IMAGE_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
 										}
 									}));
 					actions.add(new MenuAction("JavaScript Log", 0, new Runnable() {
 										@Override
 										public void run() {
-											if (currentTab.showLog && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
+											if (currentTab.showRequestList && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages) {
 												requestList.setVisibility(View.GONE);
-												currentTab.showLog = false;
+												currentTab.showRequestList = false;
 											} else {
 												log(JAVASCRIPT_PAT, false);
 											}
@@ -3678,7 +3717,7 @@ public class MainActivity extends Activity {
 									}, new MyBooleanSupplier() {
 										@Override
 										public boolean getAsBoolean() {
-											return currentTab.showLog && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
+											return currentTab.showRequestList && currentTab.logAdapter != null && JAVASCRIPT_PAT.equals(currentTab.recentConstraint) && !currentTab.logAdapter.showImages;
 										}
 									}));
 					
@@ -4047,7 +4086,7 @@ public class MainActivity extends Activity {
 			requestList.setAdapter(currentTab.logAdapter);
 		}
 		currentTab.logAdapter.showImages = showImages;
-		currentTab.showLog = true;
+		currentTab.showRequestList = true;
 		requestList.setVisibility(View.VISIBLE);
 		currentTab.logAdapter.notifyDataSetChanged();
 	}
@@ -5060,9 +5099,10 @@ public class MainActivity extends Activity {
 		}
 		currentTab.webview.requestFocus();
 		requestList.setAdapter(currentTab.logAdapter);
-		if (currentTab.showLog) {
-			currentTab.logAdapter.notifyDataSetChanged();
+		if (currentTab.showRequestList) {
 			requestList.setVisibility(View.VISIBLE);
+			currentTab.logAdapter.notifyDataSetChanged();
+			requestList.requestFocus();
 		} else {
 			requestList.setVisibility(View.GONE);
 		}
