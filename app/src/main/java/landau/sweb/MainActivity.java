@@ -2265,27 +2265,26 @@ public class MainActivity extends Activity {
 						final String scheme = url.getScheme();
 						final String urlToString = url.toString();
 						ExceptionLogger.d(TAG, "lastPathSegment " + fileName + ", urlToString = " + urlToString + ", isForMainFrame " + request.isForMainFrame());
-						if (request.isForMainFrame()) {
-							if (fileName != null
-								&& ((currentTab.saveResources && (CSS_PATTERN.matcher(fileName).matches() || JAVASCRIPT_PATTERN.matcher(fileName).matches() || FONT_PATTERN.matcher(fileName).matches()))
-								|| (currentTab.saveImage && IMAGES_PATTERN.matcher(fileName).matches()))) {
-								final String path = save(urlToString, SCRAP_PATH, true);
-								final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
-								//ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
-								return res == null ? emptyResponse : res;
-							}
-						} else if (fileName != null
-								   && (scheme.startsWith("http")
-								   || scheme.startsWith("ftp"))) {
-							if (IMAGES_PATTERN.matcher(fileName).matches()) {
-								if (currentTab != null) {
-									currentTab.addImage(urlToString, currentTab.exactImageUrl);
-									downloadImagesResources(currentTab);
-									if (currentTab.blockImages) {
-										final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
-										ExceptionLogger.d(TAG, "image.res = " + res + ", " + urlToString);
-										return res == null ? emptyResponse : res;
-									}
+//						if (request.isForMainFrame()) {
+//							if (currentTab.saveHtml && fileName != null
+//								&& ((currentTab.saveResources && (CSS_PATTERN.matcher(fileName).matches() || JAVASCRIPT_PATTERN.matcher(fileName).matches() || FONT_PATTERN.matcher(fileName).matches()))
+//								|| (currentTab.saveImage && IMAGES_PATTERN.matcher(fileName).matches()))) {
+//								final String path = save(urlToString, SCRAP_PATH, true);
+//								final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
+//								//ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
+//								return res == null ? emptyResponse : res;
+//							}
+//						} else 
+						if (fileName != null
+							&& (scheme.startsWith("http")
+							|| scheme.startsWith("ftp"))) {
+							if (currentTab.saveImage && IMAGES_PATTERN.matcher(fileName).matches()) {
+								currentTab.addImage(urlToString, currentTab.exactImageUrl);
+								downloadImagesResources(currentTab);
+								if (currentTab.blockImages) {
+									final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
+									ExceptionLogger.d(TAG, "image.res = " + res + ", " + urlToString);
+									return res == null ? emptyResponse : res;
 								}
 							} else if (MEDIA_PATTERN.matcher(fileName).matches()) {
 								if (currentTab.blockMedia)
@@ -2511,7 +2510,7 @@ public class MainActivity extends Activity {
 	private void downloadImagesResources(final Tab currentTab) {
 		final ArrayList<DownloadInfo> downloadInfos = currentTab.downloadInfos;
 		ExceptionLogger.d(TAG, "downloadImages " + downloadInfos.size());
-		if (currentTab.saveImage && downloadInfos != null && downloadInfos.size() > 0) {
+		if (downloadInfos != null && downloadInfos.size() > 0) {
 			try {
 				DownloadInfo downloadInfo;
 				String url;
