@@ -4312,6 +4312,9 @@ public class MainActivity extends Activity {
         //} else {
         //    adBlocker = null;
         //}
+		for (Tab t : tabs) {
+			t.useAdBlocker = useAdBlocker;
+		}
 		ExceptionLogger.d(TAG, "adBlocker " + adBlocker);
     }
 	
