@@ -8,6 +8,35 @@
 	android:paddingRight="16dp"
 	android:paddingTop="12dp">
 
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal" >
+		<CheckBox
+			android:id="@+id/saveHtml"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Save Html"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:checked="false"
+			android:textSize="14dip" />
+		<CheckBox
+			android:id="@+id/useAdBlock"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="AdBlock"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:checked="false"
+			android:textSize="14dip" />
+		<CheckBox
+			android:id="@+id/saveResources"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Save Resources"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:checked="false"
+			android:textSize="14dip" />
+	</LinearLayout>
 	<CheckBox
 		android:id="@+id/batch_link"
 		android:layout_width="wrap_content"
@@ -22,11 +51,47 @@
 		android:layout_width="fill_parent"
 		android:layout_height="wrap_content"
 		android:layout_weight="1"
-		android:singleLine="false"
+		android:singleLine="true"
+		android:maxLines="3"
 		android:text=""
 		android:textAppearance="?android:attr/textAppearanceLarge"
 		android:textSize="14dip" />
 
+	<TextView
+		android:id="@+id/crawlPatternTv"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="Crawl Pattern: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="14dip" />
+
+	<EditText
+		android:id="@+id/crawlPattern"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_weight="1"
+		android:singleLine="false"
+		android:maxLines="3"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="14dip" />
+
+	<TextView
+		android:id="@+id/excludeCrawlPatternTv"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:text="Exclude Crawl Pattern: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="14dip" />
+
+	<EditText
+		android:id="@+id/excludeCrawlPattern"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_weight="1"
+		android:singleLine="false"
+		android:maxLines="3"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="14dip" />
 
 	<LinearLayout
 		android:layout_width="match_parent"
@@ -74,36 +139,36 @@
 
 
 	<CheckBox
-		android:id="@+id/include"
+		android:id="@+id/include_image"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="Include Pattern: "
+		android:text="Include Image Pattern: "
 		android:textAppearance="?android:attr/textAppearanceLarge"
 		android:checked="true"
 		android:textSize="14dip" />
 
 	<EditText
-		android:id="@+id/include_pattern"
+		android:id="@+id/include_image_pattern"
 		android:layout_width="fill_parent"
 		android:layout_height="wrap_content"
 		android:layout_weight="1"
 		android:singleLine="false"
-		android:text=".*?\\.(jpg|jpeg|webp)"
+		android:text=".*?\\.(jpg|jpeg|webp).*?"
 		android:textAppearance="?android:attr/textAppearanceLarge"
 		android:checked="true"
 		android:textSize="14dip" />
 
 	<CheckBox
-		android:id="@+id/exclude"
+		android:id="@+id/exclude_image"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:text="Exclude Pattern: "
+		android:text="Exclude Image Pattern: "
 		android:textAppearance="?android:attr/textAppearanceLarge"
 		android:checked="true"
 		android:textSize="14dip" />
 
 	<EditText
-		android:id="@+id/exclude_pattern"
+		android:id="@+id/exclude_image_pattern"
 		android:layout_width="fill_parent"
 		android:layout_height="wrap_content"
 		android:layout_weight="1"

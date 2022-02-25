@@ -56,6 +56,10 @@ public class MainActivity extends Activity {
 	private String SCRAP_PATH;
 	private static final Pattern FAVICON_PATTERN = Pattern.compile(".*?/favicon\\.(ico|png|bmp|jpe?g|gif)", Pattern.CASE_INSENSITIVE);
 	private Pattern HTML_PATTERN = Pattern.compile(".*?\\.[xds]?ht(m?|ml)", Pattern.CASE_INSENSITIVE);
+	private static final String PATTERN_STR = 
+	"(src|href)\\s*=\\s*([^'\"][^\\s\"<>\\|]+|'[^\\s'\"]+'|\"[^\\s\"]+\")|url\\s*\\(\\s*([^'\"][^\\s\"<>\\|]+|'[^\\s'\"]+'|\"[^\\s\"]+\")\\s*\\)";
+
+	private static final Pattern LINK_PATTTERN = Pattern.compile(PATTERN_STR, Pattern.CASE_INSENSITIVE);
 	
 	private static final String IMAGE_PAT = "[^\\s]*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico|svg)[^\\s]*?";
 	private static final String MEDIA_PAT = "[^\\s]*?\\.(avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram|m4a|3gpp?)[^\\s]*?";
@@ -165,17 +169,23 @@ public class MainActivity extends Activity {
 		boolean blockJavaScript;
 		boolean blockNetworkLoads;
 		boolean loadWithOverviewMode;
-		String source;
+		String source = "";
 		ArrayList<String> resourcesList = new ArrayList<>();
-		String includePatternStr;
-		String excludePatternStr;
+		String includeImagePatternStr = ".*?\\.(jpg|jpeg|webp).*?";
+		String excludeImagePatternStr = ".*?(44884218_345707102882519_2446069589734326272_n.jpg|68d99ba29cc8.png|1b47f9d0e595.png|bcd90c1d4868.png|1075ddfe0f68.png|77929eccc37e.png|.*?\\.png).*?";
 		Pattern includePattern;
 		Pattern excludePattern;
 		String batchLinkPatternStr = "";
 		int from = 0;
 		int to = 0;
-		LinkedList<String> batchDownloadList = new LinkedList<>();
+		String crawlPatternStr = "";
+		String excludeCrawlPatternStr = "";
+		Pattern crawlPattern = null;
+		Pattern excludeCrawlPattern = null;
+		
+		TreeSet<String> batchDownloadSet = new TreeSet<>();
 		TreeSet<String> batchDownloadedSet = new TreeSet<>();
+		boolean batchRunning = false;
 		
 //		transient String includeUrlPatternStr;
 //		transient String excludeUrlPatternStr;
@@ -260,8 +270,8 @@ public class MainActivity extends Activity {
 			this.saveResources = srcTab.saveResources;
 			this.saveHtml = srcTab.saveHtml;
 			this.loadWithOverviewMode = srcTab.loadWithOverviewMode;
-			this.includePatternStr = srcTab.includePatternStr;
-			this.excludePatternStr = srcTab.excludePatternStr;
+			this.includeImagePatternStr = srcTab.includeImagePatternStr;
+			this.excludeImagePatternStr = srcTab.excludeImagePatternStr;
 			this.includePattern = srcTab.includePattern;
 			this.excludePattern = srcTab.excludePattern;
 			this.useAdBlocker = srcTab.useAdBlocker;
@@ -1973,10 +1983,13 @@ public class MainActivity extends Activity {
 	
 	@JavascriptInterface
 	public void showSource(final String tabId, final String html, final String url) {
+		ExceptionLogger.d(TAG, "showSource " + tabId + ", " + url);
 		for (Tab t : tabs) {
 			if (t.toString().equals(tabId)) {
-				t.source = html;
-				if (t.saveHtml) {
+				final Tab currentTab = t;
+				//ExceptionLogger.d(TAG, "showSource " + tabId);
+				currentTab.source = html;
+				if (currentTab.saveHtml) {
 					try {
 						final String path = url.substring(url.indexOf("//") + 1, url.lastIndexOf("/"));
 						final String savedFilePath = SCRAP_PATH + path;
@@ -1984,9 +1997,109 @@ public class MainActivity extends Activity {
 						//final File file = new File(savedFilePath, fileNameFromUrl);
 						//ExceptionLogger.d(TAG, "save exist " + file.exists() + ", " + file.getAbsolutePath());
 						final String s = FileUtil.saveISToFile(new ByteArrayInputStream(html.getBytes()), savedFilePath, fileNameFromUrl, false, false);
-						ExceptionLogger.d(TAG, "saved successfully " + s);
+						//ExceptionLogger.d(TAG, "saved successfully " + s);
 					} catch (IOException e) {
 						ExceptionLogger.e(TAG, e.getMessage(), e);
+					}
+				}
+				
+				if (currentTab.batchRunning) {
+					final Matcher mat = LINK_PATTTERN.matcher(html);
+					while (mat.find()) {
+						ExceptionLogger.d(TAG, "mat.group() " + mat.group());
+						final int idx = url.indexOf("://");
+						int lastIndexOf = url.lastIndexOf("/");
+						if (idx > 0 && lastIndexOf <= idx + 4) {
+							lastIndexOf = url.length();
+						}
+						String baseUrl = url.substring(0, lastIndexOf);
+						ExceptionLogger.d(TAG, "baseUrl " + baseUrl);
+						String urlInside = mat.group(2) != null 
+							? html.substring(mat.start(2), mat.end(2)) 
+							: html.substring(mat.start(3), mat.end(3));
+
+						if (urlInside.endsWith("'") || urlInside.endsWith("\"")) {
+							urlInside = urlInside.substring(1, urlInside.length() - 1);
+						}
+
+						//urlInside = Util.skipParam(urlInside, "?");
+						urlInside = Util.skipParam(urlInside, "#");
+						//urlInside = Util.decodeUrlToFS(urlInside);
+
+						String newLink = "";
+						ExceptionLogger.d(TAG, "urlInside " + urlInside);
+						//link tuong doi
+						if (urlInside.length() > 0) {//} && urlInside.indexOf(":") < 0){
+							if (urlInside.startsWith("./")) {
+								// thư mục hiện hành
+								urlInside = urlInside.substring("./".length());
+								newLink = baseUrl + "/" + urlInside;
+							} else if (urlInside.startsWith("../")) {
+								// thư mục cha tương đối
+								String tempEntryName = baseUrl;
+								while (urlInside.startsWith("../")) {
+									urlInside = urlInside.substring("../".length());
+									ExceptionLogger.d(TAG, "tempEntryName " + tempEntryName);
+									lastIndexOf = tempEntryName.lastIndexOf("/");
+									if (lastIndexOf >= 0) {
+										tempEntryName = tempEntryName.substring(0, lastIndexOf);
+									} else {
+										tempEntryName = "";
+									}
+								}
+								if (tempEntryName.length() > 0) {
+									newLink = tempEntryName + "/" + urlInside;
+								} else {
+									newLink = urlInside;
+								}
+								// System.out.println(linkFile);
+							} else if (urlInside.indexOf(":") > 0) {
+								// thư mục con tương đối
+								newLink = urlInside;
+							} else {
+								newLink = baseUrl + "/" + urlInside;
+							}
+//							ExceptionLogger.d(TAG, "newLink " + newLink);
+//							ExceptionLogger.d(TAG, "crawlPattern " + currentTab.crawlPattern);
+//							ExceptionLogger.d(TAG, "excludeCrawlPattern " + currentTab.excludeCrawlPattern);
+//							ExceptionLogger.d(TAG, "batchDownloadedSet.contains(newLink) " + currentTab.batchDownloadedSet.contains(newLink));
+							if (currentTab.crawlPattern != null) {
+								//ExceptionLogger.d(TAG, "crawlPattern.matcher(newLink).matches() " + currentTab.crawlPattern.matcher(newLink).matches());
+								if (currentTab.crawlPattern.matcher(newLink).matches()) {
+									if (!currentTab.batchDownloadedSet.contains(newLink)) {
+										currentTab.batchDownloadSet.add(newLink);
+										ExceptionLogger.d(TAG, "newLink1 " + newLink);
+									}}
+							} else {
+								if (currentTab.excludeCrawlPattern != null) {
+									if (!currentTab.excludeCrawlPattern.matcher(newLink).matches()) {
+										if (!currentTab.batchDownloadedSet.contains(newLink)) {
+											currentTab.batchDownloadSet.add(newLink);
+											ExceptionLogger.d(TAG, "newLink2 " + newLink);
+										}
+									}
+								} else {
+									if (!currentTab.batchDownloadedSet.contains(newLink)) {
+										currentTab.batchDownloadSet.add(newLink);
+										ExceptionLogger.d(TAG, "newLink3 " + newLink);
+									}
+								}
+							}
+						}
+					}
+					if (currentTab.batchDownloadSet.size() > 0) {
+						requestList.post(new Runnable() {
+								@Override
+								public void run() {
+									final String first = currentTab.batchDownloadSet.first();
+									currentTab.batchDownloadSet.remove(first);
+									ExceptionLogger.d(TAG, "first " + first);
+									currentTab.webview.loadUrl(first);
+								}
+							});
+					} else {
+						currentTab.batchRunning = false;
+						Toast.makeText(MainActivity.this, "Batch Download " + currentTab.batchLinkPatternStr + " finished", Toast.LENGTH_LONG).show();
 					}
 				}
 			}
@@ -2147,6 +2260,9 @@ public class MainActivity extends Activity {
 					ExceptionLogger.d(TAG, "onPageFinished " + url + ", favicon " + view.getFavicon());
 					final Tab tabOfWebView = ((CustomWebView)view).tab;
 					tabOfWebView.loading = false;
+					if (tabOfWebView.batchRunning) {
+						tabOfWebView.batchDownloadedSet.add(url);
+					}
 					if (view.getVisibility() == View.VISIBLE) {
 						// Don't use the argument url here since navigation to that URL might have been
 						// cancelled due to SSL error
@@ -2158,6 +2274,7 @@ public class MainActivity extends Activity {
 						} else {
 							et.setTag(view.getTitle());
 							et.setText(view.getTitle());
+							view.requestFocus();
 						}
 					}
 //					String jsCode = "javascript:(function(){" +
@@ -2175,8 +2292,8 @@ public class MainActivity extends Activity {
 						&& !url.equals("about:blank")) {
 						addHistory(view, url);
 					}
-					//ExceptionLogger.d(TAG, "javascript:window.HTMLOUT.showSource(\"" + tabOfWebView.toString() + "\", document.documentElement.outerHTML, \"" + url + "\")");
 					view.loadUrl("javascript:window.HTMLOUT.showSource(\"" + tabOfWebView.toString() + "\", document.documentElement.outerHTML, \"" + url + "\")");
+					ExceptionLogger.d(TAG, "javascript:window.HTMLOUT.showSource(\"" + tabOfWebView.toString() + "\", document.documentElement.outerHTML, \"" + url + "\")" + ", source.length " + tabOfWebView.source.length());
 					if (requestList.getVisibility() == View.VISIBLE
 						&& view.getVisibility() == View.VISIBLE
 						&& tabOfWebView.logAdapter != null) {
@@ -2218,14 +2335,6 @@ public class MainActivity extends Activity {
 							public void onReceiveValue(String s) {
 								//ExceptionLogger.d("js", s);
 							}});
-					if (tabOfWebView.batchDownloadList.size() > 0) {
-						requestList.post(new Runnable() {
-								@Override
-								public void run() {
-									view.loadUrl(tabOfWebView.batchDownloadList.remove(0));
-								}
-						});
-					}
 				}
 
 				@Override
@@ -2278,9 +2387,14 @@ public class MainActivity extends Activity {
 						if (fileName != null
 							&& (scheme.startsWith("http")
 							|| scheme.startsWith("ftp"))) {
-							if (currentTab.saveImage && IMAGES_PATTERN.matcher(fileName).matches()) {
-								currentTab.addImage(urlToString, currentTab.exactImageUrl);
-								downloadImagesResources(currentTab);
+							if (IMAGES_PATTERN.matcher(fileName).matches()) {
+								if (currentTab.saveImage) {
+									currentTab.addImage(urlToString, currentTab.exactImageUrl);
+									if (currentTab.diTask == null || currentTab.diTask.getStatus() == AsyncTask.Status.FINISHED) {
+										currentTab.diTask = new DownloadImageResourceTask<>(currentTab);
+										currentTab.diTask.execute();
+									}
+								}
 								if (currentTab.blockImages) {
 									final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
 									ExceptionLogger.d(TAG, "image.res = " + res + ", " + urlToString);
@@ -2289,19 +2403,17 @@ public class MainActivity extends Activity {
 							} else if (MEDIA_PATTERN.matcher(fileName).matches()) {
 								if (currentTab.blockMedia)
 									return emptyResponse;
-							} else {
-								if (currentTab.saveResources && (CSS_PATTERN.matcher(fileName).matches() || JAVASCRIPT_PATTERN.matcher(fileName).matches() || FONT_PATTERN.matcher(fileName).matches())) {
-									currentTab.resourcesList.add(urlToString);
-									downloadResources(currentTab);
-								}
-								if (currentTab.blockCSS && CSS_PATTERN.matcher(fileName).matches()
-									|| currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(fileName).matches()
-									|| currentTab.blockFonts && FONT_PATTERN.matcher(fileName).matches()) {
-									final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
-									ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
-									return res == null ? emptyResponse : res;
-								}
-							} 
+							} else if (currentTab.saveResources && (CSS_PATTERN.matcher(fileName).matches() || JAVASCRIPT_PATTERN.matcher(fileName).matches() || FONT_PATTERN.matcher(fileName).matches())) {
+								currentTab.resourcesList.add(urlToString);
+								downloadResources(currentTab);
+							}
+							if (currentTab.blockCSS && CSS_PATTERN.matcher(fileName).matches()
+								|| currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(fileName).matches()
+								|| currentTab.blockFonts && FONT_PATTERN.matcher(fileName).matches()) {
+								final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
+								ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
+								return res == null ? emptyResponse : res;
+							}
 						}
 					} catch (Throwable t) {
 						ExceptionLogger.e(TAG, t.getMessage(), t);
@@ -2506,52 +2618,54 @@ public class MainActivity extends Activity {
 				}});
         return webview;
     }
-	
-	private void downloadImagesResources(final Tab currentTab) {
-		final ArrayList<DownloadInfo> downloadInfos = currentTab.downloadInfos;
-		ExceptionLogger.d(TAG, "downloadImages " + downloadInfos.size());
-		if (downloadInfos != null && downloadInfos.size() > 0) {
-			try {
-				DownloadInfo downloadInfo;
-				String url;
-				while (downloadInfos.size() > 0) {
-					downloadInfo = downloadInfos.remove(0);
-					url = downloadInfo.url;
-					ExceptionLogger.d(TAG, "downloadImages.url " + url);
-					if (currentTab.includePattern != null && currentTab.includePattern.matcher(url).matches()
-						&& (currentTab.excludePattern == null || !currentTab.excludePattern.matcher(url).matches())) {
-						downloadInfo.savedPath = save(url, SCRAP_PATH, false);
-					} else {
-						if (currentTab.excludePattern != null) {
-							if (!currentTab.excludePattern.matcher(url).matches()) {
-								downloadInfo.savedPath = save(url, SCRAP_PATH, false);
-							}
-						} else {
-							downloadInfo.savedPath = save(url, SCRAP_PATH, false);
-						}
-					}
-					if (downloadInfo.savedPath != null) {
-						currentTab.downloadedInfos.addFirst(downloadInfo);
-						if (currentTab.logAdapter != null && currentTab.logAdapter.showImages) {
-							currentTab.logAdapter.notifyDataSetChanged();
-						}
-					}
-				}
-			} catch (Throwable e) {
-				ExceptionLogger.e(TAG, e.getMessage(), e);
-			}
-		}
-	}
 
-	private class DownloadImageResourceTask extends AsyncTask<Void, String, Void> {
+	private class DownloadImageResourceTask extends AsyncTask<Void, DownloadInfo, Void> {
 
 		final Tab tab;
 		public DownloadImageResourceTask(final Tab t) {
 			this.tab = t;
 		}
-
+		
+		@Override
+		protected void onProgressUpdate(DownloadInfo... downloadInfo) {
+			tab.downloadedInfos.add(downloadInfo[0]);
+			if (tab.logAdapter != null && tab.logAdapter.showImages) {
+				tab.logAdapter.notifyDataSetChanged();
+			}
+		}
+		
 		protected Void doInBackground(final Void... v) {
-			downloadImagesResources(tab);
+			final ArrayList<DownloadInfo> downloadInfos = tab.downloadInfos;
+			ExceptionLogger.d(TAG, "downloadImages " + downloadInfos.size());
+			if (downloadInfos != null && downloadInfos.size() > 0) {
+				try {
+					DownloadInfo downloadInfo;
+					String url;
+					while (downloadInfos.size() > 0) {
+						downloadInfo = downloadInfos.remove(0);
+						url = downloadInfo.url;
+						ExceptionLogger.d(TAG, "downloadImages.url " + url);
+						if (tab.includePattern != null) {
+							if (tab.includePattern.matcher(url).matches()) {
+								downloadInfo.savedPath = save(url, SCRAP_PATH, false);
+							}
+						} else {
+							if (tab.excludePattern != null) {
+								if (!tab.excludePattern.matcher(url).matches()) {
+									downloadInfo.savedPath = save(url, SCRAP_PATH, false);
+								}
+							} else {
+								downloadInfo.savedPath = save(url, SCRAP_PATH, false);
+							}
+						}
+						if (downloadInfo.savedPath != null) {
+							publishProgress(downloadInfo);
+						}
+					}
+				} catch (Throwable e) {
+					ExceptionLogger.e(TAG, e.getMessage(), e);
+				}
+			}
 			return null;
 		}
 	}
@@ -3219,18 +3333,36 @@ public class MainActivity extends Activity {
 										public void run() {
 											final Tab currentTab = getCurrentTab();
 											final View saveImageLayout = getLayoutInflater().inflate(R.layout.save_image, null);
-											final EditText batchLinkPattern = (EditText)saveImageLayout.findViewById(R.id.batch_link_pattern);
-											batchLinkPattern.setText(currentTab.batchLinkPatternStr.length() == 0 && !"about:blank".equals(currentTab.webview.getUrl()) ? currentTab.webview.getUrl() : currentTab.batchLinkPatternStr);
 											final CheckBox batchLink = (CheckBox)saveImageLayout.findViewById(R.id.batch_link);
 											
+											final EditText batchLinkPattern = (EditText)saveImageLayout.findViewById(R.id.batch_link_pattern);
+											final String batchLinkPatternStr = currentTab.batchLinkPatternStr.length() == 0 ? !"about:blank".equals(currentTab.webview.getUrl()) ? currentTab.webview.getUrl() : getClipboardText().toString() : currentTab.batchLinkPatternStr;
+											batchLinkPattern.setText(batchLinkPatternStr);
+											
+											final EditText crawlPattern = (EditText)saveImageLayout.findViewById(R.id.crawlPattern);
+											if (currentTab.crawlPatternStr.length() > 0) {
+												crawlPattern.setText(currentTab.crawlPatternStr);
+											} else {
+												crawlPattern.setText(batchLinkPatternStr);
+											}
+											
+											final EditText excludeCrawlPattern = ((EditText)saveImageLayout.findViewById(R.id.excludeCrawlPattern));
+											excludeCrawlPattern.setText(currentTab.excludeCrawlPatternStr);
 											final EditText from_link = (EditText)saveImageLayout.findViewById(R.id.from_link);
 											from_link.setText(currentTab.from == 0 ? "" : currentTab.from + "");
 											
 											final EditText to_link = (EditText)saveImageLayout.findViewById(R.id.to_link);
 											to_link.setText(currentTab.to == 0 ? "" : currentTab.to + "");
 											
-											final CheckBox includeCbx = (CheckBox)saveImageLayout.findViewById(R.id.include);
-											final CheckBox excludeCbx = (CheckBox)saveImageLayout.findViewById(R.id.exclude);
+											final CheckBox includeCbx = (CheckBox)saveImageLayout.findViewById(R.id.include_image);
+											final CheckBox excludeCbx = (CheckBox)saveImageLayout.findViewById(R.id.exclude_image);
+											if (currentTab.batchRunning) {
+												batchLink.setEnabled(false);
+											}
+											final EditText includeImagePattern = (EditText)saveImageLayout.findViewById(R.id.include_image_pattern);
+											final EditText excludeImagePattern = (EditText)saveImageLayout.findViewById(R.id.exclude_image_pattern);
+											includeImagePattern.setText(currentTab.includeImagePatternStr);
+											excludeImagePattern.setText(currentTab.excludeImagePatternStr);
 											new AlertDialog.Builder(MainActivity.this)
 												.setTitle("Auto Download / Save Images")
 												.setView(saveImageLayout)
@@ -3243,10 +3375,11 @@ public class MainActivity extends Activity {
 																AndroidUtils.toast(MainActivity.this, "No permission to save images");
 																return;
 															}
-															
-															currentTab.batchLinkPatternStr = batchLinkPattern.getText().toString().trim();
-															ExceptionLogger.d(TAG, "batchLinkPatternStr " + currentTab.batchLinkPatternStr);
-															if (batchLink.isChecked() && currentTab.batchLinkPatternStr.length() > 0) {
+															if (batchLink.isChecked() && batchLinkPattern.getText().length() > 0) {
+																currentTab.batchDownloadSet = new TreeSet<>();
+																currentTab.batchDownloadedSet = new TreeSet<>();
+																currentTab.batchLinkPatternStr = batchLinkPattern.getText().toString().trim();
+																ExceptionLogger.d(TAG, "batchLinkPatternStr " + currentTab.batchLinkPatternStr);
 																final String from = from_link.getText().toString().trim();
 																if (from.length() > 0) {
 																	currentTab.from = Integer.valueOf(from);
@@ -3263,38 +3396,64 @@ public class MainActivity extends Activity {
 																if (currentTab.from > 0) {
 																	if (currentTab.to > 0) {
 																		for (int i = currentTab.from; i <= currentTab.to; i++) {
-																			currentTab.batchDownloadList.add(currentTab.batchLinkPatternStr.replace("*", i + ""));
+																			currentTab.batchDownloadSet.add(currentTab.batchLinkPatternStr.replace("*", i + ""));
 																		}
 																	} else {
-																		currentTab.batchDownloadList.add(currentTab.batchLinkPatternStr.replace("*", from));
+																		currentTab.batchDownloadSet.add(currentTab.batchLinkPatternStr.replace("*", from));
 																	}
 																} else {
-																	currentTab.batchDownloadList.add(currentTab.batchLinkPatternStr);
+																	currentTab.batchDownloadSet.add(currentTab.batchLinkPatternStr);
 																}
-																currentTab.saveHtml = true;
-																currentTab.webview.loadUrl(currentTab.batchDownloadList.remove(0));
+																currentTab.crawlPatternStr = crawlPattern.getText().toString().trim();
+																currentTab.excludeCrawlPatternStr = excludeCrawlPattern.getText().toString().trim();
+																if (currentTab.crawlPatternStr.length() > 0) {
+																	currentTab.crawlPattern = Pattern.compile(currentTab.crawlPatternStr.replaceAll("\\s+", "|"));
+																} else {
+																	currentTab.crawlPattern = null;
+																}
+																if (currentTab.excludeCrawlPatternStr.length() > 0) {
+																	currentTab.excludeCrawlPattern = Pattern.compile(currentTab.excludeCrawlPatternStr.replaceAll("\\s+", "|"));
+																} else {
+																	currentTab.excludeCrawlPattern = null;
+																}
+																currentTab.saveHtml = ((CheckBox)saveImageLayout.findViewById(R.id.saveHtml)).isChecked();
+																currentTab.useAdBlocker = ((CheckBox)saveImageLayout.findViewById(R.id.useAdBlock)).isChecked();
+																currentTab.saveResources = ((CheckBox)saveImageLayout.findViewById(R.id.saveResources)).isChecked();
+																ExceptionLogger.d(TAG, "currentTab.saveHtml " + currentTab.saveHtml);
+																ExceptionLogger.d(TAG, "currentTab.useAdBlocker " + currentTab.useAdBlocker);
+																ExceptionLogger.d(TAG, "currentTab.saveResources " + currentTab.saveResources);
+																currentTab.crawlPatternStr = crawlPattern.getText().toString().trim();
+																ExceptionLogger.d(TAG, "crawlPatternStr " + currentTab.crawlPatternStr);
+																ExceptionLogger.d(TAG, "crawlPattern " + currentTab.crawlPattern);
+																currentTab.excludeCrawlPatternStr = excludeCrawlPattern.getText().toString().trim();
+																ExceptionLogger.d(TAG, "excludeCrawlPatternStr " + currentTab.excludeCrawlPatternStr);
+																ExceptionLogger.d(TAG, "excludeCrawlPattern " + currentTab.excludeCrawlPattern);
+																final String first = currentTab.batchDownloadSet.first();
+																currentTab.batchDownloadSet.remove(first);
+																currentTab.webview.loadUrl(first);
+																currentTab.batchRunning = true;
 															} else {
 																currentTab.batchLinkPatternStr = "";
+																currentTab.crawlPatternStr = "";
 																currentTab.from = 0;
 																currentTab.to = 0;
 															}
-															currentTab.includePatternStr = ((EditText)saveImageLayout.findViewById(R.id.include_pattern)).getText().toString().trim();
-															ExceptionLogger.d(TAG, "includePatternStr " + currentTab.includePatternStr);
-															if (includeCbx.isChecked()) {
-																currentTab.saveImage = true;
-																if (currentTab.includePatternStr.length() > 0) {
-																	currentTab.includePattern = Pattern.compile(currentTab.includePatternStr, Pattern.CASE_INSENSITIVE);
+															currentTab.includeImagePatternStr = includeImagePattern.getText().toString().trim();
+															ExceptionLogger.d(TAG, "includeImagePatternStr " + currentTab.includeImagePatternStr);
+															currentTab.saveImage = includeCbx.isChecked();
+															if (currentTab.saveImage) {
+																if (currentTab.includeImagePatternStr.length() > 0) {
+																	currentTab.includePattern = Pattern.compile(currentTab.includeImagePatternStr, Pattern.CASE_INSENSITIVE);
 																} else {
 																	currentTab.includePattern = null;
 																}
 															} else {
-																currentTab.saveImage = false;
 																currentTab.includePattern = null;
 															}
-															currentTab.excludePatternStr = ((EditText)saveImageLayout.findViewById(R.id.exclude_pattern)).getText().toString().trim();
-															ExceptionLogger.d(TAG, "excludePatternStr " + currentTab.excludePatternStr);
-															if (excludeCbx.isChecked() && currentTab.excludePatternStr.length() > 0) {
-																currentTab.excludePattern = Pattern.compile(currentTab.excludePatternStr, Pattern.CASE_INSENSITIVE);
+															currentTab.excludeImagePatternStr = excludeImagePattern.getText().toString().trim();
+															ExceptionLogger.d(TAG, "excludeImagePatternStr " + currentTab.excludeImagePatternStr);
+															if (excludeCbx.isChecked() && currentTab.excludeImagePatternStr.length() > 0) {
+																currentTab.excludePattern = Pattern.compile(currentTab.excludeImagePatternStr, Pattern.CASE_INSENSITIVE);
 															} else {
 																currentTab.excludePattern = null;
 															}
@@ -3304,7 +3463,7 @@ public class MainActivity extends Activity {
 															}
 															uaAdapter.notifyDataSetChanged();
 														} catch (Throwable t) {
-															t.printStackTrace();
+															ExceptionLogger.e(TAG, t.getMessage(), t);
 														}
 													}})
 												.setNegativeButton("Stop", new OnClickListener() {
@@ -3312,7 +3471,8 @@ public class MainActivity extends Activity {
 														final Tab currentTab = getCurrentTab();
 														currentTab.saveImage = false;
 														uaAdapter.notifyDataSetChanged();
-														currentTab.batchDownloadList.clear();
+														currentTab.batchDownloadSet.clear();
+														currentTab.batchRunning = false;
 														if (currentTab.diTask != null && currentTab.diTask.getStatus() != AsyncTask.Status.FINISHED) {
 															currentTab.diTask.cancel(true);
 														}
@@ -3758,15 +3918,17 @@ public class MainActivity extends Activity {
 							  }}));
         et.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 				public void onItemClick(final AdapterView<?> parent, final View view, final int position, final long id) {
-					
-					loadUrl(et.getText().toString(), getCurrentWebView());
+					final CustomWebView currentWebView = getCurrentWebView();
+					loadUrl(et.getText().toString(), currentWebView);
+					currentWebView.requestFocus();
 				}});
 
 		et.setOnKeyListener(new View.OnKeyListener() {
 				public boolean onKey(final View v, final int keyCode, final KeyEvent event) {
 					if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
-						
-						loadUrl(et.getText().toString(), getCurrentWebView());
+						final CustomWebView currentWebView = getCurrentWebView();
+						loadUrl(et.getText().toString(), currentWebView);
+						currentWebView.requestFocus();
 						return true;
 					} else {
 						return false;
@@ -4758,7 +4920,7 @@ public class MainActivity extends Activity {
 	}
 
     private void addHistory(final WebView currentWebView, final String url) {
-        if (placesDb == null)
+        if (placesDb == null || !placesDb.isOpen())
 			return;
         
 		final String selection = "url=? AND date(date_created)=?" ;
@@ -4782,7 +4944,7 @@ public class MainActivity extends Activity {
 	}
 
     private void addBookmark(String url, String title) {
-        if (placesDb == null || url.isEmpty() || url.equalsIgnoreCase("about:blank"))
+        if (placesDb == null || url.isEmpty() || url.equalsIgnoreCase("about:blank") || !placesDb.isOpen())
 			return;
         final ContentValues values = new ContentValues(2);
         values.put("title", title);
@@ -5560,7 +5722,7 @@ public class MainActivity extends Activity {
 				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6, displayMetrics));
 		}
 		currentTab.loading = true;
-		//
+		webview.requestFocus();
 		webview.loadUrl(url, requestHeaders);
 		if (currentTab == getCurrentTab()) {
 			goStop.setImageResource(R.drawable.stop);
@@ -5687,8 +5849,8 @@ public class MainActivity extends Activity {
             if (!getCurrentTab().isDesktopUA) {
                 webview.evaluateJavascript("javascript:document.querySelector('meta[name=viewport]').content='width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=1';", null);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Throwable t) {
+            ExceptionLogger.e(TAG, t.getMessage(), t);
         }
     }
 
