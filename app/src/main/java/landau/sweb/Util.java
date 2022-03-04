@@ -5,6 +5,7 @@ import android.icu.text.CharsetDetector;
 import android.icu.text.CharsetMatch;
 import landau.sweb.utils.*;
 import java.io.*;
+import java.util.regex.Pattern;
 
 public class Util {
 	
@@ -21,8 +22,6 @@ public class Util {
     public static final DecimalFormat INTEGER_FORMAT = new DecimalFormat("#,##0");
 
 	public static final String SPECIAL_CHAR_PATTERNSTR = "([{}^$.\\[\\]|*+?()\\\\])";
-	
-
 
 	public static String replaceAll(String s, String as[], String as1[]) {
 		// long millis = System.currentTimeMillis();
@@ -49,8 +48,6 @@ public class Util {
 		final int indexQ = newLink.indexOf(sign);
 		if (indexQ >= 0) {
 			return newLink.substring(0, indexQ);
-//		} else if (indexQ == 0) {
-//			return "";
 		}
 		return newLink;
 	}
@@ -70,7 +67,7 @@ public class Util {
         }
 
         // Create a new byte array with the same length to ensure capacity
-        byte[] tempData = new byte[url.length];
+        final byte[] tempData = new byte[url.length];
 
         int tempCount = 0;
         for (int i = 0; i < url.length; i++) {
@@ -86,19 +83,42 @@ public class Util {
             }
             tempData[tempCount++] = b;
         }
-        byte[] retData = new byte[tempCount];
+        final byte[] retData = new byte[tempCount];
         System.arraycopy(tempData, 0, retData, 0, tempCount);
         return retData;
     }
 
-	public static String decodeUrlToFS(String filename) {
-		byte[] bArr = filename.getBytes();
-		byte[] bDest = decode(bArr);
+	public static String decodeUrlToFS(final String filename) {
+		final byte[] bArr = filename.getBytes();
+		final byte[] bDest = decode(bArr);
 		try {
 			return new String(bDest, "utf-8");
 		} catch (UnsupportedEncodingException e) {
 			return new String(bDest);
 		}
+	}
+
+	public static boolean accept(final String urlToString, final Pattern includePattern, final Pattern excludePattern) {
+		if (includePattern != null) {
+			if (includePattern.matcher(urlToString).matches()) {
+				if (excludePattern != null) {
+					if (!excludePattern.matcher(urlToString).matches()) {
+						return true;
+					}
+				} else {
+					return true;
+				}
+			}
+		} else {
+			if (excludePattern != null) {
+				if (!excludePattern.matcher(urlToString).matches()) {
+					return true;
+				}
+			} else {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 }

@@ -113,9 +113,10 @@ public class MainActivity extends Activity {
 		String savedPath;
 		String name;
 
-		DownloadInfo(final String url, boolean exact) {
+		DownloadInfo(final String url, String savedPath, boolean exact) {
 			this.url = url;
 			this.name = FileUtil.getFileNameFromUrl(url, exact);
+			this.savedPath = savedPath;
 		}
 
 		@Override
@@ -179,7 +180,7 @@ public class MainActivity extends Activity {
 		int from = 0;
 		int to = 0;
 		String crawlPatternStr = "";
-		String excludeCrawlPatternStr = "";
+		String excludeCrawlPatternStr = ".*?/feed/.*?";
 		Pattern crawlPattern = null;
 		Pattern excludeCrawlPattern = null;
 		
@@ -187,10 +188,6 @@ public class MainActivity extends Activity {
 		TreeSet<String> batchDownloadedSet = new TreeSet<>();
 		boolean batchRunning = false;
 		
-//		transient String includeUrlPatternStr;
-//		transient String excludeUrlPatternStr;
-//		transient Pattern includeUrlPattern;
-//		transient Pattern excludeUrlPattern;
 		boolean saveHtml = false;
 		boolean saveImage = false;
 		boolean exactImageUrl = true;
@@ -242,11 +239,9 @@ public class MainActivity extends Activity {
 				}
 			} catch (Throwable t) {
 			}
-			downloadInfos.add(new DownloadInfo(url, exact));
+			downloadInfos.add(new DownloadInfo(url, null, exact));
 			return true;
 		}
-		volatile DownloadImageResourceTask diTask;
-		volatile BatchDownloadTask resTask;
 		
 		int delay = 1000;
 		boolean isScrolling = false;
@@ -2034,6 +2029,9 @@ public class MainActivity extends Activity {
 								// thư mục hiện hành
 								urlInside = urlInside.substring("./".length());
 								newLink = baseUrl + "/" + urlInside;
+							} else if (urlInside.startsWith("//")) {
+								//src="//connect.facebook.net/vi_VN/sdk.js
+								newLink = baseUrl.substring(0, baseUrl.indexOf(":") + 1) + urlInside;
 							} else if (urlInside.startsWith("../")) {
 								// thư mục cha tương đối
 								String tempEntryName = baseUrl;
@@ -2053,36 +2051,22 @@ public class MainActivity extends Activity {
 									newLink = urlInside;
 								}
 								// System.out.println(linkFile);
-							} else if (urlInside.indexOf(":") > 0) {
+							} else if (urlInside.indexOf(":/") > 0) {
 								// thư mục con tương đối
 								newLink = urlInside;
 							} else {
 								newLink = baseUrl + "/" + urlInside;
 							}
-//							ExceptionLogger.d(TAG, "newLink " + newLink);
-//							ExceptionLogger.d(TAG, "crawlPattern " + currentTab.crawlPattern);
-//							ExceptionLogger.d(TAG, "excludeCrawlPattern " + currentTab.excludeCrawlPattern);
-//							ExceptionLogger.d(TAG, "batchDownloadedSet.contains(newLink) " + currentTab.batchDownloadedSet.contains(newLink));
-							if (currentTab.crawlPattern != null) {
-								//ExceptionLogger.d(TAG, "crawlPattern.matcher(newLink).matches() " + currentTab.crawlPattern.matcher(newLink).matches());
-								if (currentTab.crawlPattern.matcher(newLink).matches()) {
-									if (!currentTab.batchDownloadedSet.contains(newLink)) {
-										currentTab.batchDownloadSet.add(newLink);
-										ExceptionLogger.d(TAG, "newLink1 " + newLink);
-									}}
-							} else {
-								if (currentTab.excludeCrawlPattern != null) {
-									if (!currentTab.excludeCrawlPattern.matcher(newLink).matches()) {
-										if (!currentTab.batchDownloadedSet.contains(newLink)) {
-											currentTab.batchDownloadSet.add(newLink);
-											ExceptionLogger.d(TAG, "newLink2 " + newLink);
-										}
-									}
-								} else {
-									if (!currentTab.batchDownloadedSet.contains(newLink)) {
-										currentTab.batchDownloadSet.add(newLink);
-										ExceptionLogger.d(TAG, "newLink3 " + newLink);
-									}
+							ExceptionLogger.d(TAG, "newLink " + newLink);
+							//ExceptionLogger.d(TAG, "crawlPattern " + currentTab.crawlPattern);
+							//ExceptionLogger.d(TAG, "excludeCrawlPattern " + currentTab.excludeCrawlPattern);
+							//ExceptionLogger.d(TAG, "batchDownloadedSet.contains(newLink) " + currentTab.batchDownloadedSet.contains(newLink));
+							final boolean save = Util.accept(newLink, currentTab.crawlPattern, currentTab.excludeCrawlPattern);
+							if (save) {
+								if (!currentTab.batchDownloadedSet.contains(newLink)
+									&& !currentTab.batchDownloadSet.contains(newLink)) {
+									currentTab.batchDownloadSet.add(newLink);
+									ExceptionLogger.d(TAG, "newLink2 " + newLink);
 								}
 							}
 						}
@@ -2370,6 +2354,26 @@ public class MainActivity extends Activity {
 								return emptyResponse;
 							}
 						}
+						
+						final Map<String, String> requestHeaders = request.getRequestHeaders();
+						if (currentTab.requestSaveData) {
+							requestHeaders.put("Save-Data", "on");
+						} else {
+							requestHeaders.remove("Save-Data");
+						}
+						if (currentTab.doNotTrack) {
+							requestHeaders.put("DNT", "1");
+						} else {
+							requestHeaders.remove("DNT");
+						}
+						if (currentTab.removeIdentifyingHeaders) {
+							requestHeaders.put("X-Requested-With", "");
+							requestHeaders.put("X-Wap-Profile", "");
+						} else {
+							requestHeaders.remove("X-Requested-With");
+							requestHeaders.remove("X-Wap-Profile");
+						}
+
 						final String fileName = url.getLastPathSegment();
 						final String scheme = url.getScheme();
 						final String urlToString = url.toString();
@@ -2388,84 +2392,61 @@ public class MainActivity extends Activity {
 							&& (scheme.startsWith("http")
 							|| scheme.startsWith("ftp"))) {
 							if (IMAGES_PATTERN.matcher(fileName).matches()) {
-								if (currentTab.saveImage) {
-									currentTab.addImage(urlToString, currentTab.exactImageUrl);
-									if (currentTab.diTask == null || currentTab.diTask.getStatus() == AsyncTask.Status.FINISHED) {
-										currentTab.diTask = new DownloadImageResourceTask<>(currentTab);
-										currentTab.diTask.execute();
+								final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, false);
+								final Runnable updateUI = new Runnable() {
+									@Override
+									public void run() {
+										final DownloadInfo downloadInfo = new DownloadInfo(urlToString, savedPath, true);
+										currentTab.downloadInfos.remove(downloadInfo);
+										requestList.post(new Runnable() {
+												@Override
+												public void run() {
+													if (!currentTab.downloadedInfos.contains(downloadInfo)) {
+														currentTab.downloadedInfos.add(downloadInfo);
+														if (currentTab.logAdapter != null && currentTab.logAdapter.showImages) {
+															currentTab.logAdapter.notifyDataSetChanged();
+														}
+													}
+												}
+										});
+									}
+								};
+								final boolean shouldAdd = currentTab.addImage(urlToString, currentTab.exactImageUrl);
+								if (currentTab.saveImage && shouldAdd) {
+									final boolean save = Util.accept(urlToString, currentTab.includePattern, currentTab.excludePattern);
+									if (save) {
+										return PipeInputStream.getResponse(PipeInputStream.SAVE_AND_USE, urlToString, savedPath, updateUI, requestHeaders);
 									}
 								}
 								if (currentTab.blockImages) {
-									final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
-									ExceptionLogger.d(TAG, "image.res = " + res + ", " + urlToString);
-									return res == null ? emptyResponse : res;
+									//final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
+									//ExceptionLogger.d(TAG, "image.res = " + res + ", " + urlToString);
+									return PipeInputStream.getResponse(PipeInputStream.USE_EXIST_ONLY, urlToString, savedPath, updateUI, requestHeaders);
 								}
 							} else if (MEDIA_PATTERN.matcher(fileName).matches()) {
 								if (currentTab.blockMedia)
 									return emptyResponse;
 							} else if (currentTab.saveResources && (CSS_PATTERN.matcher(fileName).matches() || JAVASCRIPT_PATTERN.matcher(fileName).matches() || FONT_PATTERN.matcher(fileName).matches())) {
-								currentTab.resourcesList.add(urlToString);
-								downloadResources(currentTab);
+								//currentTab.resourcesList.add(urlToString);
+								//downloadResources(currentTab);
+								final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
+								return PipeInputStream.getResponse(PipeInputStream.SAVE_AND_USE, urlToString, savedPath, null, requestHeaders);
 							}
 							if (currentTab.blockCSS && CSS_PATTERN.matcher(fileName).matches()
 								|| currentTab.blockJavaScript && JAVASCRIPT_PATTERN.matcher(fileName).matches()
 								|| currentTab.blockFonts && FONT_PATTERN.matcher(fileName).matches()) {
-								final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
-								ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
-								return res == null ? emptyResponse : res;
+								//final WebResourceResponse res = setRespond(currentTab, fileName, urlToString, true);
+								//ExceptionLogger.d(TAG, "res = " + res + ", " + fileName);
+								//return res == null ? emptyResponse : res;
+								final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
+								return PipeInputStream.getResponse(PipeInputStream.USE_EXIST_ONLY, urlToString, savedPath, null, requestHeaders);
 							}
 						}
 					} catch (Throwable t) {
 						ExceptionLogger.e(TAG, t.getMessage(), t);
 					}
 
-					final Map<String, String> requestHeaders = request.getRequestHeaders();
-					if (currentTab.requestSaveData) {
-						requestHeaders.put("Save-Data", "on");
-					} else {
-						requestHeaders.remove("Save-Data");
-					}
-					if (currentTab.doNotTrack) {
-						requestHeaders.put("DNT", "1");
-					} else {
-						requestHeaders.remove("DNT");
-					}
-					if (currentTab.removeIdentifyingHeaders) {
-						requestHeaders.put("X-Requested-With", "");
-						requestHeaders.put("X-Wap-Profile", "");
-					} else {
-						requestHeaders.remove("X-Requested-With");
-						requestHeaders.remove("X-Wap-Profile");
-					}
-
 					return super.shouldInterceptRequest(view, request);
-				}
-
-				private WebResourceResponse setRespond(final Tab currentTab, final String fileName, final String urlToString, final boolean includeQuestion) {
-					final String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(fileName));
-					final String pathFromUrl = SCRAP_PATH + FileUtil.getPathFromUrl(urlToString, includeQuestion);
-					final File file = new File(pathFromUrl);
-					ExceptionLogger.d(TAG, "setRespond exists " + file.exists() + ", " + mimeType + ", pathFromUrl " + pathFromUrl + ", urlToString " + urlToString);
-					try {
-						if (file.exists()) {
-							if (mimeType != null && mimeType.startsWith("text")) {
-								return new WebResourceResponse(mimeType, null, new BufferedInputStream(new FileInputStream(file)));
-							} else {
-								return new WebResourceResponse("application/octet-stream", null, new BufferedInputStream(new FileInputStream(file)));
-							}
-						} else {
-							if (mimeType != null && mimeType.startsWith("image")) {
-								final String downloadedFilePath = currentTab.getName(FileUtil.getFileNameFromUrl(urlToString, true));
-								ExceptionLogger.d(TAG, "setRespond downloadedFilePath " + downloadedFilePath);
-								if (downloadedFilePath != null) {
-									return new WebResourceResponse(mimeType, null, new FileInputStream(downloadedFilePath));
-								}
-							}
-						}
-					} catch (Throwable e) {
-						ExceptionLogger.e(TAG,  e.getMessage(), e);
-					}
-					return null;
 				}
 
 				@Override
@@ -2619,126 +2600,11 @@ public class MainActivity extends Activity {
         return webview;
     }
 
-	private class DownloadImageResourceTask extends AsyncTask<Void, DownloadInfo, Void> {
-
-		final Tab tab;
-		public DownloadImageResourceTask(final Tab t) {
-			this.tab = t;
-		}
-		
-		@Override
-		protected void onProgressUpdate(DownloadInfo... downloadInfo) {
-			tab.downloadedInfos.add(downloadInfo[0]);
-			if (tab.logAdapter != null && tab.logAdapter.showImages) {
-				tab.logAdapter.notifyDataSetChanged();
-			}
-		}
-		
-		protected Void doInBackground(final Void... v) {
-			final ArrayList<DownloadInfo> downloadInfos = tab.downloadInfos;
-			ExceptionLogger.d(TAG, "downloadImages " + downloadInfos.size());
-			if (downloadInfos != null && downloadInfos.size() > 0) {
-				try {
-					DownloadInfo downloadInfo;
-					String url;
-					while (downloadInfos.size() > 0) {
-						downloadInfo = downloadInfos.remove(0);
-						url = downloadInfo.url;
-						ExceptionLogger.d(TAG, "downloadImages.url " + url);
-						if (tab.includePattern != null) {
-							if (tab.includePattern.matcher(url).matches()) {
-								downloadInfo.savedPath = save(url, SCRAP_PATH, false);
-							}
-						} else {
-							if (tab.excludePattern != null) {
-								if (!tab.excludePattern.matcher(url).matches()) {
-									downloadInfo.savedPath = save(url, SCRAP_PATH, false);
-								}
-							} else {
-								downloadInfo.savedPath = save(url, SCRAP_PATH, false);
-							}
-						}
-						if (downloadInfo.savedPath != null) {
-							publishProgress(downloadInfo);
-						}
-					}
-				} catch (Throwable e) {
-					ExceptionLogger.e(TAG, e.getMessage(), e);
-				}
-			}
-			return null;
-		}
-	}
-
-	private void downloadResources(final Tab tab) {
-		if (tab.saveResources) {
-			final ArrayList<String> resources = tab.resourcesList;
-			//ExceptionLogger.d(TAG, "download " + downloadInfos);
-			if (resources != null && resources.size() > 0) {
-				try {
-					String url;
-					while (resources.size() > 0) {
-						url = resources.remove(0);
-						ExceptionLogger.d(TAG, "resources.url " + url);
-						save(url, SCRAP_PATH, true);
-					}
-				} catch (Throwable e) {
-					ExceptionLogger.e(TAG, e.getMessage(), e);
-				}
-			}
-		}
-	}
-
-    private class BatchDownloadTask extends AsyncTask<Void, String, Void> {
-		
-		final Tab tab;
-		public BatchDownloadTask(final Tab t) {
-			this.tab = t;
-		}
-		
-		protected Void doInBackground(final Void... v) {
-			if (tab.saveResources) {
-				final ArrayList<String> resources = tab.resourcesList;
-				//ExceptionLogger.d(TAG, "download " + downloadInfos);
-				if (resources != null && resources.size() > 0) {
-					try {
-						String url;
-						while (resources.size() > 0) {
-							url = resources.remove(0);
-							ExceptionLogger.d(TAG, "resources.url " + url);
-							save(url, SCRAP_PATH, true);
-						}
-					} catch (Throwable e) {
-						ExceptionLogger.e(TAG, e.getMessage(), e);
-					}
-				}
-			}
-			return null;
-		}
-	}
-
-	private String save(final String url, final String parentPath, final boolean includeQuestion) throws IOException {
+	private String getSavedFilePath(final String url, final String parentPath, final boolean includeQuestion) {
 		final String path = url.substring(url.indexOf("//") + 1, url.lastIndexOf("/"));
 		final String savedFilePath = parentPath + path;
 		final String fileNameFromUrl = FileUtil.getFileNameFromUrl(url, includeQuestion);
-		final File file = new File(savedFilePath, fileNameFromUrl);
-		ExceptionLogger.d(TAG, "save exist " + file.exists() + ", " + file.getAbsolutePath());
-		if (!file.exists()) {
-			final InputStream in;
-			if (url.startsWith("https")) {
-				final String cookies = CookieManager.getInstance().getCookie(url);
-				final HttpsURLConnection conn = (HttpsURLConnection)(new URL(url).openConnection());
-				conn.addRequestProperty("Cookie", cookies);
-				int status = conn.getResponseCode();
-				ExceptionLogger.d(TAG, "ContentLength " + conn.getContentLength() + ", status " + status);
-				in = conn.getInputStream();
-			} else {
-				in = new java.net.URL(url).openStream();
-			}
-			final String s = FileUtil.saveISToFile(in, savedFilePath, fileNameFromUrl, false, false);
-			ExceptionLogger.d(TAG, "saved successfully " + s);
-		}
-		return file.getAbsolutePath();
+		return savedFilePath + "/" + fileNameFromUrl;
 	}
 	
 	private void enableWVCache(final WebView webView) {
@@ -3343,7 +3209,7 @@ public class MainActivity extends Activity {
 											if (currentTab.crawlPatternStr.length() > 0) {
 												crawlPattern.setText(currentTab.crawlPatternStr);
 											} else {
-												crawlPattern.setText(batchLinkPatternStr);
+												crawlPattern.setText(batchLinkPatternStr + "[^\"]+?/");
 											}
 											
 											final EditText excludeCrawlPattern = ((EditText)saveImageLayout.findViewById(R.id.excludeCrawlPattern));
@@ -3430,7 +3296,7 @@ public class MainActivity extends Activity {
 																ExceptionLogger.d(TAG, "excludeCrawlPattern " + currentTab.excludeCrawlPattern);
 																final String first = currentTab.batchDownloadSet.first();
 																currentTab.batchDownloadSet.remove(first);
-																currentTab.webview.loadUrl(first);
+																loadUrl(first, currentTab.webview);
 																currentTab.batchRunning = true;
 															} else {
 																currentTab.batchLinkPatternStr = "";
@@ -3457,10 +3323,6 @@ public class MainActivity extends Activity {
 															} else {
 																currentTab.excludePattern = null;
 															}
-															if (currentTab.saveImage && (currentTab.diTask == null || currentTab.diTask.getStatus() == AsyncTask.Status.FINISHED)) {
-																currentTab.diTask = new DownloadImageResourceTask<>(currentTab);
-																currentTab.diTask.execute();
-															}
 															uaAdapter.notifyDataSetChanged();
 														} catch (Throwable t) {
 															ExceptionLogger.e(TAG, t.getMessage(), t);
@@ -3473,9 +3335,6 @@ public class MainActivity extends Activity {
 														uaAdapter.notifyDataSetChanged();
 														currentTab.batchDownloadSet.clear();
 														currentTab.batchRunning = false;
-														if (currentTab.diTask != null && currentTab.diTask.getStatus() != AsyncTask.Status.FINISHED) {
-															currentTab.diTask.cancel(true);
-														}
 													}})
 												.show();
 										}
@@ -6387,14 +6246,14 @@ public class MainActivity extends Activity {
                     }
                     if (total == data.length) {
                         // overflow
-                        return new ArrayList<>();
+                        return new ArrayList<String>();
                     }
                 } finally {
                     urlConnection.disconnect();
                 }
             } catch (IOException e) {
                 // Swallow exception and return empty list
-                return new ArrayList<>();
+                return new ArrayList<String>();
             }
 
             // Result looks like:
@@ -6404,11 +6263,11 @@ public class MainActivity extends Activity {
             try {
                 jsonArray = new JSONArray(new String(data, StandardCharsets.UTF_8));
             } catch (JSONException e) {
-                return new ArrayList<>();
+                return new ArrayList<String>();
             }
             jsonArray = jsonArray.optJSONArray(1);
             if (jsonArray == null) {
-                return new ArrayList<>();
+                return new ArrayList<String>();
             }
             final int MAX_RESULTS = 10;
             List<String> result = new ArrayList<>(Math.min(jsonArray.length(), MAX_RESULTS));

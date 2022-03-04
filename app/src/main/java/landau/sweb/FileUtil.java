@@ -37,12 +37,12 @@ public class FileUtil {
 					try {
 						c.flush();
 					} catch (IOException e) {
-						e.printStackTrace();
+						ExceptionLogger.e(TAG, e.getMessage(), e);
 					}
 					try {
 						c.close();
 					} catch (IOException e) {
-						e.printStackTrace();
+						ExceptionLogger.e(TAG, e.getMessage(), e);
 					}
 				}
 			}
@@ -157,12 +157,13 @@ public class FileUtil {
 		if (slashIndex >= 0) {
 			url = url.substring(++slashIndex);
 		}
+		final int indexOfSharp  = url.indexOf("#");
 		if (includeQuestion) {
-			return url.replaceAll("\\?", "@");
+			url = url.replaceAll("\\?", "@");
+			return url.substring(0, indexOfSharp > 0 ? indexOfSharp : url.length());
 		} else {
 			final int indexOfQuestion = url.indexOf("?");
-			final int indexOfSharp;
-			return url.substring(0, (indexOfQuestion > 0 ? indexOfQuestion : (indexOfSharp  = url.indexOf("#")) > 0 ? indexOfSharp : url.length()));
+			return url.substring(0, (indexOfQuestion > 0 ? indexOfQuestion : indexOfSharp > 0 ? indexOfSharp : url.length()));
 		}
 	}
 	
