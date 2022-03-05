@@ -120,5 +120,25 @@ public class Util {
 		}
 		return false;
 	}
+
+	public static String textToRegex(final String s) {
+		if (s != null) {
+			return s
+				.replaceAll("\\\\", "\\\\\\\\")
+				.replaceAll("\\?", "\\\\?")
+				.replaceAll("\\.", "\\\\.")
+				.replaceAll("\\*", ".*?")
+				.replaceAll("\\+", ".+?")
+				.replaceAll("\\(", "\\\\(")
+				.replaceAll("\\)", "\\\\)")
+				.replaceAll("\\[", "\\\\[")
+				.replaceAll("\\]", "\\\\]")
+				.replaceAll("\\$", "\\\\\\$")
+				.replaceAll("\\^", "\\\\^");
+		} else {
+			return "";
+		}
+		
+	}
 	
 }

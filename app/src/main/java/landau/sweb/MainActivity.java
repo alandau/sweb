@@ -199,6 +199,10 @@ public class MainActivity extends Activity {
 		volatile LinkedList<DownloadInfo> downloadedInfos = new LinkedList<>();
 		LogArrayAdapter logAdapter;
 		boolean showRequestList = false;
+		
+		boolean userScriptEnabled;
+		ArrayList<UserScript> userScriptList;
+		
 		String getName(final String name) {
 			for (int i = 0; i < downloadedInfos.size(); i++) {
 				final DownloadInfo di = downloadedInfos.get(i);
@@ -401,7 +405,10 @@ public class MainActivity extends Activity {
     private int SCROLL_UP_THRESHOLD = 50;//dpToPx(10f);
 	private float maxFling = 50;
 	private GestureDetector gestureDetector;// = new GestureDetector(this, new CustomGestureListener());
-	private boolean textChanged; 
+	private boolean textChanged;
+	private boolean userScriptEnabled;
+	private ArrayList<UserScript> userScriptList;
+	
 	
 	private float[] negativeColorArray = new float[] {
 		-1.0f, 0f, 0f, 0f, 255f, // red
@@ -714,6 +721,104 @@ public class MainActivity extends Activity {
 				}
 			}),
 		
+		new MenuAction("UserScript Enabled", 0, new Runnable() {
+				@Override
+				public void run() {
+					userScriptEnabled = !userScriptEnabled;
+					prefs.edit().putBoolean("userScriptEnabled", userScriptEnabled).apply();
+					resetUserScript(null, userScriptEnabled);
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return userScriptEnabled;
+				}
+			}),
+		new MenuAction("Add UserScript", R.drawable.adblocker, new Runnable() {
+				@Override
+				public void run() {
+					editUserScript("Add UserScript", null);
+				}
+			}),
+		new MenuAction("UserScript List", 0, new Runnable() {
+				@Override
+				public void run() {
+					if (placesDb == null)
+						return;
+					selectedItems = new ArrayList<>();
+					cursor = placesDb.rawQuery("SELECT title, data, enabled, _id FROM userscripts", null);
+					adapter = new SimpleCursorAdapter(MainActivity.this,
+													  R.layout.userscript_list_item,
+													  cursor,
+													  new String[] { "title" },
+													  new int[] { R.id.name }) {
+						@Override
+						public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+							final UserScriptHolder holder;
+							if (convertView == null) {
+								convertView = super.getView(position, convertView, parent);//getLayoutInflater().inflate(R.layout.list_item, parent, false);
+								holder = new UserScriptHolder(convertView);
+							} else {
+								holder = (UserScriptHolder) convertView.getTag();
+							}
+							holder.position = position;
+							cursor.moveToPosition(position);
+							holder.id = cursor.getInt(cursor.getColumnIndex("_id"));
+							if (selectedItems.contains(holder.id)) {
+								holder.iconView.setImageResource(R.drawable.ic_accept);
+							} else {
+								holder.iconView.setImageResource(R.drawable.dot);
+							}
+							final TextView titleView = holder.titleView;
+							final String title = cursor.getString(cursor.getColumnIndex("title"));
+							titleView.setText(title);
+							final int enabled = cursor.getInt(cursor.getColumnIndex("enabled"));
+							if (enabled != 1) {
+								titleView.setTextColor(0xfff00000);
+							} else {
+								titleView.setTextColor(0xff00ffff);
+							}
+							return convertView;
+						}
+					};
+					final AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+						.setTitle("UserScript List")
+						.setPositiveButton("OK", new EmptyOnClickListener())
+						.setNegativeButton("Delete", new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which) {
+								final int size = selectedItems.size();
+								if (size > 0) {
+									final StringBuilder sb = new StringBuilder();
+									for (int i = 0; i < size; i++) {
+										sb.append("?");
+										if (i < size - 1) {
+											sb.append(",");
+										}
+									}
+									cursor.close();
+									placesDb.execSQL("DELETE FROM userscripts WHERE _id IN (" + sb.toString()+ ")", selectedItems.toArray());
+									adapter.swapCursor(cursor);
+								}
+
+							}})
+						.setOnDismissListener(new OnDismissListener() {
+							public void onDismiss(android.content.DialogInterface p1) {
+								cursor.close();}})
+						.setAdapter(adapter, new OnClickListener() {
+							public void onClick(DialogInterface dialog, int which) {
+								cursor.moveToPosition(which);
+								boolean enabled = cursor.getInt(cursor.getColumnIndex("enabled")) == 1;
+								String data = cursor.getString(cursor.getColumnIndex("data"));
+								int id = cursor.getInt(cursor.getColumnIndex("_id"));
+								UserScript userScript = new UserScript(id, data, enabled);
+								userScript.name = cursor.getString(cursor.getColumnIndex("title"));
+								cursor.close();
+								editUserScript("Edit UserScript", userScript);
+							}})
+						.create();
+					dialog.show();
+				}
+			}),
 		new MenuAction("Database Enabled", 0, new Runnable() {
 				@Override
 				public void run() {
@@ -2236,6 +2341,7 @@ public class MainActivity extends Activity {
 					tabOfWebView.printWeb = null;
 					tabOfWebView.loading = true;
 					injectCSS(view);
+					applyUserScript(view, url, UserScript.RunAt.START);
 				}
 
 				@Override
@@ -2278,6 +2384,7 @@ public class MainActivity extends Activity {
 					}
 					view.loadUrl("javascript:window.HTMLOUT.showSource(\"" + tabOfWebView.toString() + "\", document.documentElement.outerHTML, \"" + url + "\")");
 					ExceptionLogger.d(TAG, "javascript:window.HTMLOUT.showSource(\"" + tabOfWebView.toString() + "\", document.documentElement.outerHTML, \"" + url + "\")" + ", source.length " + tabOfWebView.source.length());
+					applyUserScript(view, url, UserScript.RunAt.IDLE);
 					if (requestList.getVisibility() == View.VISIBLE
 						&& view.getVisibility() == View.VISIBLE
 						&& tabOfWebView.logAdapter != null) {
@@ -2319,6 +2426,11 @@ public class MainActivity extends Activity {
 							public void onReceiveValue(String s) {
 								//ExceptionLogger.d("js", s);
 							}});
+				}
+
+				//@Override
+				public void onDomContentLoaded(WebView web) {
+					applyJavascriptInjection(((CustomWebView)web).tab, web, web.getUrl());
 				}
 
 				@Override
@@ -2915,6 +3027,8 @@ public class MainActivity extends Activity {
 		tab.javaScriptCanOpenWindowsAutomatically = javaScriptCanOpenWindowsAutomatically;
 		tab.removeIdentifyingHeaders = removeIdentifyingHeaders;
 		tab.textReflow = textReflow;
+		tab.userScriptEnabled = userScriptEnabled;
+        tab.userScriptList = userScriptList;
         tabs.add(tab);
         webviews.addView(webview);
         setTabCountText(tabs.size());
@@ -3013,6 +3127,144 @@ public class MainActivity extends Activity {
         if (fullscreenNow != isFullscreen) {
             getWindow().getDecorView().setSystemUiVisibility(isFullscreen ? flags : 0);
         }
+    }
+
+    ArrayList<UserScript> getEnableJsDataList() {
+		ArrayList<UserScript> list = new ArrayList<UserScript>();
+		int offset = 0;
+		//do {
+		Cursor c = placesDb.rawQuery("SELECT title, data, enabled, _id FROM userscripts", null);
+		//db.query(TABLE_NAME, arrayOf(COLUMN_ID, COLUMN_DATA), COLUMN_ENABLED + " <> 0", null, null, null, null, offset.toString() + ", 10");
+		if (c.moveToFirst()) {
+			do {
+				UserScript data = new UserScript(c.getLong(c.getColumnIndex("_id")), c.getString(c.getColumnIndex("data")), c.getInt(c.getColumnIndex("enabled"))==1?true:false);
+				list.add(data);
+			} while (c.moveToNext());
+		}
+		c.close();
+
+		offset += 10;
+		//} while (list.size() == offset);
+		return list;
+	}
+
+    private void resetUserScript(Tab currentTab, boolean enable) {
+        if (enable) {
+            if (currentTab == null) {
+				if (placesDb == null)
+					return;
+				userScriptList = getEnableJsDataList();
+			} else {
+				currentTab.userScriptList = getEnableJsDataList();
+			}
+        } else {
+            if (currentTab == null) {
+				userScriptList = null;
+			} else {
+				currentTab.userScriptList = null;
+			}
+        }
+    }
+
+    private void applyUserScript(WebView web, String url, UserScript.RunAt runAt) {
+		ArrayList<UserScript> userScriptList = ((CustomWebView)web).tab.userScriptList;
+        if (userScriptList != null) {
+			SCRIPT_LOOP:
+			for (UserScript script : userScriptList) {
+				ExceptionLogger.d(TAG, script.runAt + ", script.include " + script.include + ", script.exclude " + script.exclude);
+				if (runAt != script.runAt || !script.getEnabled())
+                    continue;
+
+                for (Pattern pattern : script.exclude) {
+                    if (pattern.matcher(url).find())
+                        continue SCRIPT_LOOP;
+                }
+
+                for (Pattern pattern : script.include) {
+                    if (pattern.matcher(url).find()) {
+                        web.evaluateJavascript(script.getRunnable(), null);
+                        continue SCRIPT_LOOP;
+                    }
+                }
+			}
+		}
+    }
+
+	private void applyJavascriptInjection(Tab tab, WebView web, String url) {
+//		if (tab.renderingMode >= 0) {
+//			applyRenderingMode(web, tab.renderingMode)
+//			tab.resetRenderingMode()
+//		}
+//		if (web.isInvertMode) {
+//			web.evaluateJavascript(invertEnableJs, null)
+//		}
+//		val adBlockController = adBlockController
+//		if (adBlockController != null) {
+//			adBlockController.loadScript(Uri.parse(url))?.let {
+//				web.evaluateJavascript(it, null)
+//			}
+//		}
+		applyUserScript(web, url, UserScript.RunAt.END);
+	}
+
+	void editUserScript(final String dialogTitle, final UserScript userScript) {
+		final View add_user_script = getLayoutInflater().inflate(R.layout.add_user_script, null);
+		final EditText titleET = (EditText)add_user_script.findViewById(R.id.title);
+		final EditText dataET = (EditText)add_user_script.findViewById(R.id.data);
+		if (userScript != null) {
+			final String title = userScript.name;
+			titleET.setText(title);
+			final String data = userScript.getData();
+			dataET.setText(data);
+		} else {
+			dataET.setText("//==UserScript==\n"
+						   + "//@name\n"
+						   + "//@version\n"
+						   + "//@author\n"
+						   + "//@description\n"
+						   + "//@include\n"
+						   + "//@exclude\n"
+						   + "//@match\n"
+						   + "//@unwrap\n"
+						   + "//@run-at document-idle\n"
+						   + "//document-start\n"
+						   + "//document-end\n"
+						   + "//document-idle\n\n\n\n"
+						   + "//==/UserScript==");
+		}
+		new AlertDialog.Builder(MainActivity.this)
+			.setTitle(dialogTitle)
+			.setView(add_user_script)
+			.setPositiveButton("Apply", new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					if (placesDb == null || dataET.getText().toString().trim().length() == 0 || !placesDb.isOpen())
+						return;
+					if (userScript == null) {
+						final ContentValues values = new ContentValues(3);
+						values.put("title", titleET.getText().toString());
+						values.put("data", dataET.getText().toString());
+						values.put("enabled", 1);
+						placesDb.insert("userscripts", null, values);
+						AndroidUtils.toast(MainActivity.this, "Added " + titleET.getText() + " to userscripts");
+					} else {
+						placesDb.execSQL("UPDATE userscripts SET title=?, data=? WHERE _id=?", new Object[] {titleET.getText().toString(), dataET.getText().toString(), userScript.getId()});
+						cursor = placesDb.rawQuery("SELECT title, data, enabled, _id FROM userscripts", null);
+						adapter.swapCursor(cursor);
+						AndroidUtils.toast(MainActivity.this, "Updated " + titleET.getText() + " to userscripts");
+					}
+					resetUserScript(null, userScriptEnabled);
+				}})
+			.setNegativeButton("Cancel", new OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+					if (userScript != null) {
+						if (placesDb == null || !placesDb.isOpen())
+							return;
+						cursor = placesDb.rawQuery("SELECT title, data, enabled, _id FROM userscripts", null);
+						adapter.swapCursor(cursor);
+					}
+				}})
+			.show();
+
     }
 	
 	public static File externalLogFilesDir = null;
@@ -3474,6 +3726,20 @@ public class MainActivity extends Activity {
 								return currentTab.useAdBlocker;
 							}
 						}));
+						
+					actions.add(new MenuAction("UserScript Enabled", 0, new Runnable() {
+							@Override
+							public void run() {
+								currentTab.userScriptEnabled = !currentTab.userScriptEnabled;
+								resetUserScript(currentTab, currentTab.userScriptEnabled);
+							}
+						}, new MyBooleanSupplier() {
+							@Override
+							public boolean getAsBoolean() {
+								return currentTab.userScriptEnabled;
+							}
+						}));
+					
 					actions.add(new MenuAction("Offscreen PreRaster", R.drawable.adblocker, new Runnable() {
 										@Override
 										public void run() {
@@ -3938,6 +4204,7 @@ public class MainActivity extends Activity {
 		downloadLocation = prefs.getString("downloadLocation", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
 		textEncoding = prefs.getString("textEncoding", "UTF-8");
 		deleteAfter = prefs.getString("deleteAfter", "30");
+		userScriptEnabled = prefs.getBoolean("userScriptEnabled",true);
 		SCRAP_PATH = downloadLocation + "/sweb";
 		ExceptionLogger.d(TAG, "Cache dir " + SCRAP_PATH);
 		if (placesDb != null)
@@ -3945,6 +4212,7 @@ public class MainActivity extends Activity {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
 			WebView.setWebContentsDebuggingEnabled(true);
 		}
+		resetUserScript(null, userScriptEnabled);
 		setupToolbar(toolbar);
 		newBackgroundTab(et.getText().toString(), false, null);
         final WebView currentWebView = getCurrentWebView();
@@ -4358,7 +4626,7 @@ public class MainActivity extends Activity {
 							try {
 								final FileWriter fr = new FileWriter(customFilterFile);
 								final BufferedWriter br = new BufferedWriter(fr);
-								final String[] addresses = editView.getText().toString().split("[\r\n]+");
+								final String[] addresses = editView.getText().toString().split("[\\s]+");
 								String trim;
 								for (String s : addresses) {
 									trim = s.trim();
@@ -4581,81 +4849,52 @@ public class MainActivity extends Activity {
 			.create();
         dialog.show();
 	}
-	private class BookmarkHolder {
+
+	private class UserScriptHolder {
 		final ImageView iconView;
 		final ImageView moreView;
 		final TextView titleView;
-		final TextView domainView;
 		int position;
 		Integer id;
-		BookmarkHolder(final View convertView) {
+		UserScriptHolder(final View convertView) {
 			moreView = (ImageView) convertView.findViewById(R.id.more);
 			iconView = (ImageView) convertView.findViewById(R.id.icon);
 			titleView = (TextView) convertView.findViewById(R.id.name);
-			domainView = (TextView) convertView.findViewById(R.id.domain);
 			
 			moreView.setOnClickListener(new View.OnClickListener() {
 					@Override
 					public void onClick(View button) {
-						bookmarkCursor.moveToPosition(position);
-						final int rowid = bookmarkCursor.getInt(bookmarkCursor.getColumnIndex("_id"));
-						final String title = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("title"));
-						final String url = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("url"));
+						cursor.moveToPosition(position);
 						final PopupMenu popup = new PopupMenu(MainActivity.this, button);
-						
-						popup.getMenuInflater().inflate(R.menu.more_bookmark, popup.getMenu());
+
+						popup.getMenuInflater().inflate(R.menu.more_userscript, popup.getMenu());
 
 						popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
 								public boolean onMenuItemClick(MenuItem item) {
 									switch (item.getItemId())  {
-										case R.id.rename: 
-											final EditText editView2 = new EditText(MainActivity.this);
-											editView2.setText(title);
-											new AlertDialog.Builder(MainActivity.this)
-												.setTitle("Rename bookmark")
-												.setView(editView2)
-												.setPositiveButton("Rename", new OnClickListener() {
-													public void onClick(DialogInterface dlg, int which) {
-														bookmarkCursor.close();
-														placesDb.execSQL("UPDATE bookmarks SET title=? WHERE _id=?", new Object[] {editView2.getText(), rowid});
-														bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
-														bookmarkAdapter.swapCursor(bookmarkCursor);
-														
-													}})
-												.setNegativeButton("Cancel", new EmptyOnClickListener())
-												.show();
-											break;
 										case R.id.change:
-											final EditText editView = new EditText(MainActivity.this);
-											editView.setText(url);
-											new AlertDialog.Builder(MainActivity.this)
-												.setTitle("Change bookmark URL")
-												.setView(editView)
-												.setPositiveButton("Change URL", new OnClickListener() {
-													public void onClick(DialogInterface dlg, int which) {
-														try {
-															bookmarkCursor.close();
-															placesDb.execSQL("UPDATE bookmarks SET url=? WHERE _id=?", new Object[] {editView.getText(), rowid});
-															bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
-															bookmarkAdapter.swapCursor(bookmarkCursor);
-														} catch (Throwable t) {
-															Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_LONG).show();
-														}
-													}})
-												.setNegativeButton("Cancel", new EmptyOnClickListener())
-												.show();
+											int enabled = cursor.getInt(cursor.getColumnIndex("enabled"));
+											String data = cursor.getString(cursor.getColumnIndex("data"));
+											UserScript userScript = new UserScript(id, data, enabled == 1);
+											userScript.name = cursor.getString(cursor.getColumnIndex("title"));
+											cursor.close();
+											editUserScript("Edit UserScript", userScript);
 											break;
-										case R.id.copy:
-											copyClipboard("URL", url);
-											break;
-										case R.id.share:
-											shareUrl(url);
+										case R.id.enabled:
+											enabled = cursor.getInt(cursor.getColumnIndex("enabled"));
+											data = cursor.getString(cursor.getColumnIndex("data"));
+											userScript = new UserScript(id, data, enabled == 1 ? false : true);
+											userScript.name = cursor.getString(cursor.getColumnIndex("title"));
+											cursor.close();
+											placesDb.execSQL("UPDATE userscripts SET enabled=? WHERE _id=?", new Object[] {enabled == 1 ? 0 : 1, userScript.getId()});
+											cursor = placesDb.rawQuery("SELECT title, data, enabled, _id FROM userscripts", null);
+											adapter.swapCursor(cursor);
 											break;
 										case R.id.delete:
-											bookmarkCursor.close();
-											placesDb.execSQL("DELETE FROM bookmarks WHERE _id = ?", new Object[] {rowid});
-											bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
-											bookmarkAdapter.swapCursor(bookmarkCursor);
+											cursor.close();
+											placesDb.execSQL("DELETE FROM userscripts WHERE _id = ?", new Object[] {id});
+											cursor = placesDb.rawQuery("SELECT title, data, enabled, _id FROM userscripts", null);
+											adapter.swapCursor(cursor);
 											break;
 									}
 									return true;
@@ -4683,16 +4922,119 @@ public class MainActivity extends Activity {
 			titleView.setTag(this);
 		}
 	}
-	private SimpleCursorAdapter bookmarkAdapter;
-	private Cursor bookmarkCursor;
+	
+	private class BookmarkHolder {
+		final ImageView iconView;
+		final ImageView moreView;
+		final TextView titleView;
+		final TextView domainView;
+		int position;
+		Integer id;
+		BookmarkHolder(final View convertView) {
+			moreView = (ImageView) convertView.findViewById(R.id.more);
+			iconView = (ImageView) convertView.findViewById(R.id.icon);
+			titleView = (TextView) convertView.findViewById(R.id.name);
+			domainView = (TextView) convertView.findViewById(R.id.domain);
+			
+			moreView.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View button) {
+						cursor.moveToPosition(position);
+						final int rowid = cursor.getInt(cursor.getColumnIndex("_id"));
+						final String title = cursor.getString(cursor.getColumnIndex("title"));
+						final String url = cursor.getString(cursor.getColumnIndex("url"));
+						final PopupMenu popup = new PopupMenu(MainActivity.this, button);
+						
+						popup.getMenuInflater().inflate(R.menu.more_bookmark, popup.getMenu());
+
+						popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+								public boolean onMenuItemClick(MenuItem item) {
+									switch (item.getItemId())  {
+										case R.id.rename: 
+											final EditText editView2 = new EditText(MainActivity.this);
+											editView2.setText(title);
+											new AlertDialog.Builder(MainActivity.this)
+												.setTitle("Rename bookmark")
+												.setView(editView2)
+												.setPositiveButton("Rename", new OnClickListener() {
+													public void onClick(DialogInterface dlg, int which) {
+														cursor.close();
+														placesDb.execSQL("UPDATE bookmarks SET title=? WHERE _id=?", new Object[] {editView2.getText(), rowid});
+														cursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
+														adapter.swapCursor(cursor);
+														
+													}})
+												.setNegativeButton("Cancel", new EmptyOnClickListener())
+												.show();
+											break;
+										case R.id.change:
+											final EditText editView = new EditText(MainActivity.this);
+											editView.setText(url);
+											new AlertDialog.Builder(MainActivity.this)
+												.setTitle("Change bookmark URL")
+												.setView(editView)
+												.setPositiveButton("Change URL", new OnClickListener() {
+													public void onClick(DialogInterface dlg, int which) {
+														try {
+															cursor.close();
+															placesDb.execSQL("UPDATE bookmarks SET url=? WHERE _id=?", new Object[] {editView.getText(), rowid});
+															cursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
+															adapter.swapCursor(cursor);
+														} catch (Throwable t) {
+															Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_LONG).show();
+														}
+													}})
+												.setNegativeButton("Cancel", new EmptyOnClickListener())
+												.show();
+											break;
+										case R.id.copy:
+											copyClipboard("URL", url);
+											break;
+										case R.id.share:
+											shareUrl(url);
+											break;
+										case R.id.delete:
+											cursor.close();
+											placesDb.execSQL("DELETE FROM bookmarks WHERE _id = ?", new Object[] {rowid});
+											cursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
+											adapter.swapCursor(cursor);
+											break;
+									}
+									return true;
+								}
+							});
+
+						popup.show();
+					}
+				});
+			iconView.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View button) {
+						if (selectedItems.contains(id)) {
+							selectedItems.remove(id);
+							iconView.setImageResource(R.drawable.dot);
+						} else {
+							selectedItems.add(id);
+							iconView.setImageResource(R.drawable.ic_accept);
+						}
+					}
+				});
+			moreView.setTag(this);
+			convertView.setTag(this);
+			iconView.setTag(this);
+			titleView.setTag(this);
+		}
+	}
+	private SimpleCursorAdapter adapter;
+	private Cursor cursor;
     private void showBookmarks() {
         if (placesDb == null)
 			return;
         selectedItems = new ArrayList<>();
-        bookmarkCursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
-        bookmarkAdapter = new SimpleCursorAdapter(this,
+        cursor = placesDb.rawQuery("SELECT title, url, _id FROM bookmarks", null);
+        adapter = new SimpleCursorAdapter(this,
 												  R.layout.bookmark_list_item,
-												  bookmarkCursor,
+												  cursor,
 												  new String[] { "title", "url" },
 												  new int[] { R.id.name, R.id.domain }) {
 			@Override
@@ -4705,8 +5047,8 @@ public class MainActivity extends Activity {
 					holder = (BookmarkHolder) convertView.getTag();
 				}
 				holder.position = position;
-				bookmarkCursor.moveToPosition(position);
-				holder.id = bookmarkCursor.getInt(bookmarkCursor.getColumnIndex("_id"));
+				cursor.moveToPosition(position);
+				holder.id = cursor.getInt(cursor.getColumnIndex("_id"));
 				if (selectedItems.contains(holder.id)) {
 					holder.iconView.setImageResource(R.drawable.ic_accept);
 				} else {
@@ -4714,9 +5056,9 @@ public class MainActivity extends Activity {
 				}
 				final TextView titleView = holder.titleView;
 				final TextView domainView = holder.domainView;
-				final String title = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("title"));
+				final String title = cursor.getString(cursor.getColumnIndex("title"));
 				titleView.setText(title);
-				final String url = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("url"));
+				final String url = cursor.getString(cursor.getColumnIndex("url"));
 				domainView.setText(url);
 				return convertView;
 			}
@@ -4735,21 +5077,21 @@ public class MainActivity extends Activity {
 								sb.append(",");
 							}
 						}
-						bookmarkCursor.close();
+						cursor.close();
 						placesDb.execSQL("DELETE FROM bookmarks WHERE _id IN (" + sb.toString()+ ")", selectedItems.toArray());
 					}
 
 				}})
 			.setOnDismissListener(new OnDismissListener() {
 				public void onDismiss(android.content.DialogInterface p1) {
-					bookmarkCursor.close();}})
-			.setAdapter(bookmarkAdapter, new OnClickListener() {
+					cursor.close();}})
+			.setAdapter(adapter, new OnClickListener() {
 				public void onClick(DialogInterface dialog, int which) {
-					bookmarkCursor.moveToPosition(which);
-					String url = bookmarkCursor.getString(bookmarkCursor.getColumnIndex("url"));
+					cursor.moveToPosition(which);
+					String url = cursor.getString(cursor.getColumnIndex("url"));
 					et.setText(url);
 					loadUrl(url, getCurrentWebView());
-					bookmarkCursor.close();
+					cursor.close();
 				}})
 			.create();
         dialog.show();
