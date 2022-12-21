@@ -25,11 +25,10 @@
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
 		android:layout_weight="16"
-		android:maxLines="2"
 		android:ellipsize="middle"
 		android:gravity="left|center_vertical"
 		android:layout_gravity="left|center_vertical"
-		android:textSize="14dip"
+		android:textSize="14sp"
 		android:textAppearance="?android:textAppearanceMedium"
 	/>
 

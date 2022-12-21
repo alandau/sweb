@@ -1,0 +1,116 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+	android:paddingBottom="8dp"
+	android:paddingLeft="8dp"
+	android:paddingRight="8dp"
+	android:paddingTop="8dp">
+
+	<TextView
+		android:id="@+id/urlTv"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center_vertical"
+		android:text="URL: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip"
+		android:paddingTop="8dp" />
+	<TextView
+		android:id="@+id/url"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:gravity="left"
+		android:layout_gravity="center_vertical"
+		android:layout_weight="1"
+		android:paddingBottom="8dp"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip" />
+
+	<TextView
+		android:id="@+id/titleTv"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center_vertical"
+		android:text="Title: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip"
+		android:paddingTop="8dp" />
+
+	<TextView
+		android:id="@+id/title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:gravity="left"
+		android:layout_gravity="center_vertical"
+		android:layout_weight="1"
+		android:paddingBottom="8dp"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip" />
+
+	<TextView
+		android:id="@+id/certificateTv"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center_vertical"
+		android:text="Certificate: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip"
+		android:paddingTop="8dp" />
+
+	<TextView
+		android:id="@+id/certificate"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:gravity="left"
+		android:layout_gravity="center_vertical"
+		android:layout_weight="1"
+		android:paddingBottom="8dp"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip" />
+
+	<TextView
+		android:id="@+id/cookiesTv"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center_vertical"
+		android:text="Cookies: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip"
+		android:paddingTop="8dp" />
+
+	<EditText
+		android:id="@+id/cookies"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="left"
+		android:layout_gravity="center_vertical"
+		android:layout_weight="1"
+		android:paddingBottom="8dp"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip" />
+		
+		<TextView
+		android:id="@+id/UATv"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center_vertical"
+		android:text="User Agent: "
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip"
+		android:paddingTop="8dp" />
+
+	<EditText
+		android:id="@+id/userAgent"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="left"
+		android:layout_gravity="center_vertical"
+		android:layout_weight="1"
+		android:paddingBottom="8dp"
+		android:textAppearance="?android:attr/textAppearanceLarge"
+		android:textSize="15dip" />
+
+
+
+</LinearLayout>

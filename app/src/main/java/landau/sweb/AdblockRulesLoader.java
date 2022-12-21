@@ -13,7 +13,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import landau.sweb.utils.*;
+import net.gnu.common.ExceptionLogger;
 
 public class AdblockRulesLoader extends AsyncTaskLoader<Integer> {
     private static final String TAG = "AdblockRulesLoader";

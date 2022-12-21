@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="horizontal"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     
 	>
 	
@@ -14,8 +14,8 @@
 		android:layout_height="36dp"
 		android:gravity="center"
 		android:layout_gravity="center"
-		android:paddingTop="10dp"
-		android:paddingBottom="10dp"
+		android:paddingTop="8dp"
+		android:paddingBottom="8dp"
 		android:scaleType="fitCenter"
 		android:src="@drawable/dot"
 	/>
@@ -40,19 +40,19 @@
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
 				android:layout_weight="16"
-				android:lines="2"
+				android:minLines="1"
+				android:maxLines="2"
 				android:ellipsize="middle"
 				android:gravity="left|center_vertical"
 				android:layout_gravity="left|center_vertical"
-				android:textSize="16dip"
+				android:textSize="14sp"
 				android:textAppearance="?android:textAppearanceMedium"
 			/>
 
 			<ImageView
 				android:id="@+id/more"
-				android:layout_width="0dp"
+				android:layout_width="44dp"
 				android:layout_height="44dp"
-				android:layout_weight="2"
 				android:gravity="right|center_vertical"
 				android:layout_gravity="right|center_vertical"
 				android:paddingLeft="8dp"
@@ -66,9 +66,11 @@
 		<TextView android:id="@+id/domain"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:textSize="11dip"
+			android:textSize="10sp"
 			android:gravity="left"
 			android:layout_gravity="center_vertical"
+			android:ellipsize="middle"
+			android:singleLine="true"
 			android:paddingRight="2dp"
 			android:textAppearance="?android:textAppearanceSmall"
 			/>

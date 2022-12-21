@@ -4,9 +4,11 @@
 /.idea/workspace.xml
 /.idea/libraries
 /.idea/caches
+/MyJavaConsoleApp
 .DS_Store
-/build
-/bin
+*/build/*
+*/bin/*
+*/gen/*
 /captures
 .externalNativeBuild
 /app/release
@@ -23,3 +25,4 @@
 *.dex
 *.tar
 *.bin
+log.txt

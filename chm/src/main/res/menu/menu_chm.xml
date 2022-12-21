@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    
+	<!--
+	<item android:id="@+id/menu_search"
+        android:title="@string/search"
+        android:icon="@android:drawable/ic_menu_search"
+        android:showAsAction="always"
+        android:actionViewClass="android.widget.SearchView"
+        />
+	
+    <item android:id="@+id/menu_history"
+        android:title="@string/history"
+        android:showAsAction="never"/>
+	
+	<item android:id="@+id/menu_bookmark"
+        android:title="@string/bookmark"
+        android:showAsAction="never"/>
+    
+    <item
+        android:id="@+id/autoScroll"
+        android:title="Auto Scroll"
+		android:checkable="true"/>
+	
+    <item android:id="@+id/menu_home"
+        android:title="@string/home"
+        android:showAsAction="never"/>
+    
+    <item android:id="@+id/menu_sitemap"
+        android:title="@string/site_map"
+        android:showAsAction="never"/>
+    
+    <item android:id="@+id/menu_back_page"
+        android:title="@string/back_page"
+        android:icon="@android:drawable/ic_media_previous"
+        android:showAsAction="always"/>
+    
+    <item android:id="@+id/menu_next_page"
+        android:title="@string/next_page"
+        android:icon="@android:drawable/ic_media_next"
+        android:showAsAction="always"/>
+    
+    <item android:id="@+id/menu_search_all"
+        android:title="@string/search_all"
+        android:showAsAction="never"/>
+    
+    <item android:id="@+id/menu_wide_mode"
+        android:title="@string/wide_mode"
+        android:showAsAction="never"
+		android:checkable="true"/>
+    
+    <item android:id="@+id/menu_enable_javascript"
+        android:title="@string/enable_javascript"
+        android:showAsAction="never"
+		android:checkable="true"/>
+    
+    <item android:id="@+id/menu_block_network"
+        android:title="@string/block_network"
+        android:showAsAction="never"
+		android:checkable="true"/>
+
+    <item android:id="@+id/menu_secure"
+        android:title="@string/secure"
+        android:showAsAction="never"
+		android:checkable="true"/>
+
+    <item android:id="@+id/menu_enable_cache"
+        android:title="@string/enable_cache"
+        android:showAsAction="never"
+		android:checkable="true"/>
+    
+	<item android:id="@+id/menu_clear_cache"
+        android:title="@string/clear_cache"
+        android:showAsAction="never"/>
+
+	<item android:id="@+id/menu_exit"
+        android:title="@string/exit"
+        android:showAsAction="never"/>
+	-->
+</menu>

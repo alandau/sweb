@@ -1,10 +1,8 @@
 package landau.sweb;
 
-import android.webkit.*;
-import android.content.*;
-import android.util.*;
+import android.content.Context;
 
-public class CustomWebView extends WebView {
+public class CustomWebView extends net.gnu.common.CustomWebView {
 	
 	MainActivity.Tab tab;
 	
@@ -12,16 +10,4 @@ public class CustomWebView extends WebView {
 		super(context);
 	}
 
-	public int computeVerticalScrollOffsetMethod() {
-		return computeVerticalScrollOffset();
-	}
-	
-	public int computeVerticalScrollRangeMethod() {
-		return computeVerticalScrollRange();
-	}
-	
-	public int computeVerticalScrollExtentMethod() {
-		return computeVerticalScrollExtent();
-	}
-	
 }

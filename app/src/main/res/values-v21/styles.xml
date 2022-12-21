@@ -6,4 +6,6 @@
       <item name="android:textColorPrimary">#FF000000</item>
       <item name="android:navigationBarColor">#FF8da03e</item>-->
     </style>
+    <style name="ActionTheme" parent="android:Theme.Material.Light.DarkActionBar">
+    </style>
 </resources>

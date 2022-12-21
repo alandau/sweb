@@ -18,17 +18,15 @@ package landau.sweb;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-//import jp.hazuki.yuzubrowser.core.utility.extensions.forEachLine
-//import jp.hazuki.yuzubrowser.core.utility.log.ErrorReport
-//import jp.hazuki.yuzubrowser.core.utility.log.Logger
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.StringReader;
-import java.util.regex.Pattern;
-import java.util.*;
-import landau.sweb.utils.*;
-import java.util.regex.*;
 import java.io.Serializable;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import net.gnu.util.ExceptionLogger;
+import net.gnu.util.Util;
 
 public class UserScript implements Parcelable, Serializable {
 
@@ -83,7 +81,7 @@ public class UserScript implements Parcelable, Serializable {
 		if (isUnwrap) {
             return info.data;
         } else {
-            return "(function() {\n" + info.data + "\n})()";
+            return "(function() {\n" + info.data + "\n})();";
         }
 	}
 
@@ -143,7 +141,7 @@ public class UserScript implements Parcelable, Serializable {
 						if (sHeaderEndPattern.matcher(line).matches()) {
 							return;
 						}
-						ExceptionLogger.e(TAG, "Unknown header : " + line);
+						//ExceptionLogger.e(TAG, "Unknown header : " + line);
 					} else {
 						field = matcher.group(1);
 						value = matcher.group(2);
@@ -201,7 +199,7 @@ public class UserScript implements Parcelable, Serializable {
 //                include.add(it)
 //            }
         } else {
-            ExceptionLogger.e(TAG, "Unknown header : " + line);
+            //ExceptionLogger.e(TAG, "Unknown header : " + line);
         }
     }
 

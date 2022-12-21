@@ -34,7 +34,7 @@
 					android:paddingEnd="8dp"
 					android:scaleType="fitCenter"
 					android:clickable="true"
-					android:focusable="false"
+					android:focusable="true"
 					android:src="@drawable/page_info" />
 
 				<AutoCompleteTextView
@@ -61,7 +61,7 @@
 					android:paddingEnd="8dp"
 					android:scaleType="fitCenter"
 					android:clickable="true"
-					android:focusable="false"
+					android:focusable="true"
 					android:src="@drawable/stop" />
 			</LinearLayout>
 
@@ -92,6 +92,7 @@
 			android:paddingRight="2dp"
 			android:paddingBottom="0dp"
 			android:visibility="gone"
+			android:focusable="true"
 		/>
 
         <LinearLayout
@@ -109,7 +110,9 @@
                 android:layout_weight="1"
                 android:textSize="13sp"
                 android:paddingEnd="4dp"
-                android:paddingStart="4dp" />
+                android:paddingStart="4dp"
+				android:singleLine="true"
+				/>
 
             <TextView
                 android:id="@+id/searchCount"
@@ -117,7 +120,21 @@
                 android:layout_height="wrap_content"
                 android:textSize="13sp"
                 android:paddingEnd="8dp"
-                android:paddingStart="8dp" />
+                android:paddingStart="8dp"
+				android:focusable="true"
+			/>
+
+            <ImageView
+                android:id="@+id/searchClear"
+                android:layout_width="44dp"
+                android:layout_height="24dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_delete_white_36dp"
+                android:tint="#61615f"
+				android:focusable="true"
+			/>
 
             <ImageView
                 android:id="@+id/searchFindNext"
@@ -127,7 +144,9 @@
                 android:paddingEnd="10dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/bottom"
-                android:tint="#61615f" />
+                android:tint="#61615f"
+				android:focusable="true"
+			/>
 
             <ImageView
                 android:id="@+id/searchFindPrev"
@@ -137,7 +156,9 @@
                 android:paddingEnd="10dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/top"
-                android:tint="#61615f" />
+                android:tint="#61615f"
+				android:focusable="true"
+			/>
 
             <ImageView
                 android:id="@+id/searchClose"
@@ -147,7 +168,9 @@
                 android:paddingEnd="5dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/stop"
-                android:tint="#61615f" />
+                android:tint="#61615f"
+				android:focusable="true"
+			/>
         </LinearLayout>
 
         <LinearLayout
