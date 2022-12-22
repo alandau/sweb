@@ -22,7 +22,7 @@ public class ParentActivity extends Activity {
     protected static final long TIME_INTERVAL = 250000000L;
 	protected long mBackPressed = System.nanoTime();
 	
-	public static final String IMAGE_PAT = "[^\"]*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico|svg)[^\"]*?";
+	public static final String IMAGE_PAT = "[^\"]*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico|svg)$";
 	public static final String MEDIA_PAT = "[^\"]*?\\.(avi|mp4v?|mp5|mpv|vob|rmvb|m2ts?|mp2t|r?t[sp]|webm|wmv|asf|mkv|av1|mov|mp2v|mpg4?|qt|mpeg4?|flv|mp21|mp3|opus|aac|pcm|flac|wav|wma|amr|og[gv]|vp[967]|vc1|rm|ram|m4a|m3u8?|3[gp]2|3gpp?2?)[^\"]*?";
 	public static final String FONT_PAT = "[^\"]*?\\.(otf|ttf|ttc|woff|woff2|eot)[^\"]*?";
 	

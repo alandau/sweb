@@ -111,12 +111,9 @@ public class PipeInputStream extends InputStream {
 				null,
 				new PipeInputStream(savedFilePath, conn.getInputStream(), null, updateUI, System.currentTimeMillis()));
 		}
-
-		return new WebResourceResponse(
-			MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(savedFilePath)),
-			null,
-			new ByteArrayInputStream(new byte[0]));
-
+		//ExceptionLogger.d(TAG, "getResponse return new byte[0]");
+		return new WebResourceResponse("text/plain", "utf-8",
+									   new ByteArrayInputStream(new byte[0]));
 	}
 	
 	@Override

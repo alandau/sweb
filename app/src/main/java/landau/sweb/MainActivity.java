@@ -2868,7 +2868,7 @@ public class MainActivity extends ParentActivity {
 									}
 									ExceptionLogger.d(TAG, "shouldInterceptRequest offline " + insideFileName + ", " + ok);
 									if (!ok) {
-										return new WebResourceResponse(mime, "", new ByteArrayInputStream(new byte[0]));
+										return emptyResponse;
 									}
 									final File file = new File(currentTab.extractPath + insideFileName);
 									//ExceptionLogger.e(TAG, "passwordOK " + passwordOK);
@@ -2879,10 +2879,10 @@ public class MainActivity extends ParentActivity {
 										if (!file.exists() && (cacheOffline || currentTab.cacheMedia) && resourceAsStream != null) {
 											FileUtil.is2File(resourceAsStream, file.getAbsolutePath());
 										}
-										return new WebResourceResponse(mime, "", resourceAsStream != null ? resourceAsStream : new ByteArrayInputStream(new byte[0]));
+										return resourceAsStream != null ? new WebResourceResponse(mime, null, resourceAsStream) : emptyResponse;
 									} else {
 										//ExceptionLogger.e(TAG, "file.exists() && passwordOK " + passwordOK);
-										return new WebResourceResponse(mime, "", new BufferedInputStream(new FileInputStream(file)));
+										return new WebResourceResponse(mime, null, new BufferedInputStream(new FileInputStream(file)));
 									}
 								} catch (PasswordRequiredException|IOException e) {
 									enterPassword(currentTab, e);
@@ -2902,17 +2902,17 @@ public class MainActivity extends ParentActivity {
 							return super.shouldInterceptRequest(view, request);
 						}
 						
-//						if (isLogRequests) {
-//							currentTab.requestsLog.add(urlToString);
-//							if (currentTab.logAdapter != null) {
+						if (isLogRequests) {
+							currentTab.requestsLog.add(urlToString);
+							if (currentTab.logAdapter != null) {
 //								requestList.post(new Runnable() {
 //										@Override
 //										public void run() {
-//											currentTab.logAdapter.notifyDataSetChanged();
-//										}
-//									});
-//							}
-//						}
+											currentTab.logAdapter.notifyDataSetChanged();
+										//}
+									//});
+							}
+						}
 						if (currentTab.useAdBlocker) {//adBlocker != null) {
 							if (request.isForMainFrame()) {
 								lastMainPage = urlToString;
@@ -3089,13 +3089,13 @@ public class MainActivity extends ParentActivity {
 				@Override
 				public void onLoadResource(final WebView view, String url) {
 					ExceptionLogger.d(TAG, "onLoadResource " + url);
-					if (isLogRequests) {
-						final Tab currentTab = ((CustomWebView)view).tab;
-						currentTab.requestsLog.add(url);
-						if (currentTab.logAdapter != null) {
-							currentTab.logAdapter.notifyDataSetChanged();
-						}
-					}
+//					if (isLogRequests) {
+//						final Tab currentTab = ((CustomWebView)view).tab;
+//						currentTab.requestsLog.add(url);
+//						if (currentTab.logAdapter != null) {
+//							currentTab.logAdapter.notifyDataSetChanged();
+//						}
+//					}
 					final Tab tab = ((CustomWebView)view).tab;
 					if (tab.md5File != null && url.startsWith("file") && !url.endsWith(tab.md5File) && !url.endsWith(tab.md5File+"_nopreview")) {
 						final String temp = url.substring("file://".length());
