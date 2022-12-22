@@ -2905,12 +2905,7 @@ public class MainActivity extends ParentActivity {
 						if (isLogRequests) {
 							currentTab.requestsLog.add(urlToString);
 							if (currentTab.logAdapter != null) {
-//								requestList.post(new Runnable() {
-//										@Override
-//										public void run() {
-											currentTab.logAdapter.notifyDataSetChanged();
-										//}
-									//});
+								currentTab.logAdapter.notifyDataSetChanged();
 							}
 						}
 						if (currentTab.useAdBlocker) {//adBlocker != null) {
@@ -3089,13 +3084,6 @@ public class MainActivity extends ParentActivity {
 				@Override
 				public void onLoadResource(final WebView view, String url) {
 					ExceptionLogger.d(TAG, "onLoadResource " + url);
-//					if (isLogRequests) {
-//						final Tab currentTab = ((CustomWebView)view).tab;
-//						currentTab.requestsLog.add(url);
-//						if (currentTab.logAdapter != null) {
-//							currentTab.logAdapter.notifyDataSetChanged();
-//						}
-//					}
 					final Tab tab = ((CustomWebView)view).tab;
 					if (tab.md5File != null && url.startsWith("file") && !url.endsWith(tab.md5File) && !url.endsWith(tab.md5File+"_nopreview")) {
 						final String temp = url.substring("file://".length());

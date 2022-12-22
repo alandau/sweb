@@ -1,2 +1,6 @@
 include ':app'
+include ':console'
+include ':common'
+include ':chm'
+include ':epub'
 
