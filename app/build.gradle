@@ -6,7 +6,7 @@ android {
     defaultConfig {
         applicationId "landau.sweb"
         minSdkVersion 26
-        targetSdkVersion 30
+        targetSdkVersion 29
         versionCode 10
         versionName "1.6.9"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
