@@ -35,8 +35,8 @@ import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
 import java.util.regex.*;
-import org.apache.commons.compress.archivers.*;
-import org.apache.commons.compress.compressors.*;
+import org.apache.commons.compress.archivers.ArchiveException;
+import org.apache.commons.compress.compressors.CompressorException;
 import org.apache.commons.compress.*;
 import net.gnu.util.CompressedFile;
 import net.gnu.common.ExceptionLogger;
@@ -45,8 +45,8 @@ import net.gnu.common.ExceptionLogger;
  * @author Rui Shen
  *
  * CHMFile
- * @see http://www.kyz.uklinux.net/libmspack/doc/structmschmd__header.html
- * @see http://www.nongnu.org/chmspec/latest/Internal.html
+ //* @see http://www.kyz.uklinux.net/libmspack/doc/structmschmd__header.html
+ //* @see http://www.nongnu.org/chmspec/latest/Internal.html
  */
 public class CHMFile implements Closeable {
 
@@ -359,7 +359,7 @@ public class CHMFile implements Closeable {
 	 * Get the name of the resources in the CHM. Caches perform better when
 	 * iterate the CHM using order of this returned list.
 	 *
-	 * @see resolveIndexEntry(String name, int chunkNo, int level) TODO: some
+	 //* @see resolveIndexEntry(String name, int chunkNo, int level) TODO: some
 	 * chunk will be read twice, one in resolveIndexEntry, one here, fix it!
 	 */
 	public synchronized List<String> list() throws IOException {
@@ -402,7 +402,7 @@ public class CHMFile implements Closeable {
 	/**
 	 * The sitemap file, usually the .hhc file.
 	 *
-	 * @see http://www.nongnu.org/chmspec/latest/Sitemap.html#HHC
+	 //* @see http://www.nongnu.org/chmspec/latest/Sitemap.html#HHC
 	 */
 	public String getSiteMap() throws IOException {
 		if (resources == null) {

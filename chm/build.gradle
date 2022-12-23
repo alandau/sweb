@@ -1,13 +1,13 @@
-apply plugin: 'com.android.application'
+apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 21
+    compileSdkVersion 30
     buildToolsVersion "21.1.0"
 
     defaultConfig {
-        applicationId "net.gnu.chm"
-        minSdkVersion 14
-        targetSdkVersion 21
+        //applicationId "net.gnu.chm"
+        minSdkVersion 26
+        targetSdkVersion 30
         versionCode 1
         versionName "1.0"
     }
@@ -39,7 +39,9 @@ repositories {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    //compile "com.android.support:support-annotations:24.1.1"
-    compile project(':common')
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation project(':console')
+    implementation project(':common')
+    implementation 'org.ccil.cowan.tagsoup:tagsoup:+'
+    implementation group: 'org.apache.commons', name: 'commons-compress', version: '1.22'
 }

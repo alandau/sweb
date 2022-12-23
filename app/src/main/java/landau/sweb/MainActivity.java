@@ -2884,7 +2884,7 @@ public class MainActivity extends ParentActivity {
 										//ExceptionLogger.e(TAG, "file.exists() && passwordOK " + passwordOK);
 										return new WebResourceResponse(mime, null, new BufferedInputStream(new FileInputStream(file)));
 									}
-								} catch (PasswordRequiredException|IOException e) {
+								} catch (PasswordRequiredException e) {
 									enterPassword(currentTab, e);
 									//return new WebResourceResponse("", "", new ByteArrayInputStream(new byte[0]));
 								} catch (Throwable e) {

@@ -120,11 +120,10 @@ public class Mht2Htm {
 						htmlContent = FileUtil.readFileByMetaTag(new File(htmlFilePath))[0]; 
 						htmlContent = htmlContent.replaceAll("(?i)<base\\s+[^>]*?>", "");
 						final Matcher m = base64Pattern.matcher(htmlContent);
-						final String st;
 						final StringBuffer sb = new StringBuffer();
 						while (m.find()) {
-							Base64InputStream b64is = new Base64InputStream(new ByteArrayInputStream(m.group(3).getBytes()));
-							st = nf.format(++ind) +"." + m.group(2);
+							final InputStream b64is = new Base64InputStream(new ByteArrayInputStream(m.group(3).getBytes()));
+							final String st = nf.format(++ind) +"." + m.group(2);
 							String s = FileUtil.saveISToFile(b64is, resourcePath, st, false, true);
 							ExceptionLogger.i(TAG, "resourcePath + st " + resourcePath + st + ", " + s);
 

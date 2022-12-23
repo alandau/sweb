@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.FileWriter;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+
 import android.util.Log;
 
 public class ExceptionLogger {
@@ -77,10 +79,12 @@ public class ExceptionLogger {
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
 	public static void d(final String tag, final Map list) {
 		if (list != null) {
 			int i = 0;
-			for (Map.Entry st : list.entrySet()) {
+			for (Object o : list.entrySet()) {
+				final Map.Entry st = (Map.Entry)o;
 				Log.d(tag, ++i + ". " + st.getKey() + "=" + st.getValue());
 				printWriter.println(tag + ": " + i + ". " + st.getKey() + "="+st.getValue());
 			}

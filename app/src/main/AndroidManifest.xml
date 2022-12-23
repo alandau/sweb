@@ -29,8 +29,6 @@
 		android:hardwareAccelerated="true"
 		android:largeHeap="true"
 		android:extractNativeLibs="true"
-		tools:replace="android:theme"
-		tools:replace="android:icon"
 		tools:replace="android:label"
 	>
 		<meta-data android:name="android.webkit.WebView.MetricsOptOut"
@@ -105,7 +103,9 @@
 				<category android:name="android.intent.category.IOT_LAUNCHER"/>
 				<category android:name="android.intent.category.MULTIWINDOW_LAUNCHER"/>
             </intent-filter>
-            
+            tools:replace="android:theme"
+		tools:replace="android:icon"
+		
             <intent-filter>
 				<action android:name="android.intent.action.SEND" />
 				<action android:name="android.intent.action.SEND_MULTIPLE" />
