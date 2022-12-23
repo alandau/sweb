@@ -42,6 +42,6 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation project(':console')
     implementation project(':common')
-    implementation 'org.ccil.cowan.tagsoup:tagsoup:+'
-    implementation group: 'org.apache.commons', name: 'commons-compress', version: '1.22'
+    //implementation 'org.ccil.cowan.tagsoup:tagsoup:+'
+    //implementation 'org.apache.commons:commons-compress:1.21'
 }

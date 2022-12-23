@@ -7998,7 +7998,7 @@ public class MainActivity extends ParentActivity {
         tab.historyIndex = -1;
 		tab.listBookmark = new ArrayList<>();
 		tab.listSite = new ArrayList<>();
-		new AsyncTask<Void, PasswordRequiredException, Void>() {
+		new AsyncTask<Void, IOException, Void>() {
 			ProgressDialog progress;
             @Override
             protected void onPreExecute() {
@@ -8033,7 +8033,7 @@ public class MainActivity extends ParentActivity {
 								Toast.makeText(MainActivity.this, "Can't create temp folder", Toast.LENGTH_LONG).show();
 								ExceptionLogger.d(TAG, "initFile Can't create temp folder. utils " + tab.utils);
 							}
-						} catch (PasswordRequiredException e) {
+						} catch (IOException e) {
 							ExceptionLogger.e(TAG, "initFile publishProgress " + tab.utils);
 							FileUtil.deleteFolders(file, true, null, null);
 							publishProgress(e);
@@ -8052,7 +8052,7 @@ public class MainActivity extends ParentActivity {
             }
 
 			@Override
-            protected void onProgressUpdate(final PasswordRequiredException...values) {
+            protected void onProgressUpdate(final IOException...values) {
 				enterPassword(tab, values[0]);
 			}
 

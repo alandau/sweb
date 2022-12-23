@@ -10,8 +10,7 @@
 		
     <application
         android:allowBackup="true"
-        android:label="Epub Creator"
-        android:resizeableActivity = "true">
+        android:label="Epub Creator">
         <activity
             android:name="net.gnu.epub.EPUBActivity"
             android:icon="@drawable/epub_converter"
