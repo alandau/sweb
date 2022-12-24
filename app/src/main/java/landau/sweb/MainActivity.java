@@ -2658,7 +2658,7 @@ public class MainActivity extends ParentActivity {
 				public void onPageStarted(final WebView view, String url, final Bitmap favicon) {
 					final Tab tabOfWebView = ((CustomWebView)view).tab;
 					if (url != null && tabOfWebView.md5File != null) {
-						if (url.startsWith("file") && !url.endsWith(tabOfWebView.md5File) && !url.endsWith(tabOfWebView.md5File+"_nopreview")) {
+						if (url.startsWith("file") && !url.endsWith(tabOfWebView.md5File+".html") && !url.endsWith(tabOfWebView.md5File+"_nopreview.html")) {
 							String temp = url.substring("file://".length());
 							if (!temp.startsWith(tabOfWebView.extractPath)) {
 								url = "file://" + tabOfWebView.extractPath + temp;
@@ -2850,7 +2850,7 @@ public class MainActivity extends ParentActivity {
 						final Uri url = request.getUrl();
 						final String urlToString = url.toString();
 						
-						if (currentTab.utils != null && urlToString.startsWith("file") && !urlToString.endsWith(currentTab.md5File) && !urlToString.endsWith(currentTab.md5File+"_nopreview")) {
+						if (currentTab.utils != null && urlToString.startsWith("file") && !urlToString.endsWith(currentTab.md5File+".html") && !urlToString.endsWith(currentTab.md5File+"_nopreview.html")) {
 							final String insideFileName = insideFileName(currentTab, urlToString);
 							ExceptionLogger.d(TAG, "shouldInterceptRequest insideFileName " + insideFileName + ", url " + url);
 
@@ -3030,7 +3030,7 @@ public class MainActivity extends ParentActivity {
 					// For intent:// URLs, redirect to browser_fallback_url if given
 					final Tab currentTab = ((CustomWebView)view).tab;
 					if (currentTab.utils != null) {
-						if (url.startsWith("file") && !url.endsWith(currentTab.md5File) && !url.endsWith(currentTab.md5File+"_nopreview")) {
+						if (url.startsWith("file") && !url.endsWith(currentTab.md5File+".html") && !url.endsWith(currentTab.md5File+"_nopreview.html")) {
 							final String temp = url.substring("file://".length());
 							if (!temp.startsWith(currentTab.extractPath)) {
 								url = "file://" + currentTab.extractPath + temp;
@@ -3085,7 +3085,7 @@ public class MainActivity extends ParentActivity {
 				public void onLoadResource(final WebView view, String url) {
 					ExceptionLogger.d(TAG, "onLoadResource " + url);
 					final Tab tab = ((CustomWebView)view).tab;
-					if (tab.md5File != null && url.startsWith("file") && !url.endsWith(tab.md5File) && !url.endsWith(tab.md5File+"_nopreview")) {
+					if (tab.md5File != null && url.startsWith("file") && !url.endsWith(tab.md5File+".html") && !url.endsWith(tab.md5File+"_nopreview.html")) {
 						final String temp = url.substring("file://".length());
 						if (!temp.startsWith(tab.extractPath)) {
 							url = "file://" + tab.extractPath + temp;
@@ -4062,13 +4062,13 @@ public class MainActivity extends ParentActivity {
 														.setPositiveButton("No", new DialogInterface.OnClickListener() {
 															public void onClick(DialogInterface dialog, int which) {
 																if (currentTab.utils != null) {
-																	currentTab.webview.loadUrl("file://" + currentTab.extractPath + "/" + currentTab.listSite.get(0)+"_nopreview");
+																	currentTab.webview.loadUrl("file://" + currentTab.extractPath + "/" + currentTab.listSite.get(0)+"_nopreview.html");
 																}
 															}})
 														.setNegativeButton("Yes", new DialogInterface.OnClickListener() {
 															public void onClick(DialogInterface dialog, int which) {
 																if (currentTab.utils != null) {
-																	currentTab.webview.loadUrl("file://" + currentTab.extractPath + "/" + currentTab.listSite.get(0));
+																	currentTab.webview.loadUrl("file://" + currentTab.extractPath + "/" + currentTab.listSite.get(0)+".html");
 																}
 															}})
 														.show();

@@ -90,8 +90,8 @@ public class Utils {
         try {
 
             final BufferedOutputStream fosHTMLMap = new BufferedOutputStream(new FileOutputStream(extractPath + "/" + md5));
-            final BufferedOutputStream fosHTMLMapNoPreview = new BufferedOutputStream(new FileOutputStream(extractPath + "/" + md5+"_nopreview"));
-            final BufferedOutputStream fosListSite = new BufferedOutputStream(new FileOutputStream(extractPath + "/site_map_" + md5));
+            final BufferedOutputStream fosHTMLMapNoPreview = new BufferedOutputStream(new FileOutputStream(extractPath + "/" + md5+"_nopreview.html"));
+            final BufferedOutputStream fosListSite = new BufferedOutputStream(new FileOutputStream(extractPath + "/site_map_" + md5+".html"));
             try {
                 fosListSite.write((md5 + ";").getBytes());
             } catch (IOException e) {
