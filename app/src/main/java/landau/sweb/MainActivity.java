@@ -4133,9 +4133,9 @@ public class MainActivity extends ParentActivity {
 											@Override
 											public void run() {
 												final File file = new File(currentTab.extractPath);
-												final Pattern dotPattern = Pattern.compile("[^\"]*?\\.[^\"]*?");
-												final long[] cur = FileUtil.getDirSize(file, dotPattern, null);
-												final long[] all = FileUtil.getDirSize(file.getParentFile(), dotPattern, null);
+												//final Pattern dotPattern = Pattern.compile("[^\"]*?\\.[^\"]*?");
+												final long[] cur = FileUtil.getDirSize(file, null, null);
+												final long[] all = FileUtil.getDirSize(file.getParentFile(), null, null);
 												new AlertDialog.Builder(MainActivity.this)
 													.setTitle("Delete cache?")
 													.setMessage("This action cannot be undone\nCurrent compressed file: "
@@ -4143,13 +4143,13 @@ public class MainActivity extends ParentActivity {
 																+ "\nAll cache: " + all[0] + " bytes, " + all[1] + " files, " + all[2] + " folders.")
 													.setPositiveButton("Delete Current", new DialogInterface.OnClickListener() {
 														public void onClick(final DialogInterface dialog, final int which) {
-															FileUtil.deleteFolders(new File(currentTab.extractPath), true, dotPattern, null);
+															FileUtil.deleteFolders(new File(currentTab.extractPath), true, null, null);
 															AndroidUtils.toast(MainActivity.this, "Finished delete current cache");
 														}
 													})
 													.setNegativeButton("Delete All", new DialogInterface.OnClickListener() {
 														public void onClick(final DialogInterface dialog, final int which) {
-															FileUtil.deleteFolders(MainActivity.this.getExternalFilesDir("Reader"), true, dotPattern, null);
+															FileUtil.deleteFolders(MainActivity.this.getExternalFilesDir("Reader"), true, null, null);
 															AndroidUtils.toast(MainActivity.this, "Finished delete all cache");
 														}
 													})
@@ -7998,7 +7998,7 @@ public class MainActivity extends ParentActivity {
         tab.historyIndex = -1;
 		tab.listBookmark = new ArrayList<>();
 		tab.listSite = new ArrayList<>();
-		new AsyncTask<Void, IOException, Void>() {
+		new AsyncTask<Void, Object, Void>() {
 			ProgressDialog progress;
             @Override
             protected void onPreExecute() {
@@ -8046,14 +8046,18 @@ public class MainActivity extends ParentActivity {
 					}
 				} catch (IOException e) {
 					ExceptionLogger.e(TAG, "initFile utils " + tab.utils, e);
-					Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+					publishProgress(e.getMessage());
 				}
 				return null;
             }
 
 			@Override
-            protected void onProgressUpdate(final IOException...values) {
-				enterPassword(tab, values[0]);
+            protected void onProgressUpdate(final Object...values) {
+				if (values[0] instanceof IOException) {
+					enterPassword(tab, (IOException)values[0]);
+				} else {
+					Toast.makeText(MainActivity.this, (String)values[0], Toast.LENGTH_LONG).show();
+				}
 			}
 
             @Override
