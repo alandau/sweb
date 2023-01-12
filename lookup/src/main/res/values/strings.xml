@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--<string name="app_name">Copy &amp; Lookup</string>
+    
+	<string name="stop_service">Stop Service</string>
+    <string name="foreground_service_started">Dictionary Service started</string>
+    <string name="foreground_service_label">Sample Foreground Service</string>
+
+    <string name="activity_foreground_service_controller">Dictionary Service</string>
+    <string name="foreground_service_controller">Press home button to hide and run in background</string>
+    <string name="start_service_foreground">Start Service Foreground</string>
+    <string name="start_service_background">Start Service Background</string>
+    <string name="local_service_label">Dictionary Service</string>
+-->
+</resources>

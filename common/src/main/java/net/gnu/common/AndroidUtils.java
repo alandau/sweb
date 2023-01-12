@@ -34,7 +34,27 @@ public class AndroidUtils {
 	private static final Pattern CHAR_CODE_PATTERN = Pattern.compile("&#[xX]?([0-9a-zA-F]{2,8});");
 	private static final Pattern UCHAR_CODE_PATTERN = Pattern.compile("\\\\u([0-9a-zA-F]{4})");
 
-	public static String fixCharCode(CharSequence wholeFile) {
+//	public static String getSDCardStoragePath(Context appContext) {
+//		try {
+//			final StorageManager sm =
+//				(StorageManager) appContext.getSystemService(Context.STORAGE_SERVICE);
+//			final Method getVolumePathsMethod = StorageManager.class.getMethod("getVolumePaths");
+//			final String[] paths = (String[]) getVolumePathsMethod.invoke(sm);
+//			if (paths != null) {
+//				for (String st : paths) {
+//					ExceptionLogger.d(TAG, "getSecondaryStoragePath " +st);
+//				}
+//			}
+//			// second element in paths[] is secondary storage path
+//			final String SDCardPath = paths.length <= 1 ? paths[0] : null;
+//			return SDCardPath;
+//		} catch (Exception e) {
+//			ExceptionLogger.e(TAG, "getSecondaryStoragePath() failed", e);
+//		}
+//		return null;
+//	}
+	
+	public static String fixCharCode(final CharSequence wholeFile) {
 		Matcher mat = UCHAR_CODE_PATTERN.matcher(wholeFile);
 		StringBuffer sb = new StringBuffer();
 		while (mat.find()) {

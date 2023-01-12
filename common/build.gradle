@@ -6,8 +6,8 @@ android {
 
     defaultConfig {
         //applicationId "net.gnu.common"
-        minSdkVersion 26
-        targetSdkVersion 30
+        minSdkVersion 21
+        targetSdkVersion 24
         versionCode 1
         versionName "1.0"
     }
@@ -41,5 +41,6 @@ repositories {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation project(':console')
+    implementation project(':lookup')
     //implementation 'com.android.support:support-annotations:+'//24.1.1'
 }

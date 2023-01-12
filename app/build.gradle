@@ -2,13 +2,13 @@ apply plugin: 'com.android.application'
 
 android {
     buildToolsVersion '27.0.3'
-    compileSdkVersion 30
+    compileSdkVersion 27
     defaultConfig {
         applicationId "landau.sweb"
-        minSdkVersion 26
-        targetSdkVersion 29
+        minSdkVersion 21
+        targetSdkVersion 24
         versionCode 10
-        versionName "1.6.9"
+        versionName "1.6.10"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         resValue "string", "app_name", "SWeb"
     }
@@ -62,6 +62,7 @@ dependencies {
     implementation project(':common')
     implementation project(':chm')
     implementation project(':epub')
+    implementation project(':lookup')
     //implementation 'com.android.support:support-annotations:+'//24.1.1'
     //implementation "org.apache.commons:commons-compress:1.22"
     //implementation 'org.apache.james:apache-mime4j-dom:0.8.6'

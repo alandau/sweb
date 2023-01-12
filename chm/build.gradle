@@ -6,8 +6,8 @@ android {
 
     defaultConfig {
         //applicationId "net.gnu.chm"
-        minSdkVersion 26
-        targetSdkVersion 30
+        minSdkVersion 21
+        targetSdkVersion 24
         versionCode 1
         versionName "1.0"
     }

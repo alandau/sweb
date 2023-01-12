@@ -29,7 +29,7 @@
 		android:hardwareAccelerated="true"
 		android:largeHeap="true"
 		android:extractNativeLibs="true"
-		tools:replace="android:label"
+		tools:replace="android:name,android:label,android:theme"
 	>
 		<meta-data android:name="android.webkit.WebView.MetricsOptOut"
                android:value="true" />
@@ -38,7 +38,6 @@
 			android:value="true" />
         <activity
             android:name="landau.sweb.MainActivity"
-            
 			android:icon="@drawable/ic_launcher"
         	android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
             android:launchMode="singleTask">
@@ -161,7 +160,14 @@
                 <category android:name="android.intent.category.BROWSABLE" />
             </intent-filter>
         </activity>-->
-		
+        
+        
+		<!--<activity
+			android:name="com.paragon.dictionary.fbreader.OpenDictionaryActivity"
+			android:theme="@style/FBReader.Transparent"
+			android:configChanges="orientation|keyboardHidden|screenSize"/>-->
+ 
+ 		
 		<provider
 			android:name="androidx.core.content.FileProvider"
 			android:authorities="landau.sweb.fileprovider"

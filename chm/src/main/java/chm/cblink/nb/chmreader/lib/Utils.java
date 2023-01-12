@@ -93,7 +93,7 @@ public class Utils {
             final BufferedOutputStream fosHTMLMapNoPreview = new BufferedOutputStream(new FileOutputStream(extractPath + "/" + md5+"_nopreview.html"));
             final BufferedOutputStream fosListSite = new BufferedOutputStream(new FileOutputStream(extractPath + "/site_map_" + md5));
             try {
-                fosListSite.write((md5 + ";").getBytes());
+                fosListSite.write((md5 + "\n").getBytes());
             } catch (IOException e) {
                 ExceptionLogger.e(TAG, e.getMessage(), e);
             }
@@ -140,7 +140,7 @@ public class Utils {
                                         url.status = 2;
                                         listSite.add(url.local.replaceAll("%20", " "));
                                         try {
-                                            fosListSite.write((url.local.replaceAll("%20", " ") + ";").getBytes());
+                                            fosListSite.write((url.local.replaceAll("%20", " ") + "\n").getBytes());
                                         } catch (IOException e) {
                                             ExceptionLogger.e(TAG, e.getMessage(), e);
                                         }
@@ -197,17 +197,17 @@ public class Utils {
 					final String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(name));
                     if (HTML_PAT.matcher(fileName).matches()
 						|| mime != null && mime.startsWith("text")) {
-                        fosListSite.write((fileName + ";").getBytes());
+                        fosListSite.write((fileName + "\n").getBytes());
                         fosHTMLMap.write(("\n<li><a href=\""+fileName+"\">" + fileName + "</a></li>").getBytes());
                         fosHTMLMapNoPreview.write(("\n<li><a href=\""+fileName+"\">" + fileName + "</a></li>").getBytes());
                         listSite.add(fileName);
                     } else if (ParentActivity.IMAGES_PATTERN.matcher(fileName).matches()) {
-                        fosListSite.write((fileName + ";").getBytes());
+                        fosListSite.write((fileName + "\n").getBytes());
                         fosHTMLMap.write(("\n<li><a href=\""+fileName+"\">" + "<img src=\""+fileName+"\"/><br/>" + fileName + "</a></li>").getBytes());
                         fosHTMLMapNoPreview.write(("\n<li><a href=\""+fileName+"\">" + fileName + "</a></li>").getBytes());
                         listSite.add(fileName);
                     } else if (ParentActivity.MEDIA_PATTERN.matcher(fileName).matches()) {
-                        fosListSite.write((fileName + ";").getBytes());
+                        fosListSite.write((fileName + "\n").getBytes());
                         fosHTMLMap.write(("\n<li><a href=\"" + fileName + "\">"
 										 + "\n<video width=\"100%\" height=\"100%\" autoplay muted>"
 										 + "<source src=\"" + fileName + "\" type=\"" + mime + "\"/>"
@@ -246,7 +246,7 @@ public class Utils {
             ExceptionLogger.e(TAG, e.getMessage());
             return null;
         }
-        final String[] arrSite = reval.toString().split(";");
+        final String[] arrSite = reval.toString().split("\n");
         Collections.addAll(listSite, arrSite);
         return listSite;
     }
