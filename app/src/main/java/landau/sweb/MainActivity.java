@@ -12,7 +12,6 @@ import android.app.SearchManager;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -159,9 +158,9 @@ import net.gnu.util.HtmlUtil;
 import net.gnu.util.Mht2Htm;
 import net.gnu.util.Util;
 import org.apache.commons.compress.PasswordRequiredException;
+import org.geometerplus.android.fbreader.DictionaryUtil;
 import org.json.JSONArray;
 import org.json.JSONException;
-import org.geometerplus.android.fbreader.DictionaryUtil;
 
 public class MainActivity extends ParentActivity {
 	private PowerManager.WakeLock mWakeLock;
@@ -218,16 +217,7 @@ public class MainActivity extends ParentActivity {
 //			//todo jump to the picture view page
 //		}
 //	}
-	private ClipboardManager mClipboard;
-	private String clipData = "";
 	
-	private ClipboardManager.OnPrimaryClipChangedListener mPrimaryChangeListener
-	= new ClipboardManager.OnPrimaryClipChangedListener() {
-		public void onPrimaryClipChanged() {
-			updateClipData(true);
-		}
-	};
-
 	private static class CrawlerInfo implements Comparable<CrawlerInfo> {
 
 		final String url;
@@ -4003,10 +3993,14 @@ public class MainActivity extends ParentActivity {
 					updateFullScreen();}});
 		isFullscreen = false;
         isNightMode = prefs.getBoolean("night_mode", false);
-		mClipboard = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-		mClipboard.addPrimaryClipChangedListener(mPrimaryChangeListener);
-		DictionaryUtil.init(this, null);
 		
+		DictionaryUtil.init(this, null);
+		final CharSequence text = getIntent().getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
+        ExceptionLogger.d(TAG, "onCreate text " + text);
+		if (text != null) {
+			DictionaryUtil.openTextInDictionary(MainActivity.this, text+"", false, 100, 10);
+		}
+        
         webviews = (FrameLayout) findViewById(R.id.webviews);
         currentTabIndex = 0;
 		address = (ViewGroup)findViewById(R.id.address);
@@ -4213,16 +4207,6 @@ public class MainActivity extends ParentActivity {
 											switchToTab(currentTabIndex+1);
 											loadUrl("", webview);
 											dialog.dismiss();
-										}
-									}));
-					actions.add(new MenuAction("Lookup", 0, new Runnable() {
-										@Override
-										public void run() {
-											if (clipData != null && clipData.length() > 0) {
-												DictionaryUtil.openTextInDictionary(MainActivity.this, clipData, false, 100, 10);
-											} else {
-												Toast.makeText(MainActivity.this, "Nothing to translate", Toast.LENGTH_SHORT).show();
-											}
 										}
 									}));
 					actions.add(new MenuAction("Save as Pdf", 0, new Runnable() {
@@ -5282,7 +5266,7 @@ public class MainActivity extends ParentActivity {
 	@Override
     protected void onResume() {
         super.onResume();
-        if (printJob != null && printBtnPressed) {
+		if (printJob != null && printBtnPressed) {
             if (printJob.isCompleted()) {
                 AndroidUtils.toast(this, "Printing Completed");
             } else if (printJob.isStarted()) {
@@ -5322,7 +5306,6 @@ public class MainActivity extends ParentActivity {
 		if (placesDb != null) {
             placesDb.close();
         }
-		mClipboard.removePrimaryClipChangedListener(mPrimaryChangeListener);
 	}
 
     @Override
@@ -5458,33 +5441,6 @@ public class MainActivity extends ParentActivity {
 			if (mWakeLock != null) {
 				mWakeLock.release();
 				mWakeLock = null;
-			}
-		}
-    }
-
-	void updateClipData(boolean updateType) {
-        final ClipData clip = mClipboard.getPrimaryClip();
-//        String[] mimeTypes = clip != null ? clip.getDescription().filterMimeTypes("*/*") : null;
-//        if (mimeTypes != null) {
-//            mMimeTypes.setText("");
-//            for (int i=0; i<mimeTypes.length; i++) {
-//                if (i > 0) {
-//                    mMimeTypes.append("\n");
-//                }
-//                mMimeTypes.append(mimeTypes[i]);
-//            }
-//        } else {
-//            mMimeTypes.setText("NULL");
-//        }
-
-        if (clip != null) {
-            final ClipData.Item item = clip.getItemAt(0);
-            final CharSequence text = item.getText();
-			clipData = text == null ? "" : (text + "").trim();
-			if (autoLookup) {
-				if (clipData != null && clipData.length() > 0) {
-					DictionaryUtil.openTextInDictionary(this, clipData, false, 100, 10);
-				}
 			}
 		}
     }
@@ -6724,7 +6680,13 @@ public class MainActivity extends ParentActivity {
 
 	@Override
     protected void onNewIntent(final Intent intent) {
-        loadIntent(intent);
+        final CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
+        ExceptionLogger.d(TAG, "onNewIntent text " + text);
+		if (text != null) {
+			DictionaryUtil.openTextInDictionary(MainActivity.this, text+"", false, 100, 10);
+		} else {
+			loadIntent(intent);
+		}
     }
 
 	private void loadIntent(final Intent intent) {
