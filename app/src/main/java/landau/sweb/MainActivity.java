@@ -4156,8 +4156,8 @@ public class MainActivity extends ParentActivity {
 											public void run() {
 												final File file = new File(currentTab.extractPath);
 												//final Pattern dotPattern = Pattern.compile("[^\"]*?\\.[^\"]*?");
-												final long[] cur = FileUtil.getDirSize(file, null, null);
-												final long[] all = FileUtil.getDirSize(file.getParentFile(), null, null);
+												final Object[] cur = FileUtil.getDirSize(file, true, null, null);
+												final Object[] all = FileUtil.getDirSize(file.getParentFile(), true, null, null);
 												new AlertDialog.Builder(MainActivity.this)
 													.setTitle("Delete cache?")
 													.setMessage("This action cannot be undone\nCurrent compressed file: "

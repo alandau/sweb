@@ -1,16 +1,33 @@
 package net.gnu.util;
 
-//import android.util.Log;
-import java.io.*;
-import java.util.*;
-import java.util.regex.*;
-import java.security.MessageDigest;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
+import java.net.URLDecoder;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-//import org.mozilla.universalchardet.*;
-import java.nio.channels.*;
-import java.nio.*;
-import java.net.*;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.Scanner;
 
 public class FileUtil {
 	
@@ -19,6 +36,109 @@ public class FileUtil {
 	private static final String ISO_8859_1 = "ISO-8859-1";
 	private static final Pattern encodingCss = Pattern.compile("@charset\\s+\"([^\"]+)\";");
 	public static final Pattern ILLEGAL_FILE_CHARS = Pattern.compile("[^\n]*?[?/\\:*|\"<>#+%][^\n]*?");
+	
+	public static void main(String[] args) throws Exception {
+
+		//exec("/system/bin/cat", "/proc/meminfo");
+		
+		System.out.println(Util.mapToString(System.getenv(), true, "\n"));
+		exec("pwd");
+
+		//System.out.println(System.getenv("SECONDARY_STORAGE"));
+		System.out.println(System.getenv("EXTERNAL_STORAGE"));
+		
+		final Object[] objs = getDirSize(new File("/data/user/0/com.aide.ui/no_backup/.aide/maven"), true, Pattern.compile("^[^\"]*?\\.aar$", Pattern.CASE_INSENSITIVE), null);
+		for (File f : (List<File>)objs[3]) {
+			if (f.isDirectory() && f.getName().endsWith(".aar")) {
+				System.out.println(f.getAbsolutePath());
+				//deleteFolders(f, true, null, null);
+			}
+		}
+		exec("/system/bin/cp", "-f", "/sdcard/.aide/com.aide.ui_preferences.xml", "/data/data/com.aide.ui/shared_prefs");
+		//exec("/system/bin/cp", "-fr", "/data/data/com.aide.ui/shared_prefs/com.aide.ui_preferences.xml", "/sdcard/.aide");
+		
+		System.out.println(new File("/storage/emulated/0/AppProjects/").getAbsolutePath());
+		
+//		Entry<BufferedReader, PrintStream> e = execInteract("/system/bin/cp", "-R", "-i", "/sdcard/rar", "/sdcard/.com.free.searcher");
+//		PrintStream p = e.getValue();
+//		BufferedReader b = e.getKey();
+//		Scanner input = new Scanner(System.in);
+//
+//		//System.out.print("Enter: ");
+//		String str = "";//input.nextLine();
+//		while (!"exit".equals(str)) {
+//			while (b.ready()) {
+//				System.out.println(b.readLine());
+//			}
+//			str = input.nextLine();
+//			p.println(str);
+//		}
+
+		//compare2Folder(new File("/storage/emulated/0/tmp"), new File("/storage/emulated/0/tmp"));
+		//compare2Folder(new File("/storage/emulated/0/tmp"), new File("/storage/emulated/0/rar/b"));
+		
+		//filterFiles("/storage/sdcard0/Download/HTTrack/Websites/oldmt/32", "-\\S{9}\\s+\\S+\\s+\\S+\\s+\\d*?\\s+\\S+\\s+\\S+\\s+([^/]+?)\\n", ".*?\\.(bmp|gif|ico|cur|jpeg|jpg|jpe|pcx|png|tiff|tif|psd|dwg|pct|pic|3gpp|3gp|3gpp2|3g2|avi|m4v|mpeg|mpg|mpe|mp4|vob|qt|mov|webm|asf|asx|wm|wmv|wmx|mpa|flv|mkv)");
+
+		//testPattern();
+
+	}
+	
+	public static StringBuilder exec(final String... cmd) {
+		if (cmd == null || cmd.length == 0) {
+			return new StringBuilder();
+		}
+		BufferedReader pout = null;
+		PrintStream pin = null;
+		final StringBuilder sb = new StringBuilder();
+		try {
+			final ProcessBuilder builder = new ProcessBuilder(cmd);
+			builder.directory(new File(System.getenv("EXTERNAL_STORAGE")+"/.aide"));
+			builder.redirectErrorStream(true);
+//			pb.redirectInput(ProcessBuilder.Redirect.from(new File("in.txt")));
+//			pb.redirectOutput(ProcessBuilder.Redirect.to(new File("out.txt")));
+//			pb.redirectError(ProcessBuilder.Redirect.appendTo(new File("error.log")));
+
+			Process p = builder.start();
+			//Process p = Runtime.getRuntime().exec(cmd);  
+			// Execute with input/output
+
+			// Write into the standard input of the subprocess
+			pin = new PrintStream(new BufferedOutputStream(p.getOutputStream()));
+			// Read from the standard output of the subprocess
+			pout = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+			// Pump in input
+//			pin.print("1 2");
+//			pin.close();
+
+			// Save the output in a StringBuffer for further processing
+			int ch;
+			String arrayToString = Util.arrayToString(cmd, false, " ");
+			System.out.println("\n" + "\n" + arrayToString);
+
+			while ((ch = pout.read()) != -1) {
+				sb.append((char)ch);
+				System.out.print((char)ch);
+			}
+
+			//System.out.println(sb);
+//			BufferedReader perr = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+//			while ((ch = perr.read()) != -1) {
+//				System.out.print((char)ch);
+//			}
+			final int exitValue = p.waitFor();
+			//System.out.print(sb);
+			System.out.println(arrayToString + " : exit code " + exitValue);
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		} catch (InterruptedException ex) {
+			ex.printStackTrace();
+		} finally {
+			FileUtil.close(pin, pout);
+		}
+		return sb;
+	}
+
 	public static void close(final Closeable... closable) {
 		if (closable != null && closable.length > 0) {
 			for (Closeable c : closable) {
@@ -50,6 +170,47 @@ public class FileUtil {
 				}
 			}
 		}
+	}
+
+	public static void copy(final File src, final File destFile) throws IOException {
+		is2File(new FileInputStream(src), destFile.getAbsolutePath());
+		destFile.setLastModified(src.lastModified());
+	}
+
+	public static void copyKeepBothAutoRename(final File src, final File destFile) throws IOException {
+		final String keepBothAutoRename = keepBothAutoRename(destFile);
+		is2File(new FileInputStream(src), keepBothAutoRename);
+		new File(keepBothAutoRename).setLastModified(src.lastModified());
+	}
+
+	public static String keepBothAutoRename(final File destFile) {
+		final String name = destFile.getName();
+		final String destParent = destFile.getParent();
+		int inc = 2;
+		String newName = "";
+		String nameWithoutExtension = name;
+		String ext = "";
+		if (destFile.isFile()) {
+			final int lastIndexOfDot = name.lastIndexOf(".");
+			if (lastIndexOfDot >= 0) {
+				nameWithoutExtension = name.substring(0, lastIndexOfDot);
+				ext = name.substring(lastIndexOfDot);
+			}
+		}
+		while (new File(destParent, newName = (nameWithoutExtension + "_" + inc++ + ext)).exists()) {
+		}
+		return destParent + "/" + newName;
+	}
+	
+	public static int is2Barr(final BufferedInputStream in, final byte[] bytes) throws IOException {
+		final int length = bytes.length;
+		int count = 0;
+		int read = 0;
+		while (read < length && (count = in.read(bytes, read, length - read)) > 0) {
+			read += count;
+			//Log.d(TAG, "count " + count);
+		}
+		return read;
 	}
 	
 	public static byte[] is2Barr(final InputStream is, final boolean autoClose) throws IOException {
@@ -116,7 +277,7 @@ public class FileUtil {
 
 	public static String[] readCss(File file)
 	throws FileNotFoundException, IOException {
-		final byte[] byteArr = FileUtil.readFileToMemory(file);
+		final byte[] byteArr = readFileToMemory(file);
 //		String encoding = UniversalDetector.detectCharset(new ByteArrayInputStream(byteArr));
 //		encoding = encoding == null ? "utf-8" : encoding;
 		final String content = new String(byteArr, "utf-8");
@@ -151,9 +312,9 @@ public class FileUtil {
 //	}
 	
 	public static List<File> getFiles(final File f, boolean includeDir, final Pattern includePat, final Pattern excludePat) {
-		ExceptionLogger.d(TAG, "getFiles " + f.getAbsolutePath() + ", includePat " + includePat + ", excludePat " + excludePat);
 		final List<File> fList = new LinkedList<File>();
 		String name;
+		long totalSize = 0;
 		if (f != null) {
 			final LinkedList<File> folderQueue = new LinkedList<File>();
 			name = f.getName();
@@ -165,6 +326,7 @@ public class FileUtil {
 					   || (includePat != null && includePat.matcher(name).matches())
 					   || (excludePat != null && !excludePat.matcher(name).matches())) {
 				fList.add(f);
+				totalSize += f.length();
 				//ExceptionLogger.d(TAG, "getFiles.add " + f.getAbsolutePath());
 			}
 			File fi = null;
@@ -187,6 +349,7 @@ public class FileUtil {
 								|| (includePat != null && includePat.matcher(name).matches())
 								|| (excludePat != null && !excludePat.matcher(name).matches())) {
 								fList.add(f2);
+								totalSize += f2.length();
 								//ExceptionLogger.d(TAG, "getFiles.add2 " + f2.getAbsolutePath());
 							}
 						}
@@ -194,6 +357,7 @@ public class FileUtil {
 				}
 			}
 		}
+		ExceptionLogger.d(TAG, "getFiles " + f.getAbsolutePath() + ", includePat " + includePat + ", excludePat " + excludePat + ", totalSize " + totalSize);
 		return fList;
 	}
 
@@ -260,26 +424,27 @@ public class FileUtil {
 		} else {
 			file.getParentFile().mkdirs();
 		}
-		final File savedFile = new File(dirParent, newName);
-		ExceptionLogger.d(TAG, "savedFile " + savedFile.getAbsolutePath());
-		final FileOutputStream fos = new FileOutputStream(savedFile);
-		final BufferedOutputStream bos = new BufferedOutputStream(fos);
-		final BufferedInputStream bis = new BufferedInputStream(is);
-		final byte[] barr = new byte[65536];
-		int read = 0;
-		int size = 0;
-		try {
-			while ((read = bis.read(barr)) > 0) {
-				bos.write(barr, 0, read);
-				size += read;
-			}
-			ExceptionLogger.d(TAG, newName + " size " + size);
-		} finally {
-			close(bis, is);
-			flushClose(bos);
-			flushClose(fos);
-		}
-		return savedFile.getName();
+		is2File(is, dirParent + newName);
+//		final File savedFile = new File(dirParent, newName);
+//		ExceptionLogger.d(TAG, "savedFile " + savedFile.getAbsolutePath());
+//		final FileOutputStream fos = new FileOutputStream(savedFile);
+//		final BufferedOutputStream bos = new BufferedOutputStream(fos);
+//		final BufferedInputStream bis = new BufferedInputStream(is);
+//		final byte[] barr = new byte[65536];
+//		int read = 0;
+//		int size = 0;
+//		try {
+//			while ((read = bis.read(barr)) > 0) {
+//				bos.write(barr, 0, read);
+//				size += read;
+//			}
+//			ExceptionLogger.d(TAG, newName + " size " + size);
+//		} finally {
+//			close(bis, is);
+//			flushClose(bos);
+//			flushClose(fos);
+//		}
+		return newName;//savedFile.getName();
 	}
 
 	public static void isAppendFile(final InputStream is, final String fileName) throws IOException {
@@ -301,9 +466,14 @@ public class FileUtil {
 	public static void is2File(final InputStream is, final String fileName) throws IOException {
 		ExceptionLogger.d(TAG, "is2File " + is + ", " + fileName);
 		final File file = new File(fileName);
-		file.getParentFile().mkdirs();
-		final File tempFile = new File(fileName + ".tmp");
-		final FileOutputStream fos = new FileOutputStream(tempFile);
+		final File parentFile = file.getParentFile();
+		if (!parentFile.exists()) {
+			parentFile.mkdirs();
+		}
+		if (file.exists() && !file.delete()) {
+			throw new IOException("Can't delete " + fileName);
+		}
+		final FileOutputStream fos = new FileOutputStream(file);
 		final BufferedOutputStream bos = new BufferedOutputStream(fos);
 		final BufferedInputStream bis = new BufferedInputStream(is);
 		final byte[] barr = new byte[32768];
@@ -315,8 +485,7 @@ public class FileUtil {
 		} finally {
 			close(is, bis);
 			flushClose(bos, fos);
-			file.delete();
-			tempFile.renameTo(file);
+			//tempFile.renameTo(file);
 		}
 	}
 
@@ -333,7 +502,45 @@ public class FileUtil {
 		flushClose(fos);
 	}
 	
+	public static boolean compareFileContent(final File f1, final File f2) throws IOException {
+		//Log.d("compare file ", f1.getName() + " and " + f2.getName());
+		final long len = f1.length();
+		if (len != f2.length()) {
+			return false;
+		} else if (len == 0 || f1.equals(f2)) {
+			return true;
+		}
+		FileInputStream fis1 = null;
+		FileInputStream fis2 = null;
+		BufferedInputStream bis1 = null;
+		BufferedInputStream bis2 = null;
+		try {
+			fis1 = new FileInputStream(f1);
+			fis2 = new FileInputStream(f2);
+			bis1 = new BufferedInputStream(fis1);
+			bis2 = new BufferedInputStream(fis2);
 
+			final int BUFFER_SIZE = 65536;
+			final byte[] bArr1 = new byte[BUFFER_SIZE];
+			final byte[] bArr2 = new byte[BUFFER_SIZE];
+
+			int read = 0;
+			long counter = 0;
+			int i;
+			while (counter < len && (read = is2Barr(bis1, bArr1)) == is2Barr(bis2, bArr2)) {
+				counter += read;
+				for (i = 0; i < read; i++) {
+					if (bArr1[i] != bArr2[i]) {
+						return false;
+					}
+				}
+			} 
+			return true;
+		} finally {
+			close(bis1, bis2, fis1, fis2);
+		}
+	}
+	
 	public static String getPathHash(final String filepath) {
 		try {
 			final MessageDigest md = MessageDigest.getInstance("MD5");
@@ -371,11 +578,16 @@ public class FileUtil {
 	/**
 	 0: total length
 	 1: number of files
-	 2: number of directories
+	 2: number of folders
+	 3: list of files
 	 */
-	public static final long[] getDirSize(final File f, final Pattern includePat, final Pattern excludePat) {
+	public static final Object[] getDirSize(final File f, final boolean includeDir, final Pattern includePat, final Pattern excludePat) {
 		String name;
-		final long[] l = new long[]{0, 0, 0};
+		final Object[] l = new Object[4];
+		long length = 0;
+		long files = 0;
+		long folders = 0;
+		List<File> lf = new LinkedList<>();
 		if (f.isFile()) {
 			name = f.getName();
 			if ((includePat == null && excludePat == null)
@@ -383,13 +595,18 @@ public class FileUtil {
 				&& includePat.matcher(name).matches() && !excludePat.matcher(name).matches())
 				|| (includePat != null && includePat.matcher(name).matches())
 				|| (excludePat != null && !excludePat.matcher(name).matches())) {
-				l[0] += f.length();
-				l[1]++;
+				length += f.length();
+				files++;
+				lf.add(f);
 				//ExceptionLogger.d(TAG, "getFiles.add2 " + f2.getAbsolutePath());
 			}
 		} else if (f.isDirectory()) {
 			final LinkedList<File> folderQueue = new LinkedList<File>();
-			folderQueue.add(f);
+			folderQueue.push(f);
+			folders++;
+			if (includeDir) {
+				lf.add(f);
+			}
 			File fi = null;
 			File[] fs;
 			while (folderQueue.size() > 0) {
@@ -399,7 +616,10 @@ public class FileUtil {
 					for (File f2 : fs) {
 						if (f2.isDirectory()) {
 							folderQueue.push(f2);
-							l[2]++;
+							folders++;
+							if (includeDir) {
+								lf.add(f2);
+							}
 						} else {
 							name = f2.getName();
 							if ((includePat == null && excludePat == null)
@@ -407,14 +627,19 @@ public class FileUtil {
 								&& includePat.matcher(name).matches() && !excludePat.matcher(name).matches())
 								|| (includePat != null && includePat.matcher(name).matches())
 								|| (excludePat != null && !excludePat.matcher(name).matches())) {
-								l[0] += f2.length();
-								l[1]++;
+								length += f2.length();
+								files++;
+								lf.add(f2);
 								//ExceptionLogger.d(TAG, "getFiles.add2 " + f2.getAbsolutePath());
 							}
 						}
 					}
 			}
 		}
+		l[0] = length;
+		l[1] = files;
+		l[2] = folders;
+		l[3] = lf;
 		return l;
 	}
 }

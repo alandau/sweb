@@ -1,12 +1,14 @@
 package net.gnu.util;
 
-import java.util.regex.Pattern;
+import java.math.BigInteger;
 import java.text.DateFormat;
+import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
-import java.text.DecimalFormat;
+import java.util.Collection;
+import java.util.Map;
 import java.util.regex.Matcher;
-import java.math.BigInteger;
+import java.util.regex.Pattern;
 
 public class Util {
 
@@ -24,6 +26,89 @@ public class Util {
 
 	public static final String SPECIAL_CHAR_PATTERNSTR = "([{}^$.\\[\\]|*+?()\\\\])";
 	public static final Pattern numPat = Pattern.compile("([^\\d]*?)(\\d+)([^\\d]*?)");
+
+	public static String mapToString(final Map<?, ?> list, final boolean number, final String sep) {
+		if (list == null) {
+			return "";
+		}
+		final StringBuilder sb = new StringBuilder();
+		int len = list.size() - 1;
+		int c = 0;
+		if (!number) {
+			for (Map.Entry obj : list.entrySet()) {
+				sb.append(obj.getKey());
+				sb.append("=");
+				sb.append(obj.getValue());
+				if (c++ < len) {
+					sb.append(sep);
+				}
+			}
+		} else {
+			int counter = 0;
+			for (Map.Entry obj : list.entrySet()) {
+				sb.append(++counter + ": ");
+				sb.append(obj.getKey());
+				sb.append("=");
+				sb.append(obj.getValue());
+				if (c++ < len) {
+					sb.append(sep);
+				}
+			}
+		}
+		return sb.toString();
+	}
+
+	public static String collectionToString(final Collection<?> list, final boolean number, final String sep) {
+		if (list == null) {
+			return "";
+		}
+		final StringBuilder sb = new StringBuilder();
+		int len = list.size() - 1;
+		int c = 0;
+		if (!number) {
+			for (Object obj : list) {
+				sb.append(obj);
+				if (c++ < len) {
+					sb.append(sep);
+				}
+			}
+		} else {
+			int counter = 0;
+			for (Object obj : list) {
+				sb.append(++counter + ": ").append(obj);
+				if (c++ < len) {
+					sb.append(sep);
+				}
+			}
+		}
+		return sb.toString();
+	}
+
+	public static String arrayToString(final Object[] list, final boolean number, final String sep) {
+		if (list == null) {
+			return "";
+		}
+		final StringBuilder sb = new StringBuilder();
+		int len = list.length - 1;
+		int c = 0;
+		if (!number) {
+			for (Object obj : list) {
+				sb.append(obj);
+				if (c++ < len) {
+					sb.append(sep);
+				}
+			}
+		} else {
+			int counter = 0;
+			for (Object obj : list) {
+				sb.append(++counter + ": ").append(obj);
+				if (c++ < len) {
+					sb.append(sep);
+				}
+			}
+		}
+		return sb.toString();
+	}
 
 	public static String replaceAll(String s, String as[], String as1[]) {
 		//long millis = System.currentTimeMillis();
