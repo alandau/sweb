@@ -51,25 +51,20 @@ public class SevenZInputStream extends InputStream {
     public long skip(final long n) throws IOException {
 		ExceptionLogger.d(TAG, "skip   " + Util.nf.format(n));
 		long k = length - pos;
-        if (n < k) {
-            k = n < 0 ? 0 : n;
-        }
-		final long k2 = k;
+        final long possibleSkipRange = (n < 0) ? 0 : (n < k) ? n : k;
+        
+		k = possibleSkipRange;
 		if (k > 0) {
 			final int LEN = 4096;
 			final byte[] barr = new byte[LEN];
 			int read = 0;
-			try {
-			while ((read = sevenZFile.read(barr, 0, Math.min(LEN, (int)k))) != -1) {
+			while (k > 0 && (read = sevenZFile.read(barr, 0, (int)(k > LEN ? LEN : k))) > 0) {
 				k -= read;
 			}
-			} catch (IOException e) {
-				ExceptionLogger.e(TAG, e);
-			}
-			pos += k2;
+			pos += (possibleSkipRange - k);
 		}
-		ExceptionLogger.d(TAG, "skipped " + Util.nf.format(k2));
-		return k2;
+		ExceptionLogger.d(TAG, "skipped " + Util.nf.format(possibleSkipRange));
+		return possibleSkipRange - k;
 	}
 
 	@Override
@@ -86,13 +81,13 @@ public class SevenZInputStream extends InputStream {
 
 	@Override
     public synchronized void mark(final int readlimit) {
-		ExceptionLogger.d(TAG, "mark " + readlimit);
+		ExceptionLogger.d(TAG, "UnsupportedOperationException mark " + readlimit);
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
     public synchronized void reset() {
-		ExceptionLogger.d(TAG, "reset");
+		ExceptionLogger.d(TAG, "UnsupportedOperationException reset");
 		throw new UnsupportedOperationException();
 	}
 

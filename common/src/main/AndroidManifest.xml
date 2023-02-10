@@ -1,24 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="net.gnu.common" >
+<manifest
+	xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="net.gnu.common"
+	>
 
 	<uses-permission android:name="android.permission.WRITE_MEDIA_STORAGE" />
 	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 	<!--@android:style/Theme.Material.Light-->
-    <!--<application
+    <application
         android:allowBackup="true"
-        android:label="common"
+        android:label="Common"
         android:theme="@android:style/Theme.Holo.Light"
-		android:resizeableActivity = "true">
-        <activity
+		tools:replace="android:label,android:theme"
+	>
+        <!--<activity
             android:name=".MainActivity"
             android:label="common" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>-->
+
+        <service android:name=".NotifyingService" />
+
+        <activity android:name=".NotifyingController"
+			android:label="App/Notification/Notifying Service Controller">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.SAMPLE_CODE" />
+            </intent-filter>
         </activity>
-    </application>-->
+        
+    </application>
 
 </manifest>

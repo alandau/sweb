@@ -30,7 +30,7 @@ public class ExceptionLogger {
 			file.getParentFile().mkdirs();
 			printWriter = new PrintWriter(new FileWriter(file, false));
             //d(TAG, System.getenv());
-        } catch (IOException e) {
+        } catch (Throwable e) {
 			ExceptionLogger.e(TAG, e);
 		}
 	}

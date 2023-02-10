@@ -77,10 +77,9 @@ public class CompressedFile implements Serializable {
 //			new File("/storage/emulated/0/.mixplorer/util256.zip"),
 //			new File("/storage/emulated/0/.mixplorer/util-noenc.zip"),
 //			new File("/storage/emulated/0/.mixplorer/util-noenc.7z"),
-//			new File("/storage/emulated/0/.mixplorer/configure.zip"),
-//			new File("/storage/emulated/0/.mixplorer/JavaScriptAPI.zip"),
-//			new File("/storage/emulated/0/.mixplorer/framework.7z"),
-			new File("/storage/0067-7E11/Downloads/Yt2.7z"),
+			new File("/storage/emulated/0/.mixplorer/configure.zip"),
+			//new File("/storage/emulated/0/.mixplorer/JavaScriptAPI.zip"),
+			//new File("/storage/emulated/0/.mixplorer/framework.7z"),
 			
 		};
 		File sevenZFile = new File("/storage/emulated/0/.mixplorer/dest.7z");

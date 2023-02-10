@@ -44,6 +44,7 @@ public class FileUtil {
 		System.out.println(Util.mapToString(System.getenv(), true, "\n"));
 		exec("pwd");
 
+		exec("ls", "-lR", "/data/data/com.aide.ui/");
 		//System.out.println(System.getenv("SECONDARY_STORAGE"));
 		System.out.println(System.getenv("EXTERNAL_STORAGE"));
 		
@@ -55,7 +56,7 @@ public class FileUtil {
 			}
 		}
 		exec("/system/bin/cp", "-f", "/sdcard/.aide/com.aide.ui_preferences.xml", "/data/data/com.aide.ui/shared_prefs");
-		//exec("/system/bin/cp", "-fr", "/data/data/com.aide.ui/shared_prefs/com.aide.ui_preferences.xml", "/sdcard/.aide");
+		//exec("/system/bin/cp", "-f", "/data/data/com.aide.ui/shared_prefs/com.aide.ui_preferences.xml", "/sdcard/.aide");
 		
 		System.out.println(new File("/storage/emulated/0/AppProjects/").getAbsolutePath());
 		
