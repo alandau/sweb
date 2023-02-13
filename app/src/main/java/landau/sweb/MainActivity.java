@@ -161,6 +161,7 @@ import org.apache.commons.compress.PasswordRequiredException;
 import org.geometerplus.android.fbreader.DictionaryUtil;
 import org.json.JSONArray;
 import org.json.JSONException;
+import java.net.URLEncoder;
 
 public class MainActivity extends ParentActivity {
 	private PowerManager.WakeLock mWakeLock;
@@ -4070,6 +4071,55 @@ public class MainActivity extends ParentActivity {
 												}
 											}
 										}));
+						actions.add(new MenuAction("Media List", 0, new Runnable() {
+											@Override
+											public void run() {
+												try {
+													final String content = new String(FileUtil.readFileToMemory(new File(currentTab.extractPath + "/site_map_" + currentTab.md5File)));
+													final Tab currentTab = getCurrentTab();
+													final ArrayList<MenuAction> actions = new ArrayList<>(9);
+													final AlertDialog dlg = new AlertDialog.Builder(MainActivity.this)
+														.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+															@Override
+															public void onClick(final DialogInterface dialog, final int which) {
+																dialog.dismiss();
+															}
+														})
+														.setTitle("Media List")
+														.create();
+													final MenuActionArrayAdapter favAdapter = new MenuActionArrayAdapter(
+														MainActivity.this,
+														android.R.layout.simple_list_item_1,
+														actions);
+													final String[] ss = content.split("\n");
+													for (String s1 : ss) {
+														if (MEDIA_PATTERN.matcher(s1).matches()) {
+															final String s = s1;
+															actions.add(new MenuAction(s, 0, new Runnable() {
+																				@Override
+																				public void run() {
+																					currentTab.webview.loadUrl("file://" + currentTab.extractPath + "/" + s);
+																					dlg.dismiss();
+																				}
+																			}, new MyBooleanSupplier() {
+																				@Override
+																				public boolean getAsBoolean() {
+																					return URLDecoder.decode(currentTab.webview.getUrl().replaceAll("file:/+", "/")).equals(currentTab.extractPath + "/" + s);
+																				}
+																			}));
+														}
+													}
+													final ListView tv = new ListView(MainActivity.this);
+													tv.setAdapter(favAdapter);
+													dlg.setView(tv);
+													dlg.show();
+												} catch (IOException e) {
+													ExceptionLogger.e(TAG, e);
+													Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_LONG).show();
+												}
+												dialog.dismiss();
+											}
+										}));
 						actions.add(new MenuAction("Site Map", 0, new Runnable() {
 											@Override
 											public void run() {
@@ -5265,7 +5315,8 @@ public class MainActivity extends ParentActivity {
 	
 	@Override
     protected void onResume() {
-        super.onResume();
+        ExceptionLogger.d(TAG, "onResume");
+		super.onResume();
 		if (printJob != null && printBtnPressed) {
             if (printJob.isCompleted()) {
                 AndroidUtils.toast(this, "Printing Completed");
@@ -5301,7 +5352,8 @@ public class MainActivity extends ParentActivity {
 	
     @Override
     protected void onDestroy() {
-        super.onDestroy();
+        ExceptionLogger.d(TAG, "onDestroy");
+		super.onDestroy();
 		unregisterReceiver(onEvent);
 		if (placesDb != null) {
             placesDb.close();
