@@ -162,6 +162,10 @@ import org.geometerplus.android.fbreader.DictionaryUtil;
 import org.json.JSONArray;
 import org.json.JSONException;
 import java.net.URLEncoder;
+import android.widget.LinearLayout;
+import java.io.Serializable;
+import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
 
 public class MainActivity extends ParentActivity {
 	private PowerManager.WakeLock mWakeLock;
@@ -219,7 +223,7 @@ public class MainActivity extends ParentActivity {
 //		}
 //	}
 	
-	private static class CrawlerInfo implements Comparable<CrawlerInfo> {
+	private static class CrawlerInfo implements Serializable, Comparable<CrawlerInfo> {
 
 		final String url;
 		final int level;
@@ -247,7 +251,7 @@ public class MainActivity extends ParentActivity {
 			return url.compareTo(p1.url);
 		}
 	}
-	private static class DownloadInfo implements Comparable<DownloadInfo> {
+	private static class DownloadInfo implements Serializable, Comparable<DownloadInfo> {
 		String url;
 		String status;
 		String savedPath;
@@ -272,23 +276,27 @@ public class MainActivity extends ParentActivity {
 			return url.compareTo(p1.url);
 		}
 	}
-	class Tab {
-		Tab(CustomWebView w, boolean isIncognito) {
+	static class Tab implements Serializable {
+		Tab() {
+        }
+		Tab(final CustomWebView w, final boolean isIncognito) {
             this.webview = w;
 			this.isIncognito = isIncognito;
 			this.webview.tab = this;
         }
-		String userAgent = MainActivity.this.userAgentString;
-		WebView printWeb;
+		String userAgent;
+		String textEncoding;
+		transient WebView printWeb;
 		boolean saveAndClose = false;
 		boolean openAndClose = false;
 		boolean loading;
-        CustomWebView webview;
+        transient CustomWebView webview;
+		String url;
         boolean isDesktop;
 		long lastDownload = -1L;
 		String sourceName;
 		boolean isIncognito = false;
-		LinkedList<String> requestsLog = new LinkedList<>();
+		transient LinkedList<String> requestsLog = new LinkedList<>();
 		CharSequence recentConstraint;
 		boolean useAdBlocker;
 		boolean enableCookies;
@@ -299,7 +307,7 @@ public class MainActivity extends ParentActivity {
 		boolean doNotTrack;
 		boolean javaScriptCanOpenWindowsAutomatically;
 		boolean textReflow;
-		Bitmap favicon;
+		transient Bitmap favicon;
 		boolean blockImages;
 		boolean blockMedia;
 		boolean blockFonts;
@@ -312,20 +320,20 @@ public class MainActivity extends ParentActivity {
 		ArrayList<String> resourcesList = new ArrayList<>();
 		String includeResPatternStr = ".*?\\b(jpg|jpeg|webp|gif|css|js|ico).*?";
 		String excludeResPatternStr = ".*?(44884218_345707102882519_2446069589734326272_n.jpg|68d99ba29cc8.png|1b47f9d0e595.png|bcd90c1d4868.png|1075ddfe0f68.png|77929eccc37e.png|.*?\\.png).*?";
-		Pattern includeResPattern;
-		Pattern excludeResPattern;
+		transient Pattern includeResPattern;
+		transient Pattern excludeResPattern;
 		String batchLinkPatternStr = "";
 		int from = 0;
 		int to = 0;
 		String crawlPatternStr = "";
 		String excludeCrawlPatternStr = ".*?(tel|mailto|javascript):.*? .*?(feed|comment|'|google-analytics.com).* [^\"]*?\\.(pdf|docx?|xlsx?|pptx?|epub|prc|mobi|fb2|exe|apk|bin|7z|tgz|tbz2|zstd|zip|bz2|gz|avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram|m4a|3gpp?)[^\"]*?";
-		Pattern crawlPattern = null;
-		Pattern excludeCrawlPattern = null;
+		transient Pattern crawlPattern = null;
+		transient Pattern excludeCrawlPattern = null;
 		boolean excludeLinkFirst;
 		boolean excludeResFirst;
 		String replace = "";
 		String by = "";
-		Pattern[] replacePat;
+		transient Pattern[] replacePat;
 		String[] bys;
 		
 		TreeSet<CrawlerInfo> batchDownloadSet = new TreeSet<>();
@@ -347,14 +355,14 @@ public class MainActivity extends ParentActivity {
 		String lastUrl = "";
 		int curLevel = 0;
 		
-		final Handler handler = new Handler();
-		Runnable autoRerun;
+		transient Handler handler = new Handler();
+		transient Runnable autoRerun;
 		volatile ArrayList<DownloadInfo> downloadInfos = new ArrayList<>();
 		volatile LinkedList<DownloadInfo> downloadedInfos = new LinkedList<>();
-		LogArrayAdapter logAdapter;
+		transient LogArrayAdapter logAdapter;
 		boolean showRequestList = false;
 		boolean started = false;
-		Utils utils = null;
+		transient Utils utils = null;
 		String chmFilePath = "";
 		String extractPath;
 		String md5File;
@@ -362,7 +370,7 @@ public class MainActivity extends ParentActivity {
 		ArrayList<String> listSite;
 		ArrayList<String> listBookmark;
 		int historyIndex = -1;
-		CustomDialogBookmark bookmarkDialog;
+		transient CustomDialogBookmark bookmarkDialog;
 		boolean searchChanged;
 		volatile boolean onEnterPassword = false;
 		boolean passwordOK = false;
@@ -490,6 +498,11 @@ public class MainActivity extends ParentActivity {
 	private View searchPane;
 	private ImageView goStop;
 	private ProgressBar progressBar;
+	private ListView tabsListView;
+	private LinearLayout tabDialog;
+	private ImageView undoCloseBtn;
+	private ImageView newTabBtn;
+	private ArrayAdapter<Tab> tabAdapter;
 	private ViewGroup toolbar;
     private boolean isNightMode;
     private boolean isFullscreen;
@@ -501,7 +514,8 @@ public class MainActivity extends ParentActivity {
     private final WebChromeClient.CustomViewCallback[] fullScreenCallback = new WebChromeClient.CustomViewCallback[1];
     private EditText searchEdit;
     private TextView searchCount;
-    private TextView txtTabCount;
+	private View tabView;
+	private TextView txtTabCount;
 	private ImageView blockImagesImageView;
 	private ImageView searchFindPrev;
 	private ImageView searchFindNext;
@@ -576,7 +590,8 @@ public class MainActivity extends ParentActivity {
 	private ArrayList<UserScript> userScriptList;
 	private boolean showHistoryInSpeedDial = true;
 	static boolean autoLookup = false;
-	
+	private boolean restoreTabs;
+    
 	private Runnable swipeLeft = new FlingLeft();
 	private Runnable swipeRight = new FlingRight();
 	private boolean fullScreenshot = false;
@@ -597,15 +612,25 @@ public class MainActivity extends ParentActivity {
 	};
 	private boolean secure;
 	
+	private OnFocusChangeListener tabsListViewFocusChange = new View.OnFocusChangeListener() {
+		@Override
+		public void onFocusChange(final View v, final boolean hasFocus) {
+			//ExceptionLogger.d(TAG, "onFocusChange " + v + " hasFocus " + hasFocus);
+			if (hasFocus && v != tabView) {
+				tabDialog.setVisibility(View.GONE);
+			}
+		}
+	};
+	
 	private static class MenuAction {
 
-        static HashMap<String, MenuAction> actions = new HashMap<>();
+        final static HashMap<String, MenuAction> actions = new HashMap<>();
 
-        private MenuAction(String title, int icon, Runnable action) {
+        private MenuAction(final String title, final int icon, final Runnable action) {
             this(title, icon, action, null);
         }
 
-        private MenuAction(String title, int icon, Runnable action, MyBooleanSupplier getState) {
+        private MenuAction(final String title, final int icon, final Runnable action, MyBooleanSupplier getState) {
             this.title = title;
             this.icon = icon;
             this.action = action;
@@ -618,10 +643,10 @@ public class MainActivity extends ParentActivity {
             return title;
         }
 
-        private String title;
-        private int icon;
-        private Runnable action;
-        private MyBooleanSupplier getState;
+        private final String title;
+        private final int icon;
+        private final Runnable action;
+        private final MyBooleanSupplier getState;
     }
 
     // java.util.function.BooleanSupplier requires API 24
@@ -1888,6 +1913,13 @@ public class MainActivity extends ParentActivity {
 		new MenuAction("Show tabs", R.drawable.tabs, new Runnable() {
 				@Override
 				public void run() {
+					if (tabAdapter == null) {
+						tabAdapter = new ArrayAdapterWithCurrentItemClose<Tab>(
+							MainActivity.this,
+							R.layout.tab_item,
+							tabs);
+						tabsListView.setAdapter(tabAdapter);
+					}
 					showOpenTabs();
 				}
 			}),
@@ -1907,6 +1939,18 @@ public class MainActivity extends ParentActivity {
 						newBackgroundTab("about:blank", false, null);
 						closeTab(getCurrentWebView(), currentTabIndex);
 					}
+				}
+			}),
+		new MenuAction("Restore tabs on startup", R.drawable.tab_new, new Runnable() {
+				@Override
+				public void run() {
+					restoreTabs = !restoreTabs;
+					prefs.edit().putBoolean("restoreTabs", restoreTabs).apply();
+				}
+			}, new MyBooleanSupplier() {
+				@Override
+				public boolean getAsBoolean() {
+					return restoreTabs;
 				}
 			}),
 	};
@@ -2211,6 +2255,7 @@ public class MainActivity extends ParentActivity {
 									}
 								} else {
 									getCurrentWebView().getSettings().setDefaultTextEncodingName(encode);
+									getCurrentTab().textEncoding = textEncoding;
 								}
 							}
 						}, new MyBooleanSupplier() {
@@ -2533,6 +2578,7 @@ public class MainActivity extends ParentActivity {
     private CustomWebView createWebView(final Bundle bundle) {
         
 		final CustomWebView webview = new CustomWebView(this);
+		webview.setOnFocusChangeListener(tabsListViewFocusChange);
 		if (bundle != null) {
             webview.restoreState(bundle);
         }
@@ -2714,6 +2760,8 @@ public class MainActivity extends ParentActivity {
 					}
 					//view.evaluateJavascript("window.alert = \"\";", null);
 					injectCSS(view);
+					if (tabAdapter != null)
+						tabAdapter.notifyDataSetChanged();
 				}
 
 				@Override
@@ -3665,6 +3713,7 @@ public class MainActivity extends ParentActivity {
 		//enableWVCache(webview);
 		
         final Tab tab = new Tab(webview, isIncognito);
+		tab.userAgent = MainActivity.this.userAgentString;
 		tab.blockCSS = blockCSS;
         tab.blockFonts = blockFonts;
         tab.blockImages = blockImages;
@@ -3746,7 +3795,7 @@ public class MainActivity extends ParentActivity {
         currentTabIndex = tab;
         final Tab currentTab = getCurrentTab();
 		currentTab.webview.setVisibility(View.VISIBLE);
-        if (currentTab.sourceName != null) {
+		if (currentTab.sourceName != null) {
 			final String toString = Uri.fromFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + currentTab.sourceName)).toString();
 			//ExceptionLogger.d(TAG, getCurrentTab().sourceName + ", " + toString);
 			loadUrl(toString, currentTab.webview);
@@ -3786,7 +3835,7 @@ public class MainActivity extends ParentActivity {
 		} else {
 			et.setCompoundDrawables(null, null, null, null);
 		}
-		currentTab.webview.requestFocus();
+		//currentTab.webview.requestFocus();
 		requestList.setAdapter(currentTab.logAdapter);
 		if (currentTab.showRequestList) {
 			requestList.setVisibility(View.VISIBLE);
@@ -3796,6 +3845,8 @@ public class MainActivity extends ParentActivity {
 			requestList.setVisibility(View.GONE);
 		}
 		toolbar.setVisibility(View.VISIBLE);
+		if (tabAdapter != null)
+			tabAdapter.notifyDataSetChanged();
 	}
 
     private void updateFullScreen() {
@@ -5151,6 +5202,7 @@ public class MainActivity extends ParentActivity {
 				public void onFocusChange(View v, boolean hasFocus) {
 					final Tab currentTab = getCurrentTab();
 					if (hasFocus) {
+						tabDialog.setVisibility(View.GONE);
 						if (!currentTab.loading) {
 							et.setTag(currentTab.webview.getUrl());
 							et.setText(currentTab.webview.getUrl());
@@ -5282,6 +5334,7 @@ public class MainActivity extends ParentActivity {
 		autoLookup = prefs.getBoolean("autoLookup", false);
 		SCRAP_PATH = downloadLocation + "/sweb";
 		cacheOffline = prefs.getBoolean("cacheOffline", false);
+		restoreTabs = prefs.getBoolean("restoreTabs", false);
 		ExceptionLogger.d(TAG, "Cache dir " + SCRAP_PATH);
 		new Thread(new Runnable() {
 				@Override
@@ -5306,11 +5359,94 @@ public class MainActivity extends ParentActivity {
 		setupToolbar(toolbar);
 		et.setSelected(false);
         
+		if (restoreTabs) {
+			FileInputStream fis = null;
+			BufferedInputStream bis = null;
+			ObjectInputStream ois = null;
+			try {
+				fis = new FileInputStream(new File(getExternalFilesDir(null), "tabs.ser"));
+				bis = new BufferedInputStream(fis);
+				ois = new ObjectInputStream(bis);
+				final ArrayList<Tab> ts = (ArrayList<Tab>) ois.readObject();
+				for (Tab tab : ts) {
+					if (!tab.isIncognito) {
+						tab.webview = createWebView(null);
+						tab.webview.tab = tab;
+						tab.requestsLog = new LinkedList<>();
+						tab.handler = new Handler();
+						final WebSettings settings = tab.webview.getSettings();
+						settings.setUserAgentString(tab.userAgent);
+						settings.setUseWideViewPort(tab.isDesktop);
+						settings.setJavaScriptEnabled(tab.javaScriptEnabled);
+						settings.setJavaScriptCanOpenWindowsAutomatically(tab.javaScriptCanOpenWindowsAutomatically);
+						
+						settings.setAllowContentAccess(allowContentAccess);
+						settings.setMediaPlaybackRequiresUserGesture(mediaPlaybackRequiresUserGesture);
+						settings.setLoadWithOverviewMode(tab.loadWithOverviewMode);
+						settings.setMixedContentMode(mixedContentMode);
+						settings.setOffscreenPreRaster(tab.offscreenPreRaster);
+						settings.setAppCachePath(getExternalFilesDir("cache").getAbsolutePath());
+						settings.setDatabasePath(getExternalFilesDir("db").getAbsolutePath());
+
+						settings.setAllowFileAccess(allowFileAccess);
+						settings.setAllowFileAccessFromFileURLs(allowFileAccessFromFileURLs);
+						settings.setAllowUniversalAccessFromFileURLs(allowUniversalAccessFromFileURLs);
+						settings.setBlockNetworkLoads(tab.blockNetworkLoads);
+						settings.setDefaultTextEncodingName(tab.textEncoding);
+						if (autoHideToolbar) {
+							tab.webview.setOnTouchListener(new TouchListener());
+						}
+						if (autoHideAddressbar) {
+							tab.webview.setOnTouchListener(new TouchListener());
+						}
+						setRenderMode(tab.webview, renderMode);
+						tab.webview.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+						tab.webview.setVisibility(View.GONE);
+						//enableWVCache(webview);
+
+						settings.setAppCacheEnabled(appCacheEnabled);
+						settings.setDomStorageEnabled(domStorageEnabled);
+						settings.setDatabaseEnabled(databaseEnabled);
+						settings.setGeolocationEnabled(geolocationEnabled);
+						settings.setSaveFormData(saveFormData);
+						settings.setCacheMode(cacheMode);
+						final CookieManager cookiesInstance = CookieManager.getInstance();
+						cookiesInstance.setAcceptThirdPartyCookies(tab.webview, tab.accept3PartyCookies);
+						cookiesInstance.setAcceptCookie(tab.enableCookies);
+						
+						tabs.add(tabs.size()==0?0:currentTabIndex+1, tab);
+						webviews.addView(tab.webview);
+						setTabCountText(tabs.size());
+						switchToTab(tabs.size()==1?0:currentTabIndex+1);
+						loadUrl(tab.url, tab.webview);
+					}
+				}
+				
+			} catch (Throwable t) {
+				ExceptionLogger.e(TAG, t);
+			} finally {
+				FileUtil.close(ois, bis, fis);
+			}
+		}
 		loadIntent(getIntent());
         final WebView currentWebView = getCurrentWebView();
 		currentWebView.setVisibility(View.VISIBLE);
         onNightModeChange();
 		gestureDetector = new GestureDetector(this, new CustomGestureListener());
+		
+		tabDialog = (LinearLayout)findViewById(R.id.tabDialog);
+		undoCloseBtn = (ImageView)findViewById(R.id.undoCloseBtn);
+		tabsListView = (ListView)findViewById(R.id.tabList);
+		faviconImage.setOnFocusChangeListener(tabsListViewFocusChange);
+		goStop.setOnFocusChangeListener(tabsListViewFocusChange);
+		newTabBtn = (ImageView)findViewById(R.id.new_tab_button);
+		newTabBtn.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View p1) {
+					newTabBtn.requestFocus();
+					newForegroundTab("", false, null);
+				}
+		});
     }
 	
 	@Override
@@ -5339,15 +5475,31 @@ public class MainActivity extends ParentActivity {
     protected void onPause() {
         ExceptionLogger.d(TAG, "onPause");
 		super.onPause();
+		FileOutputStream fos = null;
+		BufferedOutputStream bos = null;
+		ObjectOutputStream oos = null;
         try {
 			for (Tab t : tabs) {
+				final String url = t.webview.getUrl();
+				if (restoreTabs && url.trim().length() > 0 && !url.equals("")) {
+					t.url = url;
+				}
 				if (t.md5File != null) {
 					Utils.saveBookmark(t.extractPath, t.md5File, t.listBookmark);
 					saveHistory(t);//.extractPath, t.md5File, t.historyIndex);
 				}
 			}
-		} catch (Exception ignored) {
-        }
+			if (restoreTabs) {
+				fos = new FileOutputStream(new File(getExternalFilesDir(null), "tabs.ser"));
+				bos = new BufferedOutputStream(fos);
+				oos = new ObjectOutputStream(bos);
+				oos.writeObject(tabs);
+			}
+		} catch (Throwable ignored) {
+			ExceptionLogger.e(TAG, ignored);
+        } finally {
+			FileUtil.flushClose(oos, bos, fos);
+		}
     }
 	
     @Override
@@ -5528,13 +5680,16 @@ public class MainActivity extends ParentActivity {
     private void maybeSetupTabCountTextView(final View view, final String name) {
         if ("Show tabs".equals(name)) {
             txtTabCount = (TextView) view.findViewById(R.id.txtText);
-        }
-		if ("Block Images".equals(name)) {
-			blockImagesImageView = (ImageView) view.findViewById(R.id.btnSwipeUp);//(ImageView) view.getChildAt(1)
-			if (blockImages) {
-				blockImagesImageView.setImageResource(R.drawable.adblocker);
-			} else {
-				blockImagesImageView.setImageResource(R.drawable.ic_doc_image);
+			tabView = view;
+        } else {
+			view.setOnFocusChangeListener(tabsListViewFocusChange);
+			if ("Block Images".equals(name)) {
+				blockImagesImageView = (ImageView) view.findViewById(R.id.btnSwipeUp);//(ImageView) view.getChildAt(1)
+				if (blockImages) {
+					blockImagesImageView.setImageResource(R.drawable.adblocker);
+				} else {
+					blockImagesImageView.setImageResource(R.drawable.ic_doc_image);
+				}
 			}
 		}
     }
@@ -5570,53 +5725,99 @@ public class MainActivity extends ParentActivity {
     }
 
     void showOpenTabs() {
-		final ArrayAdapter<Tab> adapter = new ArrayAdapterWithCurrentItemClose<Tab>(
-			MainActivity.this,
-			R.layout.tab_item,
-			tabs,
-			currentTabIndex);
-        final AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
-			.setTitle("Tabs")
-			.setAdapter(adapter, new OnClickListener() {
-				public void onClick(DialogInterface dialog, int which) {
-					switchToTab(which);}});
-        if (!closedTabs.isEmpty()) {
-            tabsDialog.setNeutralButton("Undo closed tabs", new OnClickListener() {
-					public void onClick(final DialogInterface dialog, final int which) {
-						final int size = closedTabs.size();
-						final String[] items1 = new String[size];
-						for (int i = 0; i < size; i++) {
-							items1[i] = closedTabs.get(i).title;
+		if (tabDialog.getVisibility() == View.VISIBLE) {
+			tabDialog.setVisibility(View.GONE);
+		} else {
+			tabDialog.setVisibility(View.VISIBLE);
+			if (closedTabs.isEmpty()) {
+				undoCloseBtn.setVisibility(View.GONE);
+			} else {
+				undoCloseBtn.setVisibility(View.VISIBLE);
+				undoCloseBtn.setOnClickListener(new View.OnClickListener() {
+						@Override
+						public void onClick(View p1) {
+							final int size = closedTabs.size();
+							final String[] items1 = new String[size];
+							for (int i = 0; i < size; i++) {
+								items1[i] = closedTabs.get(i).title;
+							}
+							final AlertDialog undoClosedTabsDialog = new AlertDialog.Builder(MainActivity.this)
+								.setTitle("Undo closed tabs")
+								.setItems(items1, new OnClickListener() {
+									public void onClick(DialogInterface dialog, int which1) {
+										TitleAndBundle get = closedTabs.get(which1);
+										final Bundle bundle = get.bundle;
+										closedTabs.remove(which1);
+										newTabFromBundle(bundle, get.isIncognito);
+										switchToTab(currentTabIndex+1);
+									}})
+								.create();
+							undoClosedTabsDialog.getListView().setOnItemLongClickListener(new OnItemLongClickListener() {
+									public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, long id) {
+										undoClosedTabsDialog.dismiss();
+										new AlertDialog.Builder(MainActivity.this)
+											.setTitle("Remove closed tab?")
+											.setMessage(closedTabs.get(position).title)
+											.setNegativeButton("Cancel", new EmptyOnClickListener())
+											.setPositiveButton("Remove", new OnClickListener() {
+												public void onClick(DialogInterface dialog, int which) {
+													closedTabs.remove(position);
+												}})
+											.show();
+										return true;
+									}});
+							undoClosedTabsDialog.show();
 						}
-						final AlertDialog undoClosedTabsDialog = new AlertDialog.Builder(MainActivity.this)
-							.setTitle("Undo closed tabs")
-							.setItems(items1, new OnClickListener() {
-								public void onClick(DialogInterface dialog, int which1) {
-									TitleAndBundle get = closedTabs.get(which1);
-									final Bundle bundle = get.bundle;
-									closedTabs.remove(which1);
-									newTabFromBundle(bundle, get.isIncognito);
-									switchToTab(currentTabIndex+1);
-								}})
-							.create();
-						undoClosedTabsDialog.getListView().setOnItemLongClickListener(new OnItemLongClickListener() {
-								public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, long id) {
-									undoClosedTabsDialog.dismiss();
-									new AlertDialog.Builder(MainActivity.this)
-										.setTitle("Remove closed tab?")
-										.setMessage(closedTabs.get(position).title)
-										.setNegativeButton("Cancel", new EmptyOnClickListener())
-										.setPositiveButton("Remove", new OnClickListener() {
-											public void onClick(DialogInterface dialog, int which) {
-												closedTabs.remove(position);
-											}})
-										.show();
-									return true;
-								}});
-						undoClosedTabsDialog.show();
-					}});
-        }
-        tabsDialog.show();
+					});
+			}
+		}
+//		final ArrayAdapter<Tab> adapter = new ArrayAdapterWithCurrentItemClose<Tab>(
+//			MainActivity.this,
+//			R.layout.tab_item,
+//			tabs,
+//			currentTabIndex);
+//        final AlertDialog.Builder tabsDialog = new AlertDialog.Builder(MainActivity.this)
+//			.setTitle("Tabs")
+//			.setAdapter(adapter, new OnClickListener() {
+//				public void onClick(DialogInterface dialog, int which) {
+//					switchToTab(which);}});
+//		if (!closedTabs.isEmpty()) {
+//            tabsDialog.setNeutralButton("Undo closed tabs", new OnClickListener() {
+//					public void onClick(final DialogInterface dialog, final int which) {
+//						final int size = closedTabs.size();
+//						final String[] items1 = new String[size];
+//						for (int i = 0; i < size; i++) {
+//							items1[i] = closedTabs.get(i).title;
+//						}
+//						final AlertDialog undoClosedTabsDialog = new AlertDialog.Builder(MainActivity.this)
+//							.setTitle("Undo closed tabs")
+//							.setItems(items1, new OnClickListener() {
+//								public void onClick(DialogInterface dialog, int which1) {
+//									TitleAndBundle get = closedTabs.get(which1);
+//									final Bundle bundle = get.bundle;
+//									closedTabs.remove(which1);
+//									newTabFromBundle(bundle, get.isIncognito);
+//									switchToTab(currentTabIndex+1);
+//								}})
+//							.create();
+//						undoClosedTabsDialog.getListView().setOnItemLongClickListener(new OnItemLongClickListener() {
+//								public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, long id) {
+//									undoClosedTabsDialog.dismiss();
+//									new AlertDialog.Builder(MainActivity.this)
+//										.setTitle("Remove closed tab?")
+//										.setMessage(closedTabs.get(position).title)
+//										.setNegativeButton("Cancel", new EmptyOnClickListener())
+//										.setPositiveButton("Remove", new OnClickListener() {
+//											public void onClick(DialogInterface dialog, int which) {
+//												closedTabs.remove(position);
+//											}})
+//										.show();
+//									return true;
+//								}});
+//						undoClosedTabsDialog.show();
+//					}});
+//		}
+//        tabsDialog.show();
     }
 
     void showTabHistory() {
@@ -6719,7 +6920,7 @@ public class MainActivity extends ParentActivity {
 			faviconImage.setColorFilter(textColor, PorterDuff.Mode.SRC_IN);
 			faviconImage.setImageResource(R.drawable.page_info);
 		}
-		currentTab.webview.requestFocus();
+		//currentTab.webview.requestFocus();
 		requestList.setAdapter(currentTab.logAdapter);
 		if (currentTab.showRequestList) {
 			requestList.setVisibility(View.VISIBLE);
@@ -7153,17 +7354,17 @@ public class MainActivity extends ParentActivity {
 		}
 		//ExceptionLogger.log("url2 ", url);
 		final ArrayMap<String, String> requestHeaders = new ArrayMap<String, String>();
-		if (requestSaveData) {
+		if (currentTab.requestSaveData) {
 			requestHeaders.put("Save-Data", "on");
 		} else {
 			requestHeaders.remove("Save-Data");
 		}
-		if (doNotTrack) {
+		if (currentTab.doNotTrack) {
 			requestHeaders.put("DNT", "1");
 		} else {
 			requestHeaders.remove("DNT");
 		}
-		if (removeIdentifyingHeaders) {
+		if (currentTab.removeIdentifyingHeaders) {
 			requestHeaders.put("X-Requested-With", "");
 			requestHeaders.put("X-Wap-Profile", "");
 		}
@@ -7183,7 +7384,7 @@ public class MainActivity extends ParentActivity {
 		if (currentTab == getCurrentTab()) {
 			goStop.setImageResource(R.drawable.stop);
 		}
-		webview.requestFocus();
+		//webview.requestFocus();
 		hideKeyboard();
 	}
 
@@ -7324,13 +7525,13 @@ public class MainActivity extends ParentActivity {
         if (click != null) {
             view.setOnClickListener(new View.OnClickListener() {
 					public void onClick(View v) {
-						getCurrentWebView().requestFocus();
+						v.requestFocus();
 						click.run();}});
         }
         if (longClick != null) {
             view.setOnLongClickListener(new OnLongClickListener() {
 					public boolean onLongClick(View v) {
-						getCurrentWebView().requestFocus();
+						v.requestFocus();
 						longClick.run();
 						return true;
 					}});
@@ -7339,7 +7540,7 @@ public class MainActivity extends ParentActivity {
 		//noinspection AndroidLintClickableViewAccessibility
 		view.setOnTouchListener(new OnTouchListener() {
 				public boolean onTouch(View v, MotionEvent event) {
-					getCurrentWebView().requestFocus();
+					v.requestFocus();
 					return gestureDetector.onTouchEvent(event);}});
     }
 
@@ -7599,7 +7800,7 @@ public class MainActivity extends ParentActivity {
     }
 
     private class ArrayAdapterWithCurrentItemClose<T> extends ArrayAdapter<T> implements View.OnClickListener {
-        int currentIndex;
+        
 		class Holder {
 			final ImageView currentView;
 			final TextView titleView;
@@ -7612,13 +7813,13 @@ public class MainActivity extends ParentActivity {
 				addressView = (TextView) convertView.findViewById(R.id.address);
 				closeView = (ImageView) convertView.findViewById(R.id.close);
 				closeView.setOnClickListener(ArrayAdapterWithCurrentItemClose.this);
+				convertView.setOnClickListener(ArrayAdapterWithCurrentItemClose.this);
 				closeView.setTag(this);
 				convertView.setTag(this);
 			}
 		}
-        ArrayAdapterWithCurrentItemClose(Context context, int resource, List<T> objects, int currentIndex) {
+        ArrayAdapterWithCurrentItemClose(final Context context, final int resource, final List<T> objects) {//}, final int currentIndex) {
             super(context, resource, objects);
-            this.currentIndex = currentIndex;
         }
 
         @Override
@@ -7638,10 +7839,16 @@ public class MainActivity extends ParentActivity {
             holder.pos = position;
 			titleView.setText(wv.getTitle());
 			addressView.setText(wv.getUrl());
-			if (position == currentIndex) {
-				currentView.setImageResource(R.drawable.ic_accept);
+			if (position == currentTabIndex) {
+				convertView.setBackgroundColor(0xffffffe8);
+				titleView.setTextColor(0xff000000);
+				addressView.setTextColor(0xff000000);
+				holder.closeView.setColorFilter(0xff000000, PorterDuff.Mode.SRC_IN);
 			} else {
-				currentView.setImageResource(R.drawable.empty);
+				convertView.setBackgroundColor(0xff363636);
+				titleView.setTextColor(0xfffffff0);
+				addressView.setTextColor(0xfffffff0);
+				holder.closeView.setColorFilter(0xfffffff0, PorterDuff.Mode.SRC_IN);
 			}
             return convertView;
         }
@@ -7650,11 +7857,13 @@ public class MainActivity extends ParentActivity {
 		public void onClick(View p1) {
 			final Holder holder = (Holder) p1.getTag();
 			final int pos = holder.pos;
-			closeTab(tabs.get(pos).webview, pos);
-			if (currentIndex > 0 && currentIndex >= pos) {
-				currentIndex--;
+			if (p1 == holder.closeView) {
+				closeTab(tabs.get(pos).webview, pos);
+				notifyDataSetChanged();
+			} else {
+				switchToTab(pos);
+				MainActivity.this.tabDialog.setVisibility(View.GONE);
 			}
-			notifyDataSetChanged();
 		}
     }
 

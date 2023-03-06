@@ -71,17 +71,116 @@
 				android:layout_width="match_parent"
 				android:layout_height="2dp"
 				android:max="100"
-				android:visibility="gone" 
+				android:visibility="gone"
 				android:layout_gravity="bottom"/>
 
 		</FrameLayout>
 
-        <FrameLayout
-            android:id="@+id/webviews"
+		<FrameLayout
+            android:id="@+id/content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="2"
-		/>
+		>
+			<FrameLayout
+				android:id="@+id/webviews"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:layout_weight="2"
+			/>
+			<LinearLayout
+				android:id="@+id/tabDialog"
+				android:layout_width="300dp"
+				android:layout_height="match_parent"
+				android:orientation="vertical"
+				android:background="#ff363636"
+				android:visibility="gone"
+				android:layout_gravity="left">
+				<ListView
+					android:id="@+id/tabList"
+					android:layout_width="match_parent"
+					android:layout_height="0dp"
+					android:layout_weight="1"
+					android:focusable="true"
+				/>
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="40dp"
+					android:orientation="horizontal"
+					android:background="#ffd6d6d6"
+					android:focusable="true"
+					android:focusableInTouchMode="true"
+					android:clickable="true"
+				>
+
+					<ImageView
+						android:id="@+id/action_back"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:contentDescription="@string/action_back"
+						android:scaleType="center"
+						android:src="@drawable/ic_action_back"
+						android:background="?android:attr/selectableItemBackground"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+
+					<ImageView
+						android:id="@+id/action_home"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:contentDescription="@string/action_homepage"
+						android:scaleType="center"
+						android:src="@drawable/ic_action_home"
+						android:background="?android:attr/selectableItemBackground"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+
+					<ImageView
+						android:id="@+id/action_forward"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:contentDescription="@string/action_forward"
+						android:scaleType="center"
+						android:src="@drawable/ic_action_forward"
+						android:background="?android:attr/selectableItemBackground"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+
+					<ImageView
+						android:id="@+id/new_tab_button"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:contentDescription="@string/action_new_tab"
+						android:scaleType="center"
+						android:src="@drawable/ic_action_plus"
+						android:background="?android:attr/selectableItemBackground"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+
+					<ImageView
+						android:id="@+id/undoCloseBtn"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:src="@drawable/ic_frozen"
+						android:background="?android:attr/selectableItemBackground"
+						android:contentDescription="Undo Closed Tabs"
+						android:scaleType="center"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+				</LinearLayout>
+			</LinearLayout>
+		</FrameLayout>
 
 		<ListView
 			android:id="@+id/requestList"
