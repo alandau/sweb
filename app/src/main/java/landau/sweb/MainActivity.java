@@ -4115,10 +4115,10 @@ public class MainActivity extends ParentActivity {
 												if (currentTab.historyIndex == currentTab.listSite.size() - 1) {
 													Toast.makeText(MainActivity.this, "End site", Toast.LENGTH_SHORT).show();
 												} else {
-													if (currentTab.historyIndex < currentTab.listSite.size() - 1) {//tempIndex - 1 >= 0 && 
+													//if (currentTab.historyIndex < currentTab.listSite.size() - 1) {//tempIndex - 1 >= 0 && 
 														currentTab.webview.loadUrl("file://" + currentTab.extractPath + "/" + currentTab.listSite.get(++currentTab.historyIndex));
 														dialog.dismiss();
-													}
+													//}
 												}
 											}
 										}));
@@ -4356,7 +4356,7 @@ public class MainActivity extends ParentActivity {
 											editView.selectAll();
 											editView.requestFocus();
 											new AlertDialog.Builder(MainActivity.this)
-												.setTitle("Auto Reload Every (min)")
+												.setTitle("Auto Reload Every (sec)")
 												.setView(editView)
 												.setPositiveButton("Apply", new OnClickListener() {
 													public void onClick(DialogInterface dialog, int which) {
@@ -4365,8 +4365,17 @@ public class MainActivity extends ParentActivity {
 														currentTab.autoRerun = new Runnable() {
 															@Override
 															public void run() {
-																currentTab.webview.reload();
-																currentTab.handler.postDelayed(this, currentTab.autoReload*1000*60);
+																if (currentTab.chmFilePath.length() == 0) {
+																	currentTab.webview.reload();
+																} else {
+																	if (currentTab.historyIndex < currentTab.listSite.size() - 1) {
+																		currentTab.webview.loadUrl("file://" + currentTab.extractPath + "/" + currentTab.listSite.get(++currentTab.historyIndex));
+																	} else {
+																		currentTab.historyIndex = 0;
+																		currentTab.webview.loadUrl("file://" + currentTab.extractPath + "/" + currentTab.listSite.get(0));
+																	}
+																}
+																currentTab.handler.postDelayed(this, currentTab.autoReload*1000);
 															}
 														};
 														if (currentTab.autoReload > 0) {
@@ -7806,12 +7815,14 @@ public class MainActivity extends ParentActivity {
 			final TextView titleView;
 			final TextView addressView;
 			final ImageView closeView;
+			final LinearLayout ll;
 			int pos;
 			Holder(View convertView) {
 				currentView = (ImageView) convertView.findViewById(R.id.current);
 				titleView = (TextView) convertView.findViewById(R.id.title);
 				addressView = (TextView) convertView.findViewById(R.id.address);
 				closeView = (ImageView) convertView.findViewById(R.id.close);
+				ll = (LinearLayout) convertView.findViewById(R.id.top);
 				closeView.setOnClickListener(ArrayAdapterWithCurrentItemClose.this);
 				convertView.setOnClickListener(ArrayAdapterWithCurrentItemClose.this);
 				closeView.setTag(this);
@@ -7836,21 +7847,30 @@ public class MainActivity extends ParentActivity {
 			final TextView addressView = holder.addressView;
 			final ImageView currentView = holder.currentView;
 			final WebView wv = tabs.get(position).webview;
+            final LinearLayout ll = holder.ll;
             holder.pos = position;
 			titleView.setText(wv.getTitle());
 			addressView.setText(wv.getUrl());
 			if (position == currentTabIndex) {
-				convertView.setBackgroundColor(0xffffffe8);
+				ll.setBackgroundColor(0xffffffe8);
 				titleView.setTextColor(0xff000000);
 				addressView.setTextColor(0xff000000);
-				holder.closeView.setColorFilter(0xff000000, PorterDuff.Mode.SRC_IN);
+				//holder.closeView.setColorFilter(0xff000000, PorterDuff.Mode.SRC_IN);
 			} else {
-				convertView.setBackgroundColor(0xff363636);
+				ll.setBackgroundColor(0xff363636);
 				titleView.setTextColor(0xfffffff0);
 				addressView.setTextColor(0xfffffff0);
-				holder.closeView.setColorFilter(0xfffffff0, PorterDuff.Mode.SRC_IN);
+				//holder.closeView.setColorFilter(0xfffffff0, PorterDuff.Mode.SRC_IN);
 			}
-            return convertView;
+			wv.setDrawingCacheEnabled(true);
+			final Bitmap drawingCache = wv.getDrawingCache();
+			if (drawingCache != null) {
+				final Bitmap returnedBitmap = Bitmap.createBitmap(drawingCache);
+				currentView.setImageBitmap(returnedBitmap);
+				currentView.setBackgroundColor(0xff363636);
+			}
+            wv.setDrawingCacheEnabled(false);
+			return convertView;
         }
 
 		@Override
