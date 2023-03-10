@@ -2876,7 +2876,7 @@ public class MainActivity extends ParentActivity {
 						});
 					}
 					injectCSS(view);
-					updatePreviewImage((CustomWebView)view);
+					//ExceptionLogger.d(TAG, "after injecting");
 //					view.evaluateJavascript("", new ValueCallback<String>() {
 //							@Override
 //							public void onReceiveValue(String s) {
@@ -2884,8 +2884,14 @@ public class MainActivity extends ParentActivity {
 //							}});
 				}
 
+				@Override
+				public void onPageCommitVisible(final WebView view, final String url) {
+					super.onPageCommitVisible(view, url);
+					updatePreviewImage((CustomWebView)view);
+				}
+				
 				//@Override
-				public void onDomContentLoaded(WebView web) {
+				public void onDomContentLoaded(final WebView web) {
 					applyJavascriptInjection(((CustomWebView)web).tab, web, web.getUrl());
 				}
 

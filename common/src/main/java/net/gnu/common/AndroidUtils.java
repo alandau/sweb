@@ -84,22 +84,34 @@ public class AndroidUtils {
 	}
 	
 	public static Bitmap getBitmapFromView(final View view) {
-		final Bitmap bitmap = Bitmap.createBitmap(
-			view.getWidth(), view.getHeight(), Bitmap.Config.ARGB_8888
-		);
-		final Canvas canvas = new Canvas(bitmap);
-		view.draw(canvas);
-		return bitmap;
+		final int width = view.getWidth();
+		final int height = view.getHeight();
+		if (width == 0 || height == 0) {
+			return null;
+		} else {
+			final Bitmap bitmap = Bitmap.createBitmap(
+				width, height, Bitmap.Config.ARGB_8888
+			);
+			final Canvas canvas = new Canvas(bitmap);
+			view.draw(canvas);
+			return bitmap;
+		}
 	}
 
 	public static Bitmap getBitmapFromView(final View view, final int defaultColor) {
-		final Bitmap bitmap = Bitmap.createBitmap(
-			view.getWidth(), view.getHeight(), Bitmap.Config.ARGB_8888
-		);
-		final Canvas canvas = new Canvas(bitmap);
-		canvas.drawColor(defaultColor);
-		view.draw(canvas);
-		return bitmap;
+		final int width = view.getWidth();
+		final int height = view.getHeight();
+		if (width == 0 || height == 0) {
+			return null;
+		} else {
+			final Bitmap bitmap = Bitmap.createBitmap(
+				width, height, Bitmap.Config.ARGB_8888
+			);
+			final Canvas canvas = new Canvas(bitmap);
+			canvas.drawColor(defaultColor);
+			view.draw(canvas);
+			return bitmap;
+		}
 	}
 	
 	public static Bitmap resize(final Bitmap image, final int maxWidth, final int maxHeight) {
