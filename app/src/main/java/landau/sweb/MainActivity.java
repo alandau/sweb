@@ -190,7 +190,7 @@ public class MainActivity extends ParentActivity {
 	
 	private static final Pattern CSS_PATTERN = Pattern.compile(CSS_PAT, Pattern.CASE_INSENSITIVE);
 	private static final Pattern JAVASCRIPT_PATTERN = Pattern.compile(JAVASCRIPT_PAT, Pattern.CASE_INSENSITIVE);
-	
+	private static float pixelsInDP = 0;
 //	public static String[] returnImageUrlsFromHtml(String htmlCode) {
 //        List<String> imageSrcList = new ArrayList<String>();
 //        Pattern p = Pattern.compile("<img\\b[^>]*\\bsrc\\b\\s*=\\s*('|\")?([^'\"\n\r\f>]+(\\.jpe?g|\\.bmp|\\.eps|\\.gif|\\.mif|\\.miff|\\.png|\\.tif|\\.tiff|\\.svg|\\.wmf|\\.jpe|\\.webp|\\.dib|\\.ico|\\.tga|\\.cut|\\.pic|\\b)\\b)[^>]*>", Pattern.CASE_INSENSITIVE);
@@ -308,6 +308,7 @@ public class MainActivity extends ParentActivity {
 		boolean javaScriptCanOpenWindowsAutomatically;
 		boolean textReflow;
 		transient Bitmap favicon;
+		transient Bitmap previewImage;
 		boolean blockImages;
 		boolean blockMedia;
 		boolean blockFonts;
@@ -2875,6 +2876,7 @@ public class MainActivity extends ParentActivity {
 						});
 					}
 					injectCSS(view);
+					updatePreviewImage((CustomWebView)view);
 //					view.evaluateJavascript("", new ValueCallback<String>() {
 //							@Override
 //							public void onReceiveValue(String s) {
@@ -3791,7 +3793,9 @@ public class MainActivity extends ParentActivity {
     }
 
     private void switchToTab(final int tab) {
-        getCurrentWebView().setVisibility(View.GONE);
+		final CustomWebView wv = getCurrentWebView();
+		updatePreviewImage(wv);
+        wv.setVisibility(View.GONE);
         currentTabIndex = tab;
         final Tab currentTab = getCurrentTab();
 		currentTab.webview.setVisibility(View.VISIBLE);
@@ -3847,6 +3851,17 @@ public class MainActivity extends ParentActivity {
 		toolbar.setVisibility(View.VISIBLE);
 		if (tabAdapter != null)
 			tabAdapter.notifyDataSetChanged();
+	}
+
+	private void updatePreviewImage(final CustomWebView wv) {
+		final Bitmap drawingCache = AndroidUtils.getBitmapFromView(wv);
+//		wv.setDrawingCacheEnabled(true);
+//		final Bitmap drawingCache = wv.getDrawingCache();
+		if (drawingCache != null) {
+			final Bitmap returnedBitmap = Bitmap.createBitmap(drawingCache);
+			wv.tab.previewImage = AndroidUtils.resize(returnedBitmap, (int)(48*pixelsInDP), (int)(48*pixelsInDP));
+		}
+//		wv.setDrawingCacheEnabled(false);
 	}
 
     private void updateFullScreen() {
@@ -4045,7 +4060,7 @@ public class MainActivity extends ParentActivity {
 					updateFullScreen();}});
 		isFullscreen = false;
         isNightMode = prefs.getBoolean("night_mode", false);
-		
+		pixelsInDP = AndroidUtils.convertPixelsToDp(this);
 		DictionaryUtil.init(this, null);
 		final CharSequence text = getIntent().getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
         ExceptionLogger.d(TAG, "onCreate text " + text);
@@ -7862,17 +7877,10 @@ public class MainActivity extends ParentActivity {
 				addressView.setTextColor(0xfffffff0);
 				//holder.closeView.setColorFilter(0xfffffff0, PorterDuff.Mode.SRC_IN);
 			}
-			wv.setDrawingCacheEnabled(true);
-			final Bitmap drawingCache = wv.getDrawingCache();
-			if (drawingCache != null) {
-				final Bitmap returnedBitmap = Bitmap.createBitmap(drawingCache);
-				currentView.setImageBitmap(returnedBitmap);
-				currentView.setBackgroundColor(0xff363636);
-			}
-            wv.setDrawingCacheEnabled(false);
+			currentView.setImageBitmap(tabs.get(position).previewImage);
 			return convertView;
         }
-
+ 
 		@Override
 		public void onClick(View p1) {
 			final Holder holder = (Holder) p1.getTag();

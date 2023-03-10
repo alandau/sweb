@@ -26,6 +26,8 @@ import java.net.URI;
 import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import android.view.View;
+import android.graphics.Canvas;
 
 public class AndroidUtils {
 
@@ -71,7 +73,35 @@ public class AndroidUtils {
 		mat.appendTail(sb);
 		return sb.toString();
 	}
+	
+	public static float convertPixelsToDp(final Context context) { 
+		final int screenWidthInPixels = context.getResources().getDisplayMetrics().widthPixels;
+        final int screenHeightInPixels = context.getResources().getDisplayMetrics().heightPixels;
 
+		final float screenPixelDensity = context.getResources().getDisplayMetrics().density;
+		final float dpValue = (screenWidthInPixels + screenHeightInPixels)/2 / screenPixelDensity;
+		return dpValue; 
+	}
+	
+	public static Bitmap getBitmapFromView(final View view) {
+		final Bitmap bitmap = Bitmap.createBitmap(
+			view.getWidth(), view.getHeight(), Bitmap.Config.ARGB_8888
+		);
+		final Canvas canvas = new Canvas(bitmap);
+		view.draw(canvas);
+		return bitmap;
+	}
+
+	public static Bitmap getBitmapFromView(final View view, final int defaultColor) {
+		final Bitmap bitmap = Bitmap.createBitmap(
+			view.getWidth(), view.getHeight(), Bitmap.Config.ARGB_8888
+		);
+		final Canvas canvas = new Canvas(bitmap);
+		canvas.drawColor(defaultColor);
+		view.draw(canvas);
+		return bitmap;
+	}
+	
 	public static Bitmap resize(final Bitmap image, final int maxWidth, final int maxHeight) {
 		final int width = image.getWidth();
 		final int height = image.getHeight();
