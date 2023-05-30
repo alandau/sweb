@@ -9,8 +9,8 @@
 
 	<ImageView
 		android:id="@+id/current"
-		android:layout_width="32dp"
-		android:layout_height="64dp"
+		android:layout_width="64dp"
+		android:layout_height="32dp"
 		android:layout_weight="1"
 		android:layout_margin="1dp"
 		android:gravity="center"

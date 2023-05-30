@@ -167,8 +167,6 @@ public class Util {
 					if (!excludePattern.matcher(urlToString).matches()) {
 						return true;
 					}
-				} else {
-					return true;
 				}
 			}
 		}

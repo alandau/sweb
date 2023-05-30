@@ -31,12 +31,19 @@ public class ParentActivity extends Activity {
 	public static final Pattern MEDIA_PATTERN = Pattern.compile(MEDIA_PAT, Pattern.CASE_INSENSITIVE);
 	public static final Pattern FONT_PATTERN = Pattern.compile(FONT_PAT, Pattern.CASE_INSENSITIVE);
 
-    public static class EmptyOnClickListener implements DialogInterface.OnClickListener {
-		@Override
-		public void onClick(final DialogInterface p1, final int p2) {
-		}
-	}
+//    public static class EmptyOnClickListener implements DialogInterface.OnClickListener {
+//		@Override
+//		public void onClick(final DialogInterface p1, final int p2) {
+//		}
+//	}
 	
+	protected DialogInterface.OnClickListener onClickDismiss = new DialogInterface.OnClickListener() {
+		@Override
+		public void onClick(final DialogInterface dialog, final int which) {
+			dialog.dismiss();
+		}
+	};
+
 	@Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

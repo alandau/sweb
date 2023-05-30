@@ -35,7 +35,7 @@ public class FileUtil {
 	
 	private static final String ISO_8859_1 = "ISO-8859-1";
 	private static final Pattern encodingCss = Pattern.compile("@charset\\s+\"([^\"]+)\";");
-	public static final Pattern ILLEGAL_FILE_CHARS = Pattern.compile("[^\n]*?[?/\\:*|\"<>#+%][^\n]*?");
+	public static final Pattern ILLEGAL_FILE_CHARS = Pattern.compile("[^\n]*?[?\\:*|\"<>#+%][^\n]*?");
 	
 	public static void main(String[] args) throws Exception {
 
@@ -334,6 +334,9 @@ public class FileUtil {
 			File[] fs;
 			while (folderQueue.size() > 0) {
 				fi = folderQueue.removeFirst();
+				if (includeDir) {
+					fList.add(fi);
+				}
 				fs = fi.listFiles();
 				if (fs != null) {
 					for (File f2 : fs) {
@@ -351,7 +354,7 @@ public class FileUtil {
 								|| (excludePat != null && !excludePat.matcher(name).matches())) {
 								fList.add(f2);
 								totalSize += f2.length();
-								//ExceptionLogger.d(TAG, "getFiles.add2 " + f2.getAbsolutePath());
+								ExceptionLogger.d(TAG, "getFiles.add2 " + f2.getAbsolutePath());
 							}
 						}
 					}

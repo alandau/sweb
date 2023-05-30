@@ -6,7 +6,7 @@
 	package="landau.sweb"
 	android:versionCode="20210630"
 	android:versionName="2021.06.30"
-	>
+>
 
     <uses-permission android:name="android.permission.INTERNET"/>
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -18,7 +18,7 @@
 	<uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
     <uses-permission android:name="android.permission.SET_WALLPAPER"/>
 	<uses-permission android:name="android.permission.WAKE_LOCK" />
-		
+
     <application
 		android:name="net.gnu.common.SWebApp"
         android:allowBackup="true"
@@ -32,7 +32,7 @@
 		tools:replace="android:name,android:label,android:theme"
 	>
 		<meta-data android:name="android.webkit.WebView.MetricsOptOut"
-               android:value="true" />
+			android:value="true" />
         <meta-data
 			android:name="android.webkit.WebView.EnableSafeBrowsing"
 			android:value="true" />
@@ -66,7 +66,7 @@
                 <data android:scheme="about" />
                 <data android:scheme="javascript" />
             </intent-filter>
-            
+
             <intent-filter>
 				<action android:name="android.intent.action.SEND" />
 				<action android:name="android.intent.action.SEND_MULTIPLE" />
@@ -90,89 +90,14 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
-		
-		
-		<!--<activity
-            android:name="landau.sweb.EPUBActivity"
-            android:icon="@drawable/epub_converter"
-        	android:label="EPUB Converter"
-			android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
-            android:launchMode="singleTask">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.BROWSABLE" />
-				<category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
-				<category android:name="android.intent.category.IOT_LAUNCHER"/>
-				<category android:name="android.intent.category.MULTIWINDOW_LAUNCHER"/>
-            </intent-filter>
-            tools:replace="android:theme"
-		tools:replace="android:icon"
-		
-            <intent-filter>
-				<action android:name="android.intent.action.SEND" />
-				<action android:name="android.intent.action.SEND_MULTIPLE" />
-				<action android:name="android.intent.action.SENDTO" />
-				<action android:name="android.intent.action.VIEW" />
-				<category android:name="android.intent.category.DEFAULT" />
-				<category android:name="android.intent.category.BROWSABLE" />
-                <category android:name="android.intent.category.OPENABLE"/>
-                <data android:mimeType="text/plain" />
-                <data android:mimeType="text/html" />
-                <data android:mimeType="*/*" />
-            </intent-filter>
-        </activity>-->
-        
-		
-		<!--<activity
-            android:name="chm.cblink.nb.chmreader.CHMActivity"
-			android:icon="@drawable/ic_launcher"
-        	android:label="Reader"
-            android:configChanges="orientation|smallestScreenSize|screenLayout|screenSize|keyboardHidden|uiMode"
-            android:launchMode="singleTask"
-			android:theme="@style/ActionTheme">
-            <meta-data android:name="android.app.searchable"
-                android:resource="@xml/searchable" />
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
-				<category android:name="android.intent.category.IOT_LAUNCHER"/>
-				<category android:name="android.intent.category.MULTIWINDOW_LAUNCHER"/>
-            </intent-filter>
-            <intent-filter>
-            	<action android:name="android.intent.action.VIEW" />
-				<action android:name="android.intent.action.OPEN_DOCUMENT" />
-				<category android:name="android.intent.category.DEFAULT" />
-				<category android:name="android.intent.category.BROWSABLE"/>
-				<data android:pathPattern=".*\.[cC][hH][mM]"/>
-				<data android:mimeType="application/x-chm"/>
-				<data android:mimeType="*/*" />
-            </intent-filter>
-        </activity>-->
-		<!--
-		android:supportsPictureInPicture="true"
-    		<activity
-            android:name="landau.sweb.Server"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
-            android:launchMode="singleTask">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.BROWSABLE" />
-            </intent-filter>
-        </activity>-->
-        
-        
-		<!--<activity
+
+
+		<activity
 			android:name="com.paragon.dictionary.fbreader.OpenDictionaryActivity"
 			android:theme="@style/FBReader.Transparent"
-			android:configChanges="orientation|keyboardHidden|screenSize"/>-->
- 
- 		
+			android:configChanges="orientation|keyboardHidden|screenSize"/>
+
+
 		<provider
 			android:name="androidx.core.content.FileProvider"
 			android:authorities="landau.sweb.fileprovider"
@@ -182,7 +107,7 @@
 				android:name="android.support.FILE_PROVIDER_PATHS"
 				android:resource="@xml/provider_paths" />
 		</provider>
-		
+
     </application>
 
 </manifest>
