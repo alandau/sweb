@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:layout_weight="1"
+	android:gravity="center"
+	android:focusable="true"
+	android:focusableInTouchMode="true"
+>
+	<FrameLayout
+		android:layout_width="68dp"
+		android:layout_height="match_parent"
+		android:layout_gravity="center"
+	>
+		<ImageButton
+			android:id="@+id/btnShortClick"
+			android:layout_width="42dp"
+			android:layout_height="match_parent"
+			android:layout_gravity="left"
+			android:background="#00000000"
+			android:scaleType="centerInside"
+			android:paddingLeft="10dp"
+			android:clickable="false"
+			android:focusable="true"
+        />
+
+		<ImageButton
+			android:id="@+id/btnSwipeUp"
+			android:layout_width="26dp"
+			android:layout_height="16dp"
+			android:layout_gravity="right|top"
+			android:background="#00000000"
+			android:scaleType="centerInside"
+			android:paddingRight="10dp"
+			android:clickable="false"
+			android:focusable="true"
+        />
+
+		<ImageButton
+			android:id="@+id/btnLongClick"
+			android:layout_width="26dp"
+			android:layout_height="16dp"
+			android:layout_gravity="right|bottom"
+			android:background="#00000000"
+			android:scaleType="centerInside"
+			android:paddingRight="10dp"
+			android:clickable="false"
+			android:focusable="true"
+        />
+
+		<TextView
+			android:id="@+id/txtText"
+			android:layout_width="42dp"
+			android:layout_height="match_parent"
+			android:gravity="center"
+			android:layout_gravity="left|center_vertical"
+			android:background="#00000000"
+			android:paddingLeft="10dp"
+			android:textSize="16dp"
+			android:clickable="false"
+			android:focusable="true"
+			tools:ignore="SpUsage"/>
+	</FrameLayout>
+</FrameLayout>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--<style name="AppTheme" parent="@android:style/Theme.Holo.Light"/>-->
+    <style name="FBReader.Dialog" parent="android:Theme.Dialog"></style>
+	<style name="FBReader.Transparent" parent="android:Theme.Translucent.NoTitleBar">
+		<item name="android:windowBackground">@color/transparent</item>
+	</style>
+  	<color name="transparent">#FFFFFFF0</color>
+</resources>

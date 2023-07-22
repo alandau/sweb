@@ -1,0 +1,73 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+	android:paddingBottom="12dp"
+	android:paddingLeft="16dp"
+	android:paddingRight="16dp"
+	android:paddingTop="12dp">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal" >
+		<TextView
+			android:id="@+id/delaytv"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Delay (ms): "
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<EditText
+			android:id="@+id/delayET"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="true"
+			android:inputType="numberDecimal"
+			android:text="1000"
+			android:minEms="4"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+	</LinearLayout>
+<!--
+	<CheckBox
+		android:id="@+id/auto_save_pages"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Auto Save Pages"
+		android:checked="true"
+	/>
+		-->
+    <LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal" >
+
+		<TextView
+			android:id="@+id/length"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Height (px): "
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<EditText
+			android:id="@+id/lengthET"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="true"
+			android:inputType="number"
+			android:text="768"
+			android:minEms="4"
+			android:gravity="left"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+	</LinearLayout>
+
+	
+</LinearLayout>

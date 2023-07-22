@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+	
+    <external-path name="storage_root" path="." />
+	<external-path name="package_root" path="Android/data/landau.sweb/" />
+    <external-files-path name="external_files_path" path="." />
+	<external-cache-path name="external_cache_path" path="." />
+	<files-path name="files_path" path="." />
+    <cache-path name="cache_path" path="." />
+	
+</paths>
+

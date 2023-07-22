@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+	xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+	package="net.gnu.chm" >
+
+	<uses-permission android:name="android.permission.WRITE_MEDIA_STORAGE" />
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+		
+    <!--<application
+        android:allowBackup="true"
+        android:label="Offline Browser"
+        android:resizeableActivity = "true">
+        
+		<activity
+            android:name="chm.cblink.nb.chmreader.CHMActivity"
+			android:label="Reader"
+            android:configChanges="orientation|smallestScreenSize|screenLayout|screenSize|keyboardHidden|uiMode"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Material.Light.DarkActionBar"
+			>
+            <meta-data android:name="android.app.searchable"
+                android:resource="@xml/searchable" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+				<category android:name="android.intent.category.IOT_LAUNCHER"/>
+				<category android:name="android.intent.category.MULTIWINDOW_LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+            	<action android:name="android.intent.action.VIEW" />
+				<action android:name="android.intent.action.OPEN_DOCUMENT" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE"/>
+				<data android:pathPattern=".*\.[cC][hH][mM]"/>
+				<data android:mimeType="application/x-chm"/>
+				<data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+		
+    </application>-->
+
+</manifest>

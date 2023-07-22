@@ -1,0 +1,32 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 30
+    buildToolsVersion "21.1.0"
+
+    defaultConfig {
+        //applicationId "net.gnu.util"
+        minSdkVersion 21
+        targetSdkVersion 24
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    //implementation 'net.lingala.zip4j:zip4j:2.11.2'
+    //implementation "com.github.luben:zstd-jni:+"
+    //implementation "org.tukaani:xz:1.8"//1.9
+    //implementation "org.apache.commons:commons-compress:1.21"
+    //implementation 'org.apache.james:apache-mime4j-dom:0.8.6'
+    //implementation 'org.apache.james:apache-mime4j-core:0.8.6'
+    //implementation 'org.ccil.cowan.tagsoup:tagsoup:+'
+    
+}

@@ -1,0 +1,46 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 30
+    buildToolsVersion "21.1.0"
+
+    defaultConfig {
+        //applicationId "net.gnu.common"
+        minSdkVersion 21
+        targetSdkVersion 24
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+	jcenter()
+	mavenCentral()
+	google()
+    maven { 
+		url 'https://jitpack.io'
+		url 'https://repo1.maven.org/maven2/'
+		url 'https://search.maven.org/'
+		url 'https://mvnrepository.com'
+		url 'https://jcenter.bintray.com/'
+		url 'https://dl.google.com/dl/android/maven2/'
+		url 'https://github.com/psiegman/mvn-repo/raw/master/releases'
+		url 'https://maven.google.com/'
+	}
+	flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation project(':console')
+    implementation project(':lookup')
+    //implementation 'com.android.support:support-annotations:+'//24.1.1'
+}

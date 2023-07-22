@@ -1,0 +1,472 @@
+<ScrollView
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+>
+
+	<LinearLayout
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:paddingBottom="4dp"
+		android:paddingLeft="4dp"
+		android:paddingRight="4dp"
+		android:paddingTop="4dp">
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+			<TextView
+				android:id="@+id/projectTv"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Project: "
+				android:singleLine="true"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<AutoCompleteTextView
+				android:id="@+id/projectEt"
+				android:layout_width="fill_parent"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+		</LinearLayout>
+
+		<GridLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:columnCount="3">
+
+			<CheckBox
+				android:id="@+id/saveHtml"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Save Html"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="false"
+				android:textSize="14dip" />
+			<CheckBox
+				android:id="@+id/useAdBlock"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="AdBlock"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="false"
+				android:textSize="14dip" />
+			<CheckBox
+				android:id="@+id/saveResources"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Save Resources"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="false"
+				android:textSize="14dip" />
+
+			<CheckBox
+				android:id="@+id/localization"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Localization"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+			<CheckBox
+				android:id="@+id/autoscroll"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Auto Scroll"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+			<CheckBox
+				android:id="@+id/catch_amp"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Catch AMP"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+			<CheckBox
+				android:id="@+id/update"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Update"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+			<CheckBox
+				android:id="@+id/remove_comment"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Del Comment"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+			<CheckBox
+				android:id="@+id/remove_javascript"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Del Script"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+		</GridLayout>
+
+		<EditText
+			android:id="@+id/batch_link_pattern"
+			android:layout_width="fill_parent"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="false"
+			android:maxLines="3"
+			android:text=""
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+			<TextView
+				android:id="@+id/from"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="center_vertical"
+				android:text="From:"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/from_link"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:gravity="center"
+				android:layout_gravity="center_vertical"
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:inputType="number"
+				android:text="0"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<TextView
+				android:id="@+id/to"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="center_vertical"
+				android:text="To:"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/to_link"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:gravity="center"
+				android:layout_gravity="center_vertical"
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:inputType="number"
+				android:text="0"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+			<TextView
+				android:id="@+id/levelTv"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="center_vertical"
+				android:text="Level:"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/level"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:gravity="center"
+				android:layout_gravity="center_vertical"
+				android:inputType="number"
+				android:text=""
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<CheckBox
+				android:id="@+id/javaScriptEnabled"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="right|center_vertical"
+				android:text="JavaScript Enabled"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="false"
+				android:textSize="14dip" />
+
+		</LinearLayout>
+
+		<TextView
+			android:id="@+id/crawlPatternTv"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="left|center_vertical"
+			android:text="Crawl Pattern: "
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<EditText
+			android:id="@+id/crawlPattern"
+			android:layout_width="fill_parent"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="false"
+			android:maxLines="3"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<FrameLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+
+			<CheckBox
+				android:id="@+id/or_url"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="left|center_vertical"
+				android:text="Or"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="false"
+				android:textSize="14dip" />
+
+			<TextView
+				android:id="@+id/excludeCrawlPatternTv"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Exclude Crawl Pattern: "
+				android:layout_gravity="center"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+		</FrameLayout>
+
+		<EditText
+			android:id="@+id/excludeCrawlPattern"
+			android:layout_width="fill_parent"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="false"
+			android:maxLines="3"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<FrameLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+
+			<CheckBox
+				android:id="@+id/include_res"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="left"
+				android:text="Include Resource Pattern: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+			<CheckBox
+				android:id="@+id/save_image"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="right"
+				android:text="Save Images"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+		</FrameLayout>
+
+		<EditText
+			android:id="@+id/include_res_pattern"
+			android:layout_width="fill_parent"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="false"
+			android:maxLines="3"
+			android:text=".*?\\.(jpg|jpeg|webp).*?"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:checked="true"
+			android:textSize="14dip" />
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+
+			<CheckBox
+				android:id="@+id/or_res"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="left"
+				android:text="Or"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="false"
+				android:textSize="14dip" />
+
+			<CheckBox
+				android:id="@+id/exclude_res"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_gravity="right"
+				android:text="Exclude Resource Pattern: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:checked="true"
+				android:textSize="14dip" />
+
+		</LinearLayout>
+
+		<EditText
+			android:id="@+id/exclude_res_pattern"
+			android:layout_width="fill_parent"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:singleLine="false"
+			android:maxLines="3"
+			android:text=".*?(44884218_345707102882519_2446069589734326272_n.jpg|68d99ba29cc8.png|1b47f9d0e595.png|bcd90c1d4868.png|1075ddfe0f68.png|77929eccc37e.png|.*?\.png).*?"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+			<TextView
+				android:id="@+id/replaceTv"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:layout_gravity="left|center_vertical"
+				android:text="Replace: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<TextView
+				android:id="@+id/byTv"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:layout_gravity="left|center_vertical"
+				android:text="By: "
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+			<EditText
+				android:id="@+id/replaceEt"
+				android:layout_width="fill_parent"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:singleLine="false"
+				android:maxLines="3"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/byEt"
+				android:layout_width="fill_parent"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:singleLine="false"
+				android:maxLines="3"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+			<TextView
+				android:id="@+id/logPatternTv"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Log Pattern: "
+				android:singleLine="true"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/logPatternEt"
+				android:layout_width="fill_parent"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:singleLine="false"
+				android:maxLines="3"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal" >
+			<TextView
+				android:id="@+id/saveLogTv"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Save log to: "
+				android:singleLine="true"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+			<EditText
+				android:id="@+id/saveLogEt"
+				android:layout_width="fill_parent"
+				android:layout_height="wrap_content"
+				android:text="/storage/emulated/0/Download/sweb/LogPattern"
+				android:layout_weight="1"
+				android:singleLine="true"
+				android:textAppearance="?android:attr/textAppearanceLarge"
+				android:textSize="14dip" />
+
+		</LinearLayout>
+		
+		<TextView
+			android:id="@+id/statusTv"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="center_vertical"
+			android:text="Status:"
+			android:textAppearance="?android:attr/textAppearanceLarge"
+			android:textSize="14dip" />
+	</LinearLayout>
+
+</ScrollView>

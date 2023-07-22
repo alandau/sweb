@@ -13,9 +13,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import net.gnu.common.ExceptionLogger;
 
 public class AdblockRulesLoader extends AsyncTaskLoader<Integer> {
-    private static final String TAG = AdblockRulesLoader.class.getSimpleName();
+    private static final String TAG = "AdblockRulesLoader";
     private static final int MAX_FILE_SIZE = 10*1024*1024;
 
     private String[] urlList;
@@ -48,14 +49,14 @@ public class AdblockRulesLoader extends AsyncTaskLoader<Integer> {
             }
             return true;
         } catch (IOException e) {
-            Log.i(TAG, "Failed downloading " + url, e);
+            ExceptionLogger.d(TAG, "Failed downloading " + url + ", " + e.getMessage());
             return false;
         }
     }
 
     @Override
     public Integer loadInBackground() {
-        Log.i(TAG, "loadInBackground");
+        ExceptionLogger.d(TAG, "loadInBackground");
         int count = 0;
         for (int i = 0; i < urlList.length; i++) {
             if (downloadUrl(urlList[i], new File(outputDir, "internal" + i + ".txt"))) {

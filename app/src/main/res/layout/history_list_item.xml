@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    
+	>
+	
+	<ImageView 
+		android:id="@+id/icon"
+		android:layout_width="36dp"
+		android:layout_height="36dp"
+		android:gravity="center"
+		android:layout_gravity="center"
+		android:paddingTop="10dp"
+		android:paddingBottom="10dp"
+		android:scaleType="fitCenter"
+		android:src="@drawable/dot"
+	/>
+
+	<LinearLayout
+		android:id="@+id/right"
+		android:orientation="vertical"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+	>
+
+		<LinearLayout
+			android:id="@+id/top"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:gravity="center_vertical"
+			android:layout_gravity="center_vertical"
+		>
+			<TextView 
+				android:id="@+id/name"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="16"
+				android:lines="2"
+				android:ellipsize="middle"
+				android:gravity="left|center_vertical"
+				android:layout_gravity="left|center_vertical"
+				android:textSize="16dip"
+				android:textAppearance="?android:textAppearanceMedium"
+			/>
+
+			<ImageView
+				android:id="@+id/more"
+				android:layout_width="0dp"
+				android:layout_height="44dp"
+				android:layout_weight="2"
+				android:gravity="right|center_vertical"
+				android:layout_gravity="right|center_vertical"
+				android:paddingLeft="8dp"
+				android:paddingRight="8dp"
+				android:scaleType="fitCenter"
+				android:tint="#fffff0" 
+				android:src="@drawable/ic_more_vert_black_48dp"/>
+
+		</LinearLayout>
+		
+
+		<LinearLayout
+			android:id="@+id/bottom"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:gravity="center_vertical"
+			android:layout_gravity="center_vertical"
+			android:paddingRight="2dp"
+			>
+
+			<TextView android:id="@+id/domain"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="69"
+				android:singleLine="true"
+				android:textSize="11dip"
+				android:gravity="left"
+				android:textAppearance="?android:textAppearanceSmall"
+			/>
+
+			<TextView android:id="@+id/lastAccessed"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="31"
+				android:singleLine="true"
+				android:textSize="11dip"
+				android:gravity="right"
+				android:textAppearance="?android:textAppearanceSmall"
+			/>
+
+			
+		</LinearLayout>
+	</LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.copy.lookup"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <uses-sdk 
+        android:minSdkVersion="8" 
+        android:targetSdkVersion="21" />
+
+    <application android:name="org.geometerplus.android.fbreader.FBReaderApplication" 
+        android:label="Copy &amp; Lookup"
+        android:theme="@android:style/Theme.Material.Light" >
+        <!--<service android:name=".ForegroundService" />
+        <activity android:name=".ForegroundService$Controller"
+                android:label="@string/activity_foreground_service_controller"
+                android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>-->
+        
+        <activity
+			android:name="com.paragon.dictionary.fbreader.OpenDictionaryActivity"
+			android:theme="@style/FBReader.Transparent"
+			android:configChanges="orientation|keyboardHidden|screenSize"/>
+
+    </application>
+
+</manifest>
