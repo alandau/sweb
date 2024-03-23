@@ -500,7 +500,7 @@ public class MainActivity extends Activity {
                     .setPositiveButton("Download", (dialog, which) -> startDownload(url, filename))
                     .setNeutralButton("Open", (dialog, which) -> {
                         Intent i = new Intent(Intent.ACTION_VIEW);
-                        i.setData(Uri.parse(url));
+                        i.setDataAndType(Uri.parse(url), mimetype);
                         try {
                             startActivity(i);
                         } catch (ActivityNotFoundException e) {
