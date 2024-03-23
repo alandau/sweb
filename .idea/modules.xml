@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/SWeb.iml" filepath="$PROJECT_DIR$/SWeb.iml" group="SWeb" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" group="SWeb/app" />
+      <module fileurl="file://$PROJECT_DIR$/SWeb.iml" filepath="$PROJECT_DIR$/SWeb.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/SWeb.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/SWeb.app.iml" />
     </modules>
   </component>
 </project>
