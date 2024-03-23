@@ -763,7 +763,17 @@ public class MainActivity extends Activity {
         useAdBlocker = prefs.getBoolean("adblocker", true);
         initAdblocker();
 
-        newTab(et.getText().toString());
+        if (savedInstanceState != null) {
+            ArrayList<Bundle> bundles = savedInstanceState.getParcelableArrayList("open_webviews");
+            if (bundles != null && bundles.size() != 0) {
+                for (int i = 0; i < bundles.size(); i++) {
+                    newTabFromBundle(bundles.get(i));
+                }
+            } else {
+                newTab(et.getText().toString());            }
+        } else {
+            newTab(et.getText().toString());
+        }
         getCurrentWebView().setVisibility(View.VISIBLE);
         getCurrentWebView().requestFocus();
         onNightModeChange();
@@ -775,6 +785,24 @@ public class MainActivity extends Activity {
             placesDb.close();
         }
         super.onDestroy();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        int count = tabs.size();
+        if (count == 0) {
+            return;
+        }
+
+        ArrayList<Bundle> bundles = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            Bundle b = new Bundle();
+            tabs.get(i).webview.saveState(b);
+            bundles.add(b);
+        }
+        outState.putParcelableArrayList("open_webviews", bundles);
     }
 
     @Override
