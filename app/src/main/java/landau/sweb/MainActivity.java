@@ -221,6 +221,7 @@ public class MainActivity extends Activity {
             new MenuAction("Delete all bookmarks", 0, this::deleteAllBookmarks),
 
             new MenuAction("Clear history and cache", 0, this::clearHistoryCache),
+            new MenuAction("Clear cookies for this site", 0, this::clearCookiesThisSite),
 
             new MenuAction("Show tabs", R.drawable.tabs, this::showOpenTabs),
             new MenuAction("New tab", R.drawable.tab_new, () -> {
@@ -1222,6 +1223,47 @@ public class MainActivity extends Activity {
         v.clearHistory();
         CookieManager.getInstance().removeAllCookies(null);
         WebStorage.getInstance().deleteAllData();
+    }
+
+    private void clearCookiesThisSite() {
+        getCurrentWebView().evaluateJavascript("javascript:localStorage.clear();sessionStorage.clear();", null);
+
+        String path = getCurrentWebView().getUrl();
+        WebStorage.getInstance().deleteOrigin(path);
+
+        CookieManager cm = CookieManager.getInstance();
+        String cookies = cm.getCookie(path);
+        if (cookies == null) {
+            return;
+        }
+        String[] keyvalues = cookies.split("; ");
+
+        Uri uri = Uri.parse(path);
+        List<String> pathSegments = uri.getPathSegments();
+        String host = uri.getHost();
+        ArrayList<String> subdomains = new ArrayList<>();
+        while (!host.isEmpty()) {
+            subdomains.add(host);
+            int index = host.indexOf('.');
+            String first = index == -1 ? host : host.substring(0, index);
+            subdomains.add(first);
+            subdomains.add("." + first);
+            host = index == -1 ? "" : host.substring(index + 1);
+        }
+        String newCookiePath = "/";
+        for (int pathSegmentIdx = -1; pathSegmentIdx < pathSegments.size(); pathSegmentIdx++) {
+            if (pathSegmentIdx != -1) {
+                newCookiePath = newCookiePath + (pathSegmentIdx == 0 ? "" : "/") + pathSegments.get(pathSegmentIdx);
+            }
+            for (int i = 0; i < keyvalues.length; i++) {
+                int index = keyvalues[i].indexOf('=');
+                String name = index == -1 ? keyvalues[i] : keyvalues[i].substring(0, index);
+                cm.setCookie(path, name + "=; Path=" + newCookiePath + "; Max-Age=1");
+                for (String subdomain : subdomains) {
+                    cm.setCookie(path, name + "=; Path=" + newCookiePath + "; Max-Age=1; Domain=" + subdomain);
+                }
+            }
+        }
     }
 
     private void closeCurrentTab() {
