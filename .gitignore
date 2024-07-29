@@ -5,6 +5,7 @@
 /.idea/libraries
 /.idea/caches
 /MyJavaConsoleApp
+/MyNDKApp
 .DS_Store
 */build/*
 */bin/*

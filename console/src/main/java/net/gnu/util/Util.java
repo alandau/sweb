@@ -25,7 +25,7 @@ public class Util {
 	public static final DecimalFormat INTEGER_FORMAT = new DecimalFormat("#,##0");
 
 	public static final String SPECIAL_CHAR_PATTERNSTR = "([{}^$.\\[\\]|*+?()\\\\])";
-	public static final Pattern numPat = Pattern.compile("([^\\d]*?)(\\d+)([^\\d]*?)");
+	public static final Pattern numPat = Pattern.compile("(.*?)(\\d+)([^\\d]*?)");
 
 	public static String mapToString(final Map<?, ?> list, final boolean number, final String sep) {
 		if (list == null) {
@@ -193,46 +193,17 @@ public class Util {
 	}
 
 	public static int compareNumberString(final String file1, final String file2) {
-		int lastIndexOf1 = file1.indexOf("/");
-		int lastIndexOf2 = file2.indexOf("/");
-
-		String parent1 = "";
-		String parent2 = "";
-		if (lastIndexOf1 < 0 && lastIndexOf2 >= 0) {
-			return -1;
-		} else if (lastIndexOf1 >= 0 && lastIndexOf2 < 0) {
-			return 1;
-		} else if (lastIndexOf1 >= 0 && lastIndexOf2 >= 0) {
-			parent1 = file1.substring(0, lastIndexOf1);
-			parent2 = file2.substring(0, lastIndexOf2);
-			int indexOf1 = lastIndexOf1;
-			int indexOf2 = lastIndexOf2;
-			String p1, p2;
-			while (parent1.equals(parent2)) {
-				indexOf1 = file1.indexOf("/", indexOf1+1);
-				indexOf2 = file2.indexOf("/", indexOf2+1);
-				if (indexOf1 > 0 && indexOf2 > 0
-					&& (p1=file1.substring(0, indexOf1)).equals((p2=file2.substring(0, indexOf2)))) {
-					lastIndexOf1 = indexOf1;
-					lastIndexOf2 = indexOf2;
-					parent1 = p1;
-					parent2 = p2;
-				} else {
-					break;
-				}
-			}
-		}
-		if (parent1.equals(parent2)) {
-			final String name1 = lastIndexOf1 > 0 ? file1.substring(lastIndexOf1) : file1;
-			final Matcher matcher1 = numPat.matcher(name1);
-			final String name2 = lastIndexOf2 > 0 ? file2.substring(lastIndexOf2) : file2;
-			final Matcher matcher2 = numPat.matcher(name2);
-			if (matcher1.matches() && matcher2.matches()
-				&& matcher1.group(1).equalsIgnoreCase(matcher2.group(1))
-				&& matcher1.group(3).equalsIgnoreCase(matcher2.group(3))
-				) {
+		//ExceptionLogger.d(TAG, "\nfile1 " + file1 + "\nfile2 " + file2);
+		final Matcher matcher1 = numPat.matcher(file1);
+		final Matcher matcher2 = numPat.matcher(file2);
+		if (matcher1.matches() && matcher2.matches()
+			&& matcher1.group(1).equals(matcher2.group(1))) {
+			final String group1 = matcher1.group(3);
+			final String group2 = matcher2.group(3);
+			if (group1.equalsIgnoreCase(group2)) {
 				final BigInteger valueOf1 = new BigInteger(matcher1.group(2));
 				final BigInteger valueOf2 = new BigInteger(matcher2.group(2));
+				//ExceptionLogger.d(TAG, "valueOf1 " + valueOf1 + ", valueOf2 " + valueOf2 + ", " + valueOf1.compareTo(valueOf2));
 				return valueOf1.compareTo(valueOf2);
 			}
 		}

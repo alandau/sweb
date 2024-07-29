@@ -174,7 +174,7 @@ public class MainActivity extends ParentActivity {
     private static final String TAG = "MainActivity";
 	private static final int DARK_BACKGROUND = 0xffc0c0c0;
 	private static final int LIGHT_BACKGROUND = 0xfffffff0;
-	private String SCRAP_PATH;
+	static String SCRAP_PATH;
 	private static final Pattern FAVICON_PATTERN = Pattern.compile(".*?/favicon\\.(ico|png|bmp|jpe?g|gif)", Pattern.CASE_INSENSITIVE);
 	//private static final String SRC_LINK_STR = 
 	//"(src|href)\\s*=\\s*([^'\"][^\\s\"<>\\|]+|'[^\\s'\"]+'|\"[^\\s\"]+\")|url\\s*\\(\\s*([^'\"][^\\s\"<>\\|]+|'[^\\s'\"]+'|\"[^\\s\"]+\")\\s*\\)";
@@ -258,10 +258,10 @@ public class MainActivity extends ParentActivity {
 		String savedPath;
 		String name;
 
-		DownloadInfo(final String url, String savedPath, boolean exact) {
+		DownloadInfo(final String url, boolean exact) {
 			this.url = url;
 			this.name = FileUtil.getFileNameFromUrl(url, exact);
-			this.savedPath = savedPath;
+			this.savedPath = MainActivity.getSavedFilePath(url, SCRAP_PATH, false);
 		}
 
 		@Override
@@ -421,7 +421,7 @@ public class MainActivity extends ParentActivity {
 			} catch (Throwable t) {
 				ExceptionLogger.e(TAG, t);
 			}
-			downloadInfos.add(new DownloadInfo(url, null, exact));
+			downloadInfos.add(new DownloadInfo(url, exact));
 			return true;
 		}
 		
@@ -1927,7 +1927,10 @@ public class MainActivity extends ParentActivity {
 							tabs);
 						tabsListView.setAdapter(tabAdapter);
 					} else {
-						updatePreviewImage(getCurrentWebView());
+						//updatePreviewImage(getCurrentWebView());
+						if (tabAdapter != null) {
+							tabAdapter.notifyDataSetChanged();
+						}
 					}
 					showOpenTabs();
 				}
@@ -1943,10 +1946,10 @@ public class MainActivity extends ParentActivity {
 				@Override
 				public void run() {
 					if (tabs.size() > 1) {
-						closeTab(getCurrentWebView(), currentTabIndex);
+						closeTab(getCurrentWebView(), currentTabIndex, true);
 					} else {
 						newBackgroundTab("about:blank", false, null);
-						closeTab(getCurrentWebView(), currentTabIndex);
+						closeTab(getCurrentWebView(), currentTabIndex, true);
 					}
 				}
 			}),
@@ -2323,6 +2326,7 @@ public class MainActivity extends ParentActivity {
 			if (!currentWebView.getUrl().equals("about:blank")) {
 				final String url = savedName(currentWebView);
 				final String mhtUniqueName = getUniqueName(downloadLocation, url, ".mht");
+				ExceptionLogger.d(TAG, "mhtUniqueName " + mhtUniqueName);
 				if (callback != null) {
 					currentWebView.saveWebArchive(mhtUniqueName, false, callback);
 				} else {
@@ -2606,7 +2610,16 @@ public class MainActivity extends ParentActivity {
     private CustomWebView createWebView(final Bundle bundle) {
         
 		final CustomWebView webview = new CustomWebView(this);
-		webview.setOnFocusChangeListener(tabsListViewFocusChange);
+		//webview.setOnFocusChangeListener(tabsListViewFocusChange);
+		webview.setOnTouchListener(new View.OnTouchListener() {
+				@Override
+				public boolean onTouch(View p1, MotionEvent p2) {
+					tabDialog.setVisibility(View.GONE);
+					hideKeyboard();
+					return false;
+				}
+			});
+				
 		if (bundle != null) {
             webview.restoreState(bundle);
         }
@@ -2868,10 +2881,10 @@ public class MainActivity extends ParentActivity {
 					if (tabOfWebView.openAndClose) {
 						if (tabs.contains(tabOfWebView)) {
 							if (tabs.size() > 1) {
-								closeTab(view, tabs.indexOf(tabOfWebView));
+								closeTab(view, tabs.indexOf(tabOfWebView), true);
 							} else {
 								newBackgroundTab("about:blank", false, null);
-								closeTab(view, tabs.indexOf(tabOfWebView));
+								closeTab(view, tabs.indexOf(tabOfWebView), true);
 							}
 						}
 					}
@@ -2883,10 +2896,10 @@ public class MainActivity extends ParentActivity {
 									saveEpub(uniqueName);
 									if (tabs.contains(tabOfWebView)) {
 										if (tabs.size() > 1) {
-											closeTab(view, tabs.indexOf(tabOfWebView));
+											closeTab(view, tabs.indexOf(tabOfWebView), true);
 										} else {
 											newBackgroundTab("about:blank", false, null);
-											closeTab(view, tabs.indexOf(tabOfWebView));
+											closeTab(view, tabs.indexOf(tabOfWebView), true);
 										}
 									}
 								}
@@ -2894,6 +2907,9 @@ public class MainActivity extends ParentActivity {
 					}
 					injectCSS(view);
 					//updatePreviewImage((CustomWebView)view);
+					if (tabAdapter != null) {
+						tabAdapter.notifyDataSetChanged();
+					}
 					//ExceptionLogger.d(TAG, "after injecting");
 //					view.evaluateJavascript("", new ValueCallback<String>() {
 //							@Override
@@ -2902,12 +2918,12 @@ public class MainActivity extends ParentActivity {
 //							}});
 				}
 
-				@Override
-				public void onPageCommitVisible(final WebView view, final String url) {
-					super.onPageCommitVisible(view, url);
-					//ExceptionLogger.d(TAG, "onPageCommitVisible " + view + ", url " + url);
-					updatePreviewImage((CustomWebView)view);
-				}
+//				@Override
+//				public void onPageCommitVisible(final WebView view, final String url) {
+//					super.onPageCommitVisible(view, url);
+//					//ExceptionLogger.d(TAG, "onPageCommitVisible " + view + ", url " + url);
+//					updatePreviewImage((CustomWebView)view);
+//				}
 				
 				//@Override
 				public void onDomContentLoaded(final WebView web) {
@@ -3063,13 +3079,12 @@ public class MainActivity extends ParentActivity {
 								   (scheme.startsWith("http")
 								   || scheme.startsWith("ftp"))) {
 							final boolean savePattern = Util.accept(urlToString, currentTab.includeResPattern, currentTab.excludeResPattern, currentTab.excludeResFirst);
-
+							ExceptionLogger.d(TAG, "savePattern " + savePattern + ", saveImage " + currentTab.saveImage + ", includeResPattern " + currentTab.includeResPattern + ", excludeResPattern " + currentTab.excludeResPattern + ", excludeResFirst " + currentTab.excludeResFirst);
 							if (IMAGES_PATTERN.matcher(fileName).matches()) {
-								final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, false);
 								final Runnable updateUI = new Runnable() {
 									@Override
 									public void run() {
-										final DownloadInfo downloadInfo = new DownloadInfo(urlToString, savedPath, true);
+										final DownloadInfo downloadInfo = new DownloadInfo(urlToString, true);
 										currentTab.downloadInfos.remove(downloadInfo);
 //										currentTab.batchDownloadSet.remove(urlToString);
 //										currentTab.batchDownloadedSet.add(urlToString);
@@ -3087,27 +3102,27 @@ public class MainActivity extends ParentActivity {
 									}
 								};
 								if (savePattern || currentTab.saveImage) {
-									  final boolean shouldAdd = currentTab.addImage(urlToString, currentTab.exactImageUrl);
-									  if (shouldAdd) {
-										return PipeInputStream.getResponse(PipeInputStream.SAVE_AND_USE, urlToString, savedPath, updateUI, requestHeaders);
+									final boolean shouldAdd = currentTab.addImage(urlToString, currentTab.exactImageUrl);
+									if (shouldAdd) {
+										return PipeInputStream.getResponse(PipeInputStream.Mode.SAVE_AND_USE, urlToString, updateUI, requestHeaders);
 									} else {
-										return PipeInputStream.getResponse(PipeInputStream.USE_EXIST_ONLY, urlToString, savedPath, updateUI, requestHeaders);
+										return PipeInputStream.getResponse(PipeInputStream.Mode.USE_EXIST_ONLY, urlToString, updateUI, requestHeaders);
 									}
 								}
 								if (currentTab.blockImages) {
-									return PipeInputStream.getResponse(PipeInputStream.USE_EXIST_ONLY, urlToString, savedPath, updateUI, requestHeaders);
+									return PipeInputStream.getResponse(PipeInputStream.Mode.USE_EXIST_ONLY, urlToString, updateUI, requestHeaders);
 								}
 							} else if (savePattern) {
-								final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
-								return PipeInputStream.getResponse(PipeInputStream.SAVE_AND_USE, urlToString, savedPath, null, requestHeaders);
+								//final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
+								return PipeInputStream.getResponse(PipeInputStream.Mode.SAVE_AND_USE, urlToString, null, requestHeaders);
 							} else if (MEDIA_PATTERN.matcher(fileName).matches()) {
 								if (currentTab.saveMedia) {
-									final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
-									return PipeInputStream.getResponse(PipeInputStream.SAVE_AND_USE, urlToString, savedPath, null, requestHeaders);
+									//final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
+									return PipeInputStream.getResponse(PipeInputStream.Mode.SAVE_AND_USE, urlToString, null, requestHeaders);
 								}
 								if (currentTab.blockMedia) {
-									final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
-									return PipeInputStream.getResponse(PipeInputStream.USE_EXIST_ONLY, urlToString, savedPath, null, requestHeaders);
+									//final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
+									return PipeInputStream.getResponse(PipeInputStream.Mode.USE_EXIST_ONLY, urlToString, null, requestHeaders);
 									//return emptyResponse;
 								}
 							} else {
@@ -3116,14 +3131,14 @@ public class MainActivity extends ParentActivity {
 								final boolean fontMatches = FONT_PATTERN.matcher(fileName).matches();
 								if (cssMatches || javascriptMatches || fontMatches) {
 									if (currentTab.saveResources) {
-										final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
-										return PipeInputStream.getResponse(PipeInputStream.SAVE_AND_USE, urlToString, savedPath, null, requestHeaders);
+										//final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
+										return PipeInputStream.getResponse(PipeInputStream.Mode.SAVE_AND_USE, urlToString, null, requestHeaders);
 									}
 									if (currentTab.blockCSS && cssMatches
 										|| currentTab.blockJavaScript && javascriptMatches
 										|| currentTab.blockFonts && fontMatches) {
-										final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
-										return PipeInputStream.getResponse(PipeInputStream.USE_EXIST_ONLY, urlToString, savedPath, null, requestHeaders);
+										//final String savedPath = getSavedFilePath(urlToString, SCRAP_PATH, true);
+										return PipeInputStream.getResponse(PipeInputStream.Mode.USE_EXIST_ONLY, urlToString, null, requestHeaders);
 									}
 								}
 							}
@@ -3381,7 +3396,7 @@ public class MainActivity extends ParentActivity {
         return webview;
     }
 
-	private String getSavedFilePath(final String url, final String parentPath, final boolean includeQuestion) {
+	static String getSavedFilePath(final String url, final String parentPath, final boolean includeQuestion) {
 		final String path = URLDecoder.decode(url).substring(url.indexOf("//") + 1, url.lastIndexOf("/"));
 		final String savedFilePath = parentPath + path;
 		String fileNameFromUrl = FileUtil.getFileNameFromUrl(url, includeQuestion);
@@ -3840,7 +3855,7 @@ public class MainActivity extends ParentActivity {
 
     private void switchToTab(final int tab) {
 		final CustomWebView wv = getCurrentWebView();
-		updatePreviewImage(wv);
+		//updatePreviewImage(wv);
         wv.setVisibility(View.GONE);
         currentTabIndex = tab;
         final Tab currentTab = getCurrentTab();
@@ -3896,34 +3911,37 @@ public class MainActivity extends ParentActivity {
 			requestList.setVisibility(View.GONE);
 		}
 		toolbar.setVisibility(View.VISIBLE);
-		updatePreviewImage(currentTab.webview);
+		//updatePreviewImage(currentTab.webview);
+		if (tabAdapter != null) {
+			tabAdapter.notifyDataSetChanged();
+		}
 	}
 
-	private void updatePreviewImage(final CustomWebView wv) {
-		if (wv.tab.loading) {
-			return;
-      	}
-//		wv.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-//				   View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-		//wv.layout(0, 0, wv.getMeasuredWidth(), wv.getMeasuredHeight());
-		//final Bitmap drawingCache = AndroidUtils.getBitmapFromView(wv);
-		wv.setDrawingCacheEnabled(true);
-		//wv.buildDrawingCache();
-		final Bitmap drawingCache = wv.getDrawingCache();
-		if (drawingCache != null) {
-			final Bitmap returnedBitmap = Bitmap.createBitmap(drawingCache);
-			final Bitmap previewImage = wv.tab.previewImage;
-			wv.tab.previewImage = AndroidUtils.resize(returnedBitmap, (int)(64*pixelsInDP), (int)(64*pixelsInDP));
-			if (tabAdapter != null) {
-				tabAdapter.notifyDataSetChanged();
-			}
-			if (previewImage != null) {
-				previewImage.recycle();
-			}
-		}
-		//wv.destroyDrawingCache();
-		wv.setDrawingCacheEnabled(false);
-	}
+//	private void updatePreviewImage(final CustomWebView wv) {
+////		if (wv.tab.loading) {
+////			return;
+////      	}
+////		wv.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+////				   View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+//		//wv.layout(0, 0, wv.getMeasuredWidth(), wv.getMeasuredHeight());
+//		//final Bitmap drawingCache = AndroidUtils.getBitmapFromView(wv);
+//		wv.setDrawingCacheEnabled(true);
+//		//wv.buildDrawingCache();
+//		final Bitmap drawingCache = wv.getDrawingCache();
+//		if (drawingCache != null) {
+//			final Bitmap returnedBitmap = Bitmap.createBitmap(drawingCache);
+//			final Bitmap previewImage = wv.tab.previewImage;
+//			wv.tab.previewImage = AndroidUtils.resize(returnedBitmap, (int)(64*pixelsInDP), (int)(64*pixelsInDP));
+//			if (tabAdapter != null) {
+//				tabAdapter.notifyDataSetChanged();
+//			}
+//			if (previewImage != null) {
+//				previewImage.recycle();
+//			}
+//		}
+//		//wv.destroyDrawingCache();
+//		wv.setDrawingCacheEnabled(false);
+//	}
 
     private void updateFullScreen() {
         final int flags = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
@@ -5846,6 +5864,7 @@ public class MainActivity extends ParentActivity {
     }
 
     void showOpenTabs() {
+		hideKeyboard();
 		if (tabDialog.getVisibility() == View.VISIBLE) {
 			tabDialog.setVisibility(View.GONE);
 		} else {
@@ -5977,6 +5996,7 @@ public class MainActivity extends ParentActivity {
 	
 	String getUniqueName(String outputFolder, String name, String ext) {
         int i = 1;
+		name = name.length() > 160 ? name.substring(0, 160) : name;
         File file = new File(outputFolder, name + ext);
         if(file.exists()) {
             while (true) {
@@ -6983,7 +7003,7 @@ public class MainActivity extends ParentActivity {
 			.show();
     }
 
-    private void closeTab(WebView webView, final int tabIndex) {
+    private void closeTab(WebView webView, final int tabIndex, final boolean requestNewFocus) {
 		final String url = webView.getUrl();
 		if (url != null && !url.equals("about:blank")) {
             final TitleAndBundle titleAndBundle = new TitleAndBundle();
@@ -7058,7 +7078,9 @@ public class MainActivity extends ParentActivity {
 		} else {
 			requestList.setVisibility(View.GONE);
 		}
-		webView.requestFocus();
+		if (requestNewFocus) {
+			webView.requestFocus();
+		}
 		if (tabAdapter != null)
 			tabAdapter.notifyDataSetChanged();
 	}
@@ -7540,7 +7562,7 @@ public class MainActivity extends ParentActivity {
         } else if (getCurrentWebView().canGoBack()) {
             getCurrentWebView().goBack();
         } else if (tabs.size() > 1) {
-            closeTab(getCurrentWebView(), currentTabIndex);
+            closeTab(getCurrentWebView(), currentTabIndex, true);
         }
     }
 	
@@ -8000,11 +8022,10 @@ public class MainActivity extends ParentActivity {
 			final Holder holder = (Holder) p1.getTag();
 			final int pos = holder.pos;
 			if (p1 == holder.closeView) {
-				closeTab(tabs.get(pos).webview, pos);
-				notifyDataSetChanged();
+				closeTab(tabs.get(pos).webview, pos, false);
 			} else {
 				switchToTab(pos);
-				MainActivity.this.tabDialog.setVisibility(View.GONE);
+				tabDialog.setVisibility(View.GONE);
 			}
 		}
     }
@@ -8245,7 +8266,6 @@ public class MainActivity extends ParentActivity {
 		final Tab tab;
         public CustomDialogBookmark(Activity activity, final Tab tab) {
             super(activity);
-            // TODO Auto-generated constructor stub
             this.mainActivity = activity;
 			this.tab = tab;
         }

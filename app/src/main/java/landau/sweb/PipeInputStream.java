@@ -23,9 +23,14 @@ import net.gnu.util.FileUtil;
 public class PipeInputStream extends InputStream {
 
 	private static final String TAG = "PipeInputStream";
-	public static final int USE_EXIST_ONLY = 0;
-	public static final int SAVE_AND_USE = 1;
-	public static final int NO_SAVE_ONLY_NEW = 3;
+	static enum Mode {
+		USE_EXIST_ONLY,
+		SAVE_AND_USE,
+		NO_SAVE_ONLY_NEW
+	}
+//	public static final int USE_EXIST_ONLY = 0;
+//	public static final int SAVE_AND_USE = 1;
+//	public static final int NO_SAVE_ONLY_NEW = 3;
 	
 	final OutputStream writeSave;
 	final InputStream in;
@@ -47,14 +52,15 @@ public class PipeInputStream extends InputStream {
 	}
 	
 	public static WebResourceResponse getResponse(
-		final int readWay,
+		final PipeInputStream.Mode readWay,
 		final String urlToString, 
-		final String savedFilePath,
+		//final String savedFilePath,
 		final Runnable updateUI,
 		final Map<String, String> requestHeaders) throws IOException {
+		final String savedFilePath = MainActivity.getSavedFilePath(urlToString, MainActivity.SCRAP_PATH, false);
 		final File file = new File(savedFilePath);
-		ExceptionLogger.d(TAG, "readWay " + readWay + ", exists " + file.exists() + ", urlToString " + urlToString + ", savedFilePath " + savedFilePath);// + ", requestHeaders " + requestHeaders);
-		if (readWay == PipeInputStream.USE_EXIST_ONLY) {
+		ExceptionLogger.d(TAG, "getResponse " + readWay + ", exists " + file.exists() + ", urlToString " + urlToString + ", savedFilePath " + savedFilePath);// + ", requestHeaders " + requestHeaders);
+		if (readWay == PipeInputStream.Mode.USE_EXIST_ONLY) {
 			if (file.exists() && file.isFile()) {
 				if (updateUI != null) {
 					updateUI.run();
@@ -64,13 +70,19 @@ public class PipeInputStream extends InputStream {
 					null,
 					new BufferedInputStream(new FileInputStream(file)));
 			}
-		} else {
-			if (!file.exists()) {
-				file.getParentFile().mkdirs();
-			}
-			final URL url = new URL(urlToString);
-			final URLConnection conn = url.openConnection();
-			if (readWay == PipeInputStream.SAVE_AND_USE) {
+		} else if (readWay == PipeInputStream.Mode.SAVE_AND_USE) {
+			if (urlToString.startsWith("http")
+				|| urlToString.startsWith("ftp")) {
+				if (file.exists() && file.isFile()) {//} && file.lastModified() == dateTime && dateTime > 0) {
+					//ExceptionLogger.d(TAG, "existed");
+					return new WebResourceResponse(
+						MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(file.getName())),
+						null,
+						new BufferedInputStream(new FileInputStream(file)));
+				}
+				final URL url = new URL(urlToString);
+				final URLConnection conn = url.openConnection();
+				//ExceptionLogger.d(TAG, "dateTime " + Util.dtf.format(dateTime) + "\n httpConn.getHeaderFields() " + httpConn.getHeaderFields());
 				final String cookies = CookieManager.getInstance().getCookie(urlToString);
 				//ExceptionLogger.d(TAG, "cookies " + cookies + ", requestHeaders " + requestHeaders);
 				conn.addRequestProperty("Cookie", cookies);
@@ -81,21 +93,12 @@ public class PipeInputStream extends InputStream {
 				conn.setDoInput(true);
 				ExceptionLogger.d(TAG, "conn.RequestProperties " + conn.getRequestProperties());
 				//long dateTime = conn.getLastModified();
-				if (urlToString.startsWith("http")
-					|| urlToString.startsWith("ftp")) {
+				if (!file.exists()) {
+					file.getParentFile().mkdirs();
+				}
+				//ExceptionLogger.d(TAG, "not existed");
+				if (urlToString.startsWith("http")) {
 					final HttpURLConnection httpConn = (HttpURLConnection)conn;
-					//ExceptionLogger.d(TAG, "dateTime " + Util.dtf.format(dateTime) + "\n httpConn.getHeaderFields() " + httpConn.getHeaderFields());
-					if (file.exists() && file.isFile()) {//} && file.lastModified() == dateTime && dateTime > 0) {
-						//ExceptionLogger.d(TAG, "existed");
-						return new WebResourceResponse(
-							MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(file.getName())),
-							null,
-							new BufferedInputStream(new FileInputStream(file)));
-					}
-					if (!file.exists()) {
-						file.getParentFile().mkdirs();
-					}
-					//ExceptionLogger.d(TAG, "not existed");
 					return new WebResourceResponse(
 						MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(file.getName())),
 						httpConn.getContentEncoding(),
@@ -103,14 +106,21 @@ public class PipeInputStream extends InputStream {
 						httpConn.getResponseMessage(),
 						null,
 						new PipeInputStream(savedFilePath, httpConn.getInputStream(), new BufferedOutputStream(new FileOutputStream(file)), updateUI, System.currentTimeMillis()));
+				} else {
+					return new WebResourceResponse(
+						MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(file.getName())),
+						null,
+						new PipeInputStream(savedFilePath, conn.getInputStream(), new BufferedOutputStream(new FileOutputStream(file)), updateUI, System.currentTimeMillis()));
 				}
-			} else if (readWay == PipeInputStream.NO_SAVE_ONLY_NEW) {
-				//long dateTime = conn.getLastModified();
-				return new WebResourceResponse(
-					MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(file.getName())),
-					null,
-					new PipeInputStream(savedFilePath, conn.getInputStream(), null, updateUI, System.currentTimeMillis()));
 			}
+		} else if (readWay == PipeInputStream.Mode.NO_SAVE_ONLY_NEW) {
+			final URL url = new URL(urlToString);
+			final URLConnection conn = url.openConnection();
+			//long dateTime = conn.getLastModified();
+			return new WebResourceResponse(
+				MimeTypeMap.getSingleton().getMimeTypeFromExtension(FileUtil.getExtension(file.getName())),
+				null,
+				new PipeInputStream(savedFilePath, conn.getInputStream(), null, updateUI, System.currentTimeMillis()));
 		}
 		//ExceptionLogger.d(TAG, "getResponse return new byte[0]");
 		return new WebResourceResponse("text/plain", "utf-8",

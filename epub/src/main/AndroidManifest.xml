@@ -11,7 +11,7 @@
     <application
         android:allowBackup="true"
         android:label="Epub Creator">
-        <!--
+        
         <activity
             android:name="net.gnu.epub.EPUBActivity"
             android:icon="@drawable/epub_converter"
@@ -41,7 +41,7 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
-        -->
+        
     </application>
 
 </manifest>

@@ -333,7 +333,7 @@ public class CHMFile implements Closeable {
 	/**
 	 * Get an InputStream object for the named resource in the CHM.
 	 */
-	public InputStream getResourceAsStream(String name) throws IOException {
+	public synchronized InputStream getResourceAsStream(String name) throws IOException {
 		//ExceptionLogger.d(TAG, "getResourceAsStream name=" + name + ", cf " + cf);
 		if (cf != null) {
 			try {

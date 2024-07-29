@@ -37,52 +37,6 @@ public class FileUtil {
 	private static final Pattern encodingCss = Pattern.compile("@charset\\s+\"([^\"]+)\";");
 	public static final Pattern ILLEGAL_FILE_CHARS = Pattern.compile("[^\n]*?[?\\:*|\"<>#+%][^\n]*?");
 	
-	public static void main(String[] args) throws Exception {
-
-		//exec("/system/bin/cat", "/proc/meminfo");
-		
-		System.out.println(Util.mapToString(System.getenv(), true, "\n"));
-		exec("pwd");
-
-		exec("ls", "-lR", "/data/data/com.aide.ui/");
-		//System.out.println(System.getenv("SECONDARY_STORAGE"));
-		System.out.println(System.getenv("EXTERNAL_STORAGE"));
-		
-		final Object[] objs = getDirSize(new File("/data/user/0/com.aide.ui/no_backup/.aide/maven"), true, Pattern.compile("^[^\"]*?\\.aar$", Pattern.CASE_INSENSITIVE), null);
-		for (File f : (List<File>)objs[3]) {
-			if (f.isDirectory() && f.getName().endsWith(".aar")) {
-				System.out.println(f.getAbsolutePath());
-				//deleteFolders(f, true, null, null);
-			}
-		}
-		exec("/system/bin/cp", "-f", "/sdcard/.aide/com.aide.ui_preferences.xml", "/data/data/com.aide.ui/shared_prefs");
-		//exec("/system/bin/cp", "-f", "/data/data/com.aide.ui/shared_prefs/com.aide.ui_preferences.xml", "/sdcard/.aide");
-		
-		System.out.println(new File("/storage/emulated/0/AppProjects/").getAbsolutePath());
-		
-//		Entry<BufferedReader, PrintStream> e = execInteract("/system/bin/cp", "-R", "-i", "/sdcard/rar", "/sdcard/.com.free.searcher");
-//		PrintStream p = e.getValue();
-//		BufferedReader b = e.getKey();
-//		Scanner input = new Scanner(System.in);
-//
-//		//System.out.print("Enter: ");
-//		String str = "";//input.nextLine();
-//		while (!"exit".equals(str)) {
-//			while (b.ready()) {
-//				System.out.println(b.readLine());
-//			}
-//			str = input.nextLine();
-//			p.println(str);
-//		}
-
-		//compare2Folder(new File("/storage/emulated/0/tmp"), new File("/storage/emulated/0/tmp"));
-		//compare2Folder(new File("/storage/emulated/0/tmp"), new File("/storage/emulated/0/rar/b"));
-		
-		//filterFiles("/storage/sdcard0/Download/HTTrack/Websites/oldmt/32", "-\\S{9}\\s+\\S+\\s+\\S+\\s+\\d*?\\s+\\S+\\s+\\S+\\s+([^/]+?)\\n", ".*?\\.(bmp|gif|ico|cur|jpeg|jpg|jpe|pcx|png|tiff|tif|psd|dwg|pct|pic|3gpp|3gp|3gpp2|3g2|avi|m4v|mpeg|mpg|mpe|mp4|vob|qt|mov|webm|asf|asx|wm|wmv|wmx|mpa|flv|mkv)");
-
-		//testPattern();
-
-	}
 	
 	public static StringBuilder exec(final String... cmd) {
 		if (cmd == null || cmd.length == 0) {
@@ -399,10 +353,10 @@ public class FileUtil {
 	}
 	
 	public static String saveISToFile(final InputStream is, String dirParent, String url, final boolean autoRename, final boolean overwrite) throws IOException {
-		ExceptionLogger.d(TAG, "saveISToFile " + dirParent + "/" + url + ", autoRename: " + autoRename + ", overwrite " + overwrite);
 		if (!dirParent.endsWith("/")) {
 			dirParent = dirParent + "/";
 		}
+		ExceptionLogger.d(TAG, "saveISToFile " + dirParent + url + ", autoRename: " + autoRename + ", overwrite " + overwrite);
 		final int slashIndex = url.lastIndexOf("/");
 		if (slashIndex >= 0) {
 			url = url.substring(slashIndex + 1);

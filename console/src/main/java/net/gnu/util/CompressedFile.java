@@ -35,6 +35,7 @@ import java.util.LinkedList;
 import java.util.Scanner;
 import java.util.Date;
 import java.util.regex.Pattern;
+//import android.util.Log;
 
 public class CompressedFile implements Serializable {
 
@@ -66,11 +67,17 @@ public class CompressedFile implements Serializable {
 		this.dest7zFile = new File(this.filePath);
 	}
 
+	public CompressedFile(final String filePath, String password) {
+		this.filePath = filePath;
+		this.dest7zFile = new File(this.filePath);
+		this.password = password;
+	}
+
 	class SevenZipInfo {
 		File sevenFile;
 		String password;
 	}
-	public static void main(String[] a) {
+	public static void main(String[] a) throws PasswordRequiredException, CompressorException, IOException, ArchiveException {
 		File[] fs = new File[]{
 //			new File("/storage/emulated/0/.aide/build-ffmpeg-armv7a.sh"),
 //			new File("/storage/emulated/0/.mixplorer/util-zip.zip"),
@@ -82,11 +89,34 @@ public class CompressedFile implements Serializable {
 			//new File("/storage/emulated/0/.mixplorer/framework.7z"),
 			
 		};
-		File sevenZFile = new File("/storage/emulated/0/.mixplorer/dest.7z");
+		File sevenZFile = new File("/storage/0067-7E11/Downloads/Lzma.7z");
 		//new CompressedFile(sevenZFile.getAbsolutePath()).comressTo7z("a", fs);
-		File oZipFile = new File("/storage/0067-7E11/Downloads/Yt4.zip");
-		new CompressedFile(oZipFile.getAbsolutePath()).comressTo7z("a", fs);
-		ExceptionLogger.d(TAG, "ok");
+		CompressedFile compressedFile = new CompressedFile(sevenZFile.getAbsolutePath(), "a");
+		long took1 = 0;
+		for (int i = 0 ; i < 5; i++) {
+			took1 += testTime(compressedFile);
+		}
+		compressedFile = new CompressedFile("/storage/0067-7E11/Downloads/Lzma2.7z", "a");
+		long took2 = 0;
+		for (int i = 0 ; i < 5; i++) {
+			took2 += testTime(compressedFile);
+		}
+		Log.d(TAG, Util.nf.format(took1));
+		Log.d(TAG, Util.nf.format(took2));
+		//File oZipFile = new File("/storage/0067-7E11/Downloads/Yt4.zip");
+		//new CompressedFile(oZipFile.getAbsolutePath()).comressTo7z("a", fs);
+		Log.d(TAG, "ok");
+	}
+
+	private static long testTime(CompressedFile compressedFile) throws PasswordRequiredException, CompressorException, IOException, ArchiveException {
+		List<String> arr = compressedFile.list();//("a", fs);
+		long curTime = System.nanoTime();
+		for (String s : arr) {
+			compressedFile.getResourceAsStream(s);
+		}
+		//long took = System.nanoTime() - curTime;
+		//Log.d(TAG, Util.nf.format(curTime));
+		return System.nanoTime() - curTime;
 	}
 
 	private void comressTo7z(final String oPassword, final File[] fs) {
@@ -436,6 +466,9 @@ public class CompressedFile implements Serializable {
 			}
 		} else if (filePath.toLowerCase().endsWith(".7z")) {
 			//ExceptionLogger.d(TAG, "initStream 7z password " + (password != null && password.length() > 0));
+//			boolean openOk = false;
+//			while (!openOk) {
+//				try {
 			if (password == null || password.length() == 0) {
 				sevenZFile = new SevenZFile(dest7zFile);
 				sevenZFile.getNextEntry();
@@ -445,6 +478,20 @@ public class CompressedFile implements Serializable {
 			} else {
 				sevenZFile = new SevenZFile(dest7zFile, password.toCharArray());
 			}
+//					openOk = true;
+//				} catch (PasswordRequiredException e) {
+//					ExceptionLogger.d(TAG, e.getMessage());
+//					if (sevenZFile != null) {
+//						sevenZFile.close();
+//					}
+//					final Scanner input = new Scanner(System.in);
+//					System.out.print("Enter password: ");
+//					password = input.next().trim();
+//					if (password == null || password.length() == 0) {
+//						openOk = true;
+//					}
+//				} 
+//			}
 		} else {
 			final InputStream bis = new BufferedInputStream(new FileInputStream(dest7zFile));
 			if (ARCHIVE_PATTERN.matcher(filePath).matches()) {

@@ -22,11 +22,11 @@ public class ParentActivity extends Activity {
     protected static final long TIME_INTERVAL = 250000000L;
 	protected long mBackPressed = System.nanoTime();
 	
-	public static final String IMAGE_PAT = "[^\"]*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico|svg)$";
-	public static final String MEDIA_PAT = "[^\"]*?\\.(avi|mp4v?|mp5|mpv|vob|rmvb|m2ts?|mp2t|r?t[sp]|webm|wmv|asf|mkv|av1|mov|mp2v|mpg4?|qt|mpeg4?|flv|mp21|mp3|opus|aac|pcm|flac|wav|wma|amr|og[gv]|vp[967]|vc1|rm|ram|m4a|m3u8?|3[gp]2|3gpp?2?)[^\"]*?";
-	public static final String FONT_PAT = "[^\"]*?\\.(otf|ttf|ttc|woff|woff2|eot)[^\"]*?";
+	public static final String IMAGE_PAT = "[^\"]*?\\.(gif|jpe?g|png|bmp|webp|tiff?|wmf|psd|pic|ico|svg)(\\?[^\"]*)?";
+	public static final String MEDIA_PAT = "[^\"]*?\\.(avi|mp[24][av]|mp[12345]|mpv[24]?|vob|rmvb|m2ts?|mp2t|r?t[sp]|webm|wm[av]|asf|mkv|av1|mov|qt|mpe?g[1234]?|flv|mp21|opus|aac|pcm|flac|wav|amr|og[gv]|vp[967]|vc1|ra?m|m4[av]|m3u8?|3[gp]2|3gpp?2?)(\\?[^\"]*)?";
+	public static final String FONT_PAT = "[^\"]*?\\.(otf|ttf|ttc|woff|woff2|eot)(\\?[^\"]*)?";
 	
-	public static Pattern HTML_PATTERN = Pattern.compile("[^\"]*?\\.([xds]?html?|php|txt|java|cpp|hpp|c|h|log)", Pattern.CASE_INSENSITIVE);
+	public static Pattern HTML_PATTERN = Pattern.compile("[^\"]*?\\.([xds]?html?|php|txt|java|cpp|hpp|c|h|log)(\\?[^\"]*)?", Pattern.CASE_INSENSITIVE);
 	public static final Pattern IMAGES_PATTERN = Pattern.compile(IMAGE_PAT, Pattern.CASE_INSENSITIVE);
 	public static final Pattern MEDIA_PATTERN = Pattern.compile(MEDIA_PAT, Pattern.CASE_INSENSITIVE);
 	public static final Pattern FONT_PATTERN = Pattern.compile(FONT_PAT, Pattern.CASE_INSENSITIVE);

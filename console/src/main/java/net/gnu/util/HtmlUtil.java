@@ -31,7 +31,8 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import java.util.*;
+//import android.util.Log;
+import java.io.ByteArrayInputStream;
 
 public class HtmlUtil {
 	//<(?:"[^"]*"['"]*|'[^']*'['"]*|[^'">])+(?<!/\s*)>
@@ -107,6 +108,91 @@ public class HtmlUtil {
 
 	private static String TAG = "HtmlUtil";
 
+	public static Set<String>[] replace(final String html, final String[] tag, final String[] attr, final String[] replacesStr, final String[] bysStr, final Set<String> ssException) {
+		final TreeSet<String> set = new TreeSet<>();
+		final TreeSet<String> setAll = new TreeSet<>();
+		if (tag != null && attr != null
+			&& tag.length > 0 && tag.length == attr.length) {
+			for (int i = 0; i < tag.length; i++) {
+				final String searchPatStr = "<" + tag[i] + "[^>]+?" + attr[i] + "\\s*=\\s*([\"'])([^\1]+?)\\1[^>]*>";
+				//Log.d(TAG, "html " + html);
+				//Log.d(TAG, "replace searchPatStr " + searchPatStr);
+				final Pattern patTag = Pattern.compile(searchPatStr, Pattern.CASE_INSENSITIVE);
+				final Matcher tagMatcher = patTag.matcher(html);
+				String urlGroup;
+				if (replacesStr != null && replacesStr.length > 0) {
+					final Pattern[] replacesPat = new Pattern[replacesStr.length];
+					for (int j = 0; j < replacesStr.length; j++) {
+						replacesPat[j] = Pattern.compile(replacesStr[j], Pattern.CASE_INSENSITIVE);
+					}
+					while (tagMatcher.find()) {
+						urlGroup = tagMatcher.group(2);
+						//Log.d(TAG, "g1 " + group);
+						int replaced = 0;
+						for (int j = 0; j < replacesStr.length; j++) {
+							if (replacesPat[j] != null) {
+								final Matcher replaceMatcher = replacesPat[j].matcher(urlGroup);
+								if (replaceMatcher.find()) {
+									replaced++;
+									urlGroup = replaceMatcher.replaceFirst(bysStr[j]);
+								}
+							}
+						}
+						if (replaced == replacesStr.length) {
+							setAll.add(urlGroup);
+							if (ssException == null 
+								|| !ssException.contains(urlGroup)) {
+								set.add(urlGroup);
+							}
+						}
+					}
+				} else {
+					while (tagMatcher.find()) {
+						urlGroup = tagMatcher.group(2);
+						//Log.d(TAG, "g2 " + group);
+						setAll.add(urlGroup);
+						if (ssException == null 
+							|| !ssException.contains(urlGroup)) {
+							set.add(urlGroup);
+						}
+					}
+				}
+			}
+		}
+		Log.d(TAG, "new " + set.size() + ", duplicated " + (setAll.size()-set.size()));
+		return new TreeSet[]{set, setAll};
+	}
+	
+	public static Set<String>[] extractLink(final String html, final String[] tag, final String[] attr, final Set<String> ssException, final Set<String> set, final Set<String> setAll) {
+		//final TreeSet<String> set = new TreeSet<>();
+		//final TreeSet<String> setAll = new TreeSet<>();
+		if (tag != null && attr != null
+			&& tag.length > 0 && tag.length == attr.length) {
+			for (int i = 0; i < tag.length; i++) {
+				final String searchPatStr = "<" + tag[i] + "[^>]+?" + attr[i] + "\\s*=\\s*([\"'])([^\1]+?)\\1[^>]*>";
+				//Log.d(TAG, "html " + html);
+				//Log.d(TAG, "replace searchPatStr " + searchPatStr);
+				final Pattern patTag = Pattern.compile(searchPatStr, Pattern.CASE_INSENSITIVE);
+				final Matcher m = patTag.matcher(html);
+				String group;
+				int no = 0;
+				int newVideo = 0;
+				while (m.find()) {
+					group = m.group(2);
+					//Log.d(TAG, "g2 " + group);
+					setAll.add(group);
+					no++;
+					if (ssException == null 
+						|| !ssException.contains(group)) {
+						set.add(group);
+						newVideo++;
+					}
+				}
+				Log.d(TAG, "extractLink " + no + ", dup " + (no-newVideo));
+			}
+		}
+		return new Set[]{set, setAll};
+	}
 	
 	public static String getTagValue(String tag, String html) {
 		String st = "<" + tag + "[^>]*?>" + "([^<]*?)</" + tag + "\\s*>";

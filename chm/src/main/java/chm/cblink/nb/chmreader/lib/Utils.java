@@ -400,7 +400,7 @@ public class Utils {
         return checksum.trim();
     }
 
-    public boolean extractSpecificFile(String filePath, String pathExtractFile, String insideFileName) throws PasswordRequiredException, IOException {
+    public synchronized boolean extractSpecificFile(String filePath, String pathExtractFile, String insideFileName) throws PasswordRequiredException, IOException {
         ExceptionLogger.d(TAG, "extractSpecificFile filePath " + filePath + ", pathExtractFile " + pathExtractFile + ", insideFileName " + insideFileName);
 		//try {
 //            if (chm == null) {

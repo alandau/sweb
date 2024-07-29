@@ -57,7 +57,9 @@ public class Mht2Htm {
 		try {
 			fis = new FileInputStream(f);
 			bis = new BufferedInputStream(fis);
-			final MimeConfig config = new MimeConfig.Builder().setMaxLineLen(10000).build();
+			final MimeConfig config = new MimeConfig.Builder()
+				.setMaxLineLen(100000)
+				.setMaxHeaderLen(100000).build();
 			builder.setMimeEntityConfig(config);
 			final Message message = builder.parseMessage(bis);
 			final Body body = message.getBody();
