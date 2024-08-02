@@ -167,6 +167,7 @@ import java.io.Serializable;
 import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import android.content.res.Configuration;
+import android.media.*;
 
 public class MainActivity extends ParentActivity {
 	private PowerManager.WakeLock mWakeLock;
@@ -224,249 +225,13 @@ public class MainActivity extends ParentActivity {
 //		}
 //	}
 	
-	private static class CrawlerInfo implements Serializable, Comparable<CrawlerInfo> {
-
-		final String url;
-		final int level;
-		
-		CrawlerInfo(final String url, final int level) {
-			this.url = url;
-			this.level = level;
-		}
-
-		@Override
-		public boolean equals(final Object o) {
-			if (o == null) {
-				return false;
-			} else if (o instanceof String) {
-				return url.equals((String) o);
-			} else if (o instanceof CrawlerInfo) {
-				return url.equals(((CrawlerInfo) o).url);
-			} else {
-				return false;
-			}
-		}
-		
-		@Override
-		public int compareTo(final CrawlerInfo p1) {
-			return url.compareTo(p1.url);
-		}
-	}
-	private static class DownloadInfo implements Serializable, Comparable<DownloadInfo> {
-		String url;
-		String status;
-		String savedPath;
-		String name;
-
-		DownloadInfo(final String url, boolean exact) {
-			this.url = url;
-			this.name = FileUtil.getFileNameFromUrl(url, exact);
-			this.savedPath = MainActivity.getSavedFilePath(url, SCRAP_PATH, false);
-		}
-
-		@Override
-		public boolean equals(final Object o) {
-			if (o instanceof DownloadInfo) {
-				return url.equals(((DownloadInfo) o).url);
-			} else {
-				return false;
-			}
-		}
-		@Override
-		public int compareTo(final DownloadInfo p1) {
-			return url.compareTo(p1.url);
-		}
-	}
-	static class Tab implements Serializable {
-		Tab() {
-        }
-		Tab(final CustomWebView w, final boolean isIncognito) {
-            this.webview = w;
-			this.isIncognito = isIncognito;
-			this.webview.tab = this;
-        }
-		String userAgent;
-		String textEncoding;
-		transient WebView printWeb;
-		boolean saveAndClose = false;
-		boolean openAndClose = false;
-		boolean loading;
-        transient CustomWebView webview;
-		String url;
-        boolean isDesktop;
-		long lastDownload = -1L;
-		String sourceName;
-		boolean isIncognito = false;
-		transient LinkedList<String> requestsLog = new LinkedList<>();
-		CharSequence recentConstraint;
-		boolean useAdBlocker;
-		boolean enableCookies;
-		boolean accept3PartyCookies;
-		boolean offscreenPreRaster;
-		boolean requestSaveData;
-		boolean removeIdentifyingHeaders;
-		boolean doNotTrack;
-		boolean javaScriptCanOpenWindowsAutomatically;
-		boolean textReflow;
-		transient Bitmap favicon;
-		transient Bitmap previewImage;
-		boolean blockImages;
-		boolean blockMedia;
-		boolean blockFonts;
-		boolean blockCSS;
-		boolean blockJavaScript;
-		boolean blockNetworkLoads;
-		boolean loadWithOverviewMode;
-		boolean javaScriptEnabled;
-		String source = "";
-		ArrayList<String> resourcesList = new ArrayList<>();
-		String includeResPatternStr = ".*?\\b(jpg|jpeg|webp|gif|css|js|ico).*?";
-		String excludeResPatternStr = ".*?(44884218_345707102882519_2446069589734326272_n.jpg|68d99ba29cc8.png|1b47f9d0e595.png|bcd90c1d4868.png|1075ddfe0f68.png|77929eccc37e.png|.*?\\.png).*?";
-		transient Pattern includeResPattern;
-		transient Pattern excludeResPattern;
-		String batchLinkPatternStr = "";
-		int from = 0;
-		int to = 0;
-		String crawlPatternStr = "";
-		String excludeCrawlPatternStr = ".*?(tel|mailto|javascript):.*? .*?(feed|comment|'|google-analytics.com).* [^\"]*?\\.(pdf|docx?|xlsx?|pptx?|epub|prc|mobi|fb2|exe|apk|bin|7z|tgz|tbz2|zstd|zip|bz2|gz|avi|mp4|webm|wmv|asf|mkv|av1|mov|mpeg|flv|mp3|opus|wav|wma|amr|ogg|vp9|pcm|rm|ram|m4a|3gpp?)[^\"]*?";
-		transient Pattern crawlPattern = null;
-		transient Pattern excludeCrawlPattern = null;
-		boolean excludeLinkFirst;
-		boolean excludeResFirst;
-		String replace = "";
-		String by = "";
-		transient Pattern[] replacePat;
-		String[] bys;
-		
-		TreeSet<CrawlerInfo> batchDownloadSet = new TreeSet<>();
-		TreeSet<CrawlerInfo> batchDownloadedSet = new TreeSet<>();
-		boolean batchRunning = false;
-		boolean update = false;
-		
-		boolean saveHtml = false;
-		boolean saveImage = false;
-		boolean exactImageUrl = true;
-		boolean saveMedia;
-		boolean saveResources;
-		boolean catchAMP = false;
-		boolean localization = true;
-		int autoReload = 0;
-		boolean removeComment;
-		boolean removeJavascript;
-        boolean userScriptEnabled;
-		int level = -1;
-		String lastUrl = "";
-		int curLevel = 0;
-		
-		transient Handler handler = new Handler();
-		transient Runnable autoRerun;
-		volatile ArrayList<DownloadInfo> downloadInfos = new ArrayList<>();
-		volatile LinkedList<DownloadInfo> downloadedInfos = new LinkedList<>();
-		transient LogArrayAdapter logAdapter;
-		boolean showRequestList = false;
-		boolean started = false;
-		transient Utils utils = null;
-		String chmFilePath = "";
-		String extractPath;
-		String md5File;
-		String password = "";
-		ArrayList<String> listSite;
-		ArrayList<String> listBookmark;
-		int historyIndex = -1;
-		transient CustomDialogBookmark bookmarkDialog;
-		boolean searchChanged;
-		volatile boolean onEnterPassword = false;
-		boolean passwordOK = false;
-		boolean cacheMedia = false;
-		boolean savePassword = false;
-		
-		String getSavedPath(final String name) {
-			for (int i = 0; i < downloadedInfos.size(); i++) {
-				final DownloadInfo di = downloadedInfos.get(i);
-				if (name.equals(di.name)) {
-					return di.savedPath;
-				}
-			}
-			return "";
-		}
-		boolean addImage(final String url, final boolean exact) {
-			final String onlyName = FileUtil.getFileNameFromUrl(url, false);
-			try {
-				if (exact) {
-					for (DownloadInfo downloadInfo : downloadInfos) {
-						if (url.equals(downloadInfo.url)) {
-							return false;
-						}
-					}
-				} else {
-					for (DownloadInfo downloadInfo : downloadInfos) {
-						if (onlyName.equals(downloadInfo.name)) {
-							return false;
-						}
-					}
-				}
-				if (exact) {
-					for (DownloadInfo downloadInfo : downloadedInfos) {
-						if (url.equals(downloadInfo.url)) {
-							return false;
-						}
-					}
-				} else {
-					for (DownloadInfo downloadInfo : downloadedInfos) {
-						if (onlyName.equals(downloadInfo.name)) {
-							return false;
-						}
-					}
-				}
-			} catch (Throwable t) {
-				ExceptionLogger.e(TAG, t);
-			}
-			downloadInfos.add(new DownloadInfo(url, exact));
-			return true;
-		}
-		
-		int delay = 1000;
-		boolean autoscroll = false;
-		boolean scrolling = false;
-		int scrollY;
-		int scrollMax;
-		int length = 768;
-		public void copyTab(final Tab srcTab) {
-			this.isDesktop = srcTab.isDesktop;
-			this.userAgent = srcTab.userAgent;
-			this.isIncognito = srcTab.isIncognito;
-			this.blockImages = srcTab.blockImages;
-			this.blockMedia = srcTab.blockMedia;
-			this.blockFonts = srcTab.blockFonts;
-			this.blockCSS = srcTab.blockCSS;
-			this.blockJavaScript = srcTab.blockJavaScript;
-			this.saveImage = srcTab.saveImage;
-			this.saveMedia = srcTab.saveMedia;
-			this.saveResources = srcTab.saveResources;
-			this.saveHtml = srcTab.saveHtml;
-			this.loadWithOverviewMode = srcTab.loadWithOverviewMode;
-			this.includeResPatternStr = srcTab.includeResPatternStr;
-			this.excludeResPatternStr = srcTab.excludeResPatternStr;
-			this.includeResPattern = srcTab.includeResPattern;
-			this.excludeResPattern = srcTab.excludeResPattern;
-			this.useAdBlocker = srcTab.useAdBlocker;
-			this.enableCookies = srcTab.enableCookies;
-			this.accept3PartyCookies = srcTab.accept3PartyCookies;
-			this.offscreenPreRaster = srcTab.offscreenPreRaster;
-			this.requestSaveData = srcTab.requestSaveData;
-			this.doNotTrack = srcTab.doNotTrack;
-			this.javaScriptCanOpenWindowsAutomatically = srcTab.javaScriptCanOpenWindowsAutomatically;
-			this.removeIdentifyingHeaders = srcTab.removeIdentifyingHeaders;
-			this.textReflow = srcTab.textReflow;
-		}
-	}
 	
 	private boolean FULL_INCOGNITO = Build.VERSION.SDK_INT >= 28;
 	private boolean WEB_RTC = Build.VERSION.SDK_INT >= 21;
 	private boolean THIRD_PARTY_COOKIE_BLOCKING = Build.VERSION.SDK_INT >= 21;
 	
     private static final String searchUrl = "https://www.google.com/search?q=%s";
-    private static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
+    static final String searchCompleteUrl = "https://www.google.com/complete/search?client=firefox&q=%s";
     private static final String androidPhoneUA = "Mozilla/5.0 (Linux; Android 9; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/96.0.4664.104 Mobile Safari/537.36";//"Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Mobile Safari/537.36";
     private static final String androidTabletUA = "Mozilla/5.0 (Linux; Android 7.1.1; Nexus 9 Build/N4F26M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.90 Safari/537.36";//"Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Mobile Safari/537.36";
     private static final String iOSPhoneUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 12_0_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Mobile/15E148 Safari/604.1";
@@ -491,8 +256,8 @@ public class MainActivity extends ParentActivity {
     static final int PERMISSION_REQUEST_DOWNLOAD = 5;
 	static final int PERMISSION_REQUEST_READ_EXTERNAL = 6;
 	
-    private ArrayList<Tab> tabs = new ArrayList<>();
-    private int currentTabIndex;
+    ArrayList<Tab> tabs = new ArrayList<>();
+    int currentTabIndex;
     private FrameLayout webviews;
 	private View main_layout;
 	private ViewGroup address;
@@ -502,7 +267,7 @@ public class MainActivity extends ParentActivity {
 	private View searchPane;
 	private ImageView goStop;
 	private ProgressBar progressBar;
-	private LinearLayout tabDialog;
+	LinearLayout tabDialog;
 	private ImageView undoCloseBtn;
 	private ImageView newTabBtn;
 	private ViewGroup toolbar;
@@ -562,8 +327,8 @@ public class MainActivity extends ParentActivity {
 	private int renderMode;
 	private boolean removeIdentifyingHeaders;
 	private String downloadLocation;
-	private int textColor;
-	private int backgroundColor;
+	int textColor;
+	int backgroundColor;
 	private String textEncoding;
 	private String deleteAfter;
 	private boolean saveImage;
@@ -629,40 +394,7 @@ public class MainActivity extends ParentActivity {
 			}
 		}
 	};
-	
-	private static class MenuAction {
 
-        final static HashMap<String, MenuAction> actions = new HashMap<>();
-
-        private MenuAction(final String title, final int icon, final Runnable action) {
-            this(title, icon, action, null);
-        }
-
-        private MenuAction(final String title, final int icon, final Runnable action, MyBooleanSupplier getState) {
-            this.title = title;
-            this.icon = icon;
-            this.action = action;
-            this.getState = getState;
-            actions.put(title, this);
-        }
-
-        @Override
-        public String toString() {
-            return title;
-        }
-
-        private final String title;
-        private final int icon;
-        private final Runnable action;
-        private final MyBooleanSupplier getState;
-    }
-
-    // java.util.function.BooleanSupplier requires API 24
-    interface MyBooleanSupplier {
-        boolean getAsBoolean();
-    }
-	
-	
 	MenuActionArrayAdapter fullMenuActionAdapter;
 	MenuActionArrayAdapter uaAdapter;
 	@SuppressWarnings("unchecked")
@@ -2393,7 +2125,7 @@ public class MainActivity extends ParentActivity {
 
     private ArrayList<TitleAndBundle> closedTabs = new ArrayList<>();
 
-    private Tab getCurrentTab() {
+    Tab getCurrentTab() {
         return tabs.get(currentTabIndex);
     }
 
@@ -3646,18 +3378,16 @@ public class MainActivity extends ParentActivity {
         final DownloadManager.Request request;
         try {
             request = new DownloadManager.Request(Uri.parse(url));
-        } catch (IllegalArgumentException e) {
-            new AlertDialog.Builder(MainActivity.this)
-				.setTitle("Can't Download URL")
-				.setMessage(url)
-				.setPositiveButton("OK", onClickDismiss)
-				.show();
-            return false;
-        }
-		ExceptionLogger.d(TAG, downloadLocation+filename);
+		ExceptionLogger.d(TAG, "startDownload " + downloadLocation + "/" + filename);
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-        request.setDestinationUri(Uri.fromFile(new File(downloadLocation, filename)));//setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
-        request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI
+		File fileResult = new File(downloadLocation, filename);
+		if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
+			request.setDestinationUri(Uri.fromFile(fileResult));
+		} else {
+			request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+			fileResult = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), filename);
+		}
+		request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI
 									   | DownloadManager.Request.NETWORK_MOBILE)
 			.setAllowedOverRoaming(false)
 			.setTitle("Download")
@@ -3669,6 +3399,20 @@ public class MainActivity extends ParentActivity {
         final DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
         assert dm != null;
         getCurrentTab().lastDownload = dm.enqueue(request);
+			MediaScannerConnection.scanFile(MainActivity.this, new String[]{fileResult.getAbsolutePath()}, null,
+			new MediaScannerConnection.OnScanCompletedListener() {
+				public void onScanCompleted(String path, Uri uri) {
+					ExceptionLogger.i(TAG, "Scanned " + path + ":");
+				}
+			});
+		} catch (Throwable e) {
+            new AlertDialog.Builder(MainActivity.this)
+				.setTitle("Can't Download URL")
+				.setMessage(url)
+				.setPositiveButton("OK", onClickDismiss)
+				.show();
+            return false;
+        }
 		return true;
     }
 
@@ -3841,7 +3585,7 @@ public class MainActivity extends ParentActivity {
 		return tab;
     }
 
-    private Tab newForegroundTab(final String url, final boolean isIncognito, final Tab srcTab) {
+    Tab newForegroundTab(final String url, final boolean isIncognito, final Tab srcTab) {
         final Tab tab = newBackgroundTab(url, isIncognito, srcTab);
 		switchToTab(tabs.size()==0?0:currentTabIndex+1);
 		return tab;
@@ -3853,7 +3597,7 @@ public class MainActivity extends ParentActivity {
 		return tab;
     }
 
-    private void switchToTab(final int tab) {
+    void switchToTab(final int tab) {
 		final CustomWebView wv = getCurrentWebView();
 		//updatePreviewImage(wv);
         wv.setVisibility(View.GONE);
@@ -7003,7 +6747,7 @@ public class MainActivity extends ParentActivity {
 			.show();
     }
 
-    private void closeTab(WebView webView, final int tabIndex, final boolean requestNewFocus) {
+    void closeTab(WebView webView, final int tabIndex, final boolean requestNewFocus) {
 		final String url = webView.getUrl();
 		if (url != null && !url.equals("about:blank")) {
             final TitleAndBundle titleAndBundle = new TitleAndBundle();
@@ -7690,7 +7434,7 @@ public class MainActivity extends ParentActivity {
 						return true;
 					}});
         }
-		final GestureDetector gestureDetector = new GestureDetector(this, new MyGestureDetector(this, swipeLeft, swipeRight, swipeUp, null));
+		final GestureDetector gestureDetector = new GestureDetector(this, new ToolbarGestureDetector(this, swipeLeft, swipeRight, swipeUp, null));
 		//noinspection AndroidLintClickableViewAccessibility
 		view.setOnTouchListener(new OnTouchListener() {
 				public boolean onTouch(View v, MotionEvent event) {
@@ -7715,729 +7459,6 @@ public class MainActivity extends ParentActivity {
 			}
 		}
 	}
-
-    private class MyGestureDetector extends GestureDetector.SimpleOnGestureListener {
-        private static final double FORBIDDEN_ZONE_MIN = Math.PI / 4 - Math.PI / 180;
-        private static final double FORBIDDEN_ZONE_MAX = Math.PI / 4 + Math.PI / 180;
-        private static final int MIN_VELOCITY_DP = 80;  // 0.5 inch/sec
-        private static final int MIN_DISTANCE_DP = 80;  // 0.5 inch
-        private final float MIN_VELOCITY_PX;
-        private final float MIN_DISTANCE_PX;
-		final Runnable swipeLeft;
-		final Runnable swipeRight;
-		final Runnable swipeUp;
-		final Runnable swipeDown;
-
-		MyGestureDetector(Context context, final Runnable swipeLeft, final Runnable swipeRight, final Runnable swipeUp, final Runnable swipeDown) {
-            float density = context.getResources().getDisplayMetrics().density;
-            MIN_VELOCITY_PX = MIN_VELOCITY_DP * density;
-            MIN_DISTANCE_PX = MIN_DISTANCE_DP * density;
-			this.swipeLeft = swipeLeft;
-			this.swipeRight = swipeRight;
-			this.swipeUp = swipeUp;
-			this.swipeDown = swipeDown;
-        }
-
-        @Override
-        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            float velocitySquared = velocityX * velocityX + velocityY * velocityY;
-            if (velocitySquared < MIN_VELOCITY_PX * MIN_VELOCITY_PX) {
-                // too slow
-                return false;
-            }
-
-            float deltaX = e2.getX() - e1.getX();
-            float deltaY = e2.getY() - e1.getY();
-
-            if (Math.abs(deltaX) < MIN_DISTANCE_PX && Math.abs(deltaY) < MIN_DISTANCE_PX) {
-                // small movement
-                return false;
-            }
-
-            double angle = Math.atan2(Math.abs(deltaY), Math.abs(deltaX));
-            if (angle > FORBIDDEN_ZONE_MIN && angle < FORBIDDEN_ZONE_MAX) {
-                return false;
-            }
-
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                if (deltaX > 0) {
-                    return onFlingRight();
-                } else {
-                    return onFlingLeft();
-                }
-            } else {
-                if (deltaY > 0) {
-                    return onFlingDown();
-                } else {
-                    return onFlingUp();
-                }
-            }
-        }
-
-        boolean onFlingRight() {
-            if (swipeRight != null) {
-				swipeRight.run();
-			}
-            return true;
-        }
-
-        boolean onFlingLeft() {
-			if (swipeLeft != null) {
-				swipeLeft.run();
-			}
-            return true;
-        }
-
-        boolean onFlingUp() {
-            if (swipeUp != null) {
-				swipeUp.run();
-			}
-            return true;
-        }
-
-        boolean onFlingDown() {
-            if (swipeDown != null) {
-				swipeDown.run();
-			}
-            return true;
-        }
-    }
-	private class LogArrayAdapter extends ArrayAdapter implements View.OnClickListener, View.OnLongClickListener {
-		private boolean showImages = false;
-		class Holder {
-			TextView textView;
-			ImageView imageView;
-			Object item;
-			Holder(View convertView) {
-				imageView = (ImageView) convertView.findViewById(R.id.icon);
-				imageView.setOnClickListener(LogArrayAdapter.this);
-				convertView.setOnClickListener(LogArrayAdapter.this);
-				
-				imageView.setOnLongClickListener(LogArrayAdapter.this);
-				convertView.setOnLongClickListener(LogArrayAdapter.this);
-				
-				imageView.setTag(this);
-				convertView.setTag(this);
-				
-				textView = (TextView) convertView.findViewById(R.id.name);
-				textView.setOnClickListener(LogArrayAdapter.this);
-				textView.setOnLongClickListener(LogArrayAdapter.this);
-				textView.setTag(this);
-				textView.setTextColor(textColor);
-				textView.setBackgroundColor(backgroundColor);
-				textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13.f);
-			}
-		}
-		public LogArrayAdapter(Context context, int resource, LinkedList objects) {
-            super(context, resource, objects);
-		}
-		
-		@Override
-		public void onClick(View p1) {
-			final Holder tag = (Holder) p1.getTag();
-			final Object item = (tag).item;
-			if (showImages)
-				newForegroundTab(((DownloadInfo)item).savedPath, getCurrentTab().isIncognito, getCurrentTab());
-			else
-				newForegroundTab((String)item, getCurrentTab().isIncognito, getCurrentTab());
-		}
-		
-		@Override
-		public boolean onLongClick(View p1) {
-			final Holder tag = (Holder) p1.getTag();
-			final Object item = (tag).item;
-			if (showImages) {
-				AndroidUtils.copyClipboard(MainActivity.this, "Text", ((DownloadInfo)item).savedPath);
-			} else {
-				AndroidUtils.copyClipboard(MainActivity.this, "Text", (String)item);
-			}
-			return true;
-		}
-		
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            final Holder holder;
-			if (convertView == null) {
-				convertView = getLayoutInflater().inflate(R.layout.image, parent, false);
-				holder = new Holder(convertView);
-			} else {
-				holder = (Holder) convertView.getTag();
-			}
-			final ImageView imageView = holder.imageView;
-			final TextView textView = holder.textView;
-			holder.item = getItem(position);
-			final String path;
-			if (showImages) {
-				path = ((DownloadInfo)holder.item).savedPath;
-				final BitmapFactory.Options opts = new BitmapFactory.Options();
-				opts.inJustDecodeBounds = false;
-				
-				final Bitmap bMap = BitmapFactory.decodeFile(path, opts);
-				//ExceptionLogger.d(TAG, "holder.item " + item + ", " + show + ", bitmap " + bMap + ", barr.length " + barr.length);
-				imageView.setImageBitmap(bMap);
-
-				textView.setVisibility(View.GONE);
-				imageView.setVisibility(View.VISIBLE);
-			} else {
-				path = (String)holder.item;
-				textView.setText(path);
-				textView.setVisibility(View.VISIBLE);
-				imageView.setVisibility(View.GONE);
-			}
-			return convertView;
-        }
-		@Override
-		public Filter getFilter() {
-			Filter filter = new Filter() {
-				@SuppressWarnings("unchecked")
-				@Override
-				protected void publishResults(CharSequence constraint, FilterResults results) {
-					LogArrayAdapter.this.clear();
-					if (results != null && results.values != null) {
-						LogArrayAdapter.this.addAll((ArrayList<String>) results.values);
-						if (results.count == 0 ) {
-							LogArrayAdapter.this.notifyDataSetInvalidated();
-						} else {
-							LogArrayAdapter.this.notifyDataSetChanged();
-						}
-					}
-				}
-				@Override
-				protected FilterResults performFiltering(CharSequence constraint) {
-					if (constraint != null && constraint.length() == 0) {
-						constraint = getCurrentTab().recentConstraint;
-					}
-					getCurrentTab().recentConstraint = constraint;
-					final FilterResults results = new FilterResults();
-					final ArrayList<String> filteredArrayNames = new ArrayList<String>();
-					if (constraint == null) {
-						filteredArrayNames.addAll(getCurrentTab().requestsLog);
-					} else {
-						// perform your search here using the searchConstraint String.
-						//constraint = constraint.toString().toLowerCase();
-						final Pattern pattern = Pattern.compile(constraint.toString(), Pattern.CASE_INSENSITIVE);
-						final Tab currentTab = getCurrentTab();
-						for (String s : currentTab.requestsLog) {
-							if (s != null && pattern.matcher(s).matches())  {
-								filteredArrayNames.add(s);
-							}
-						}
-					}
-					results.count = filteredArrayNames.size();
-					results.values = filteredArrayNames;
-					//Log.e("VALUES", results.values.toString());
-					return results;
-				}
-			};
-			return filter;
-		}
-    }
-    private static class ArrayAdapterWithCurrentItem<T> extends ArrayAdapter<T> {
-        int currentIndex;
-
-        ArrayAdapterWithCurrentItem(Context context, int resource, T[] objects, int currentIndex) {
-            super(context, resource, objects);
-            this.currentIndex = currentIndex;
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            View view = super.getView(position, convertView, parent);
-            TextView textView = (TextView) view.findViewById(android.R.id.text1);
-            int icon = position == currentIndex ? android.R.drawable.ic_menu_mylocation : R.drawable.empty;
-            Drawable d = getContext().getResources().getDrawable(icon, null);
-            int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, getContext().getResources().getDisplayMetrics());
-            d.setBounds(0, 0, size, size);
-            textView.setCompoundDrawablesRelative(d, null, null, null);
-            textView.setCompoundDrawablePadding(
-                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getContext().getResources().getDisplayMetrics()));
-            return view;
-        }
-    }
-
-    private class ArrayAdapterWithCurrentItemClose<T> extends ArrayAdapter<T> implements View.OnClickListener {
-        
-		class Holder {
-			final ImageView currentView;
-			final TextView titleView;
-			final TextView addressView;
-			final ImageView closeView;
-			final LinearLayout ll;
-			int pos;
-			Holder(View convertView) {
-				currentView = (ImageView) convertView.findViewById(R.id.current);
-				titleView = (TextView) convertView.findViewById(R.id.title);
-				addressView = (TextView) convertView.findViewById(R.id.address);
-				closeView = (ImageView) convertView.findViewById(R.id.close);
-				ll = (LinearLayout) convertView.findViewById(R.id.top);
-				closeView.setOnClickListener(ArrayAdapterWithCurrentItemClose.this);
-				convertView.setOnClickListener(ArrayAdapterWithCurrentItemClose.this);
-				closeView.setTag(this);
-				convertView.setTag(this);
-			}
-		}
-        ArrayAdapterWithCurrentItemClose(final Context context, final int resource, final List<T> objects) {//}, final int currentIndex) {
-            super(context, resource, objects);
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            final Holder holder;
-			if (convertView == null) {
-				convertView = getLayoutInflater().inflate(R.layout.tab_item, parent, false);
-				holder = new Holder(convertView);
-			} else {
-				holder = (Holder) convertView.getTag();
-			}
-
-			final TextView titleView = holder.titleView;
-			final TextView addressView = holder.addressView;
-			final ImageView currentView = holder.currentView;
-			final WebView wv = tabs.get(position).webview;
-            final LinearLayout ll = holder.ll;
-            holder.pos = position;
-			titleView.setText(wv.getTitle());
-			addressView.setText(wv.getUrl());
-			if (position == currentTabIndex) {
-				ll.setBackgroundColor(0xffffffe8);
-				titleView.setTextColor(0xff000000);
-				addressView.setTextColor(0xff000000);
-				//holder.closeView.setColorFilter(0xff000000, PorterDuff.Mode.SRC_IN);
-			} else {
-				ll.setBackgroundColor(0xff363636);
-				titleView.setTextColor(0xfffffff0);
-				addressView.setTextColor(0xfffffff0);
-				//holder.closeView.setColorFilter(0xfffffff0, PorterDuff.Mode.SRC_IN);
-			}
-			if (tabs.get(position).previewImage != null) {
-				currentView.setImageBitmap(tabs.get(position).previewImage);
-			} else {
-				currentView.setImageBitmap(tabs.get(position).favicon);
-			}
-			return convertView;
-        }
- 
-		@Override
-		public void onClick(View p1) {
-			final Holder holder = (Holder) p1.getTag();
-			final int pos = holder.pos;
-			if (p1 == holder.closeView) {
-				closeTab(tabs.get(pos).webview, pos, false);
-			} else {
-				switchToTab(pos);
-				tabDialog.setVisibility(View.GONE);
-			}
-		}
-    }
-
-    private static class MenuActionArrayAdapter extends ArrayAdapter<MenuAction> implements View.OnClickListener {
-		DisplayMetrics m;
-		int size;
-		class Holder {
-			final TextView textView;
-			MenuAction item;
-			Holder(View convertView) {
-				textView = (TextView) convertView.findViewById(android.R.id.text1);
-				textView.setOnClickListener(MenuActionArrayAdapter.this);
-				convertView.setOnClickListener(MenuActionArrayAdapter.this);
-				textView.setTag(this);
-				convertView.setTag(this);
-			}
-		}
-		@Override
-		public void onClick(View p1) {
-			Holder tag = (Holder) p1.getTag();
-			final MenuAction item = (tag).item;
-			item.action.run();
-			Drawable right = null;
-            if (item.getState != null) {
-                int icon = item.getState.getAsBoolean() ? android.R.drawable.checkbox_on_background :
-					android.R.drawable.checkbox_off_background;
-                right = getContext().getResources().getDrawable(icon, null);
-                right.setBounds(0, 0, size, size);
-            }
-
-            tag.textView.setCompoundDrawables(tag.textView.getCompoundDrawables()[0], null, right, null);
-            tag.textView.setCompoundDrawablePadding(
-				(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, m));
-			MenuActionArrayAdapter.this.notifyDataSetChanged();
-		}
-		
-        MenuActionArrayAdapter(Context context, int resource, ArrayList<MenuAction> objects) {
-            super(context, resource, objects);
-			m = getContext().getResources().getDisplayMetrics();
-			size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, m);
-		}
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            final Holder holder;
-			if (convertView == null) {
-				convertView = super.getView(position, convertView, parent);//getLayoutInflater().inflate(R.layout.list_item, parent, false);
-				holder = new Holder(convertView);
-			} else {
-				holder = (Holder) convertView.getTag();
-			}
-
-			final TextView textView = holder.textView;
-			final MenuAction item = getItem(position);
-            assert item != null;
-			holder.item = item;
-			textView.setText(item.title);
-//			View view = super.getView(position, convertView, parent);
-//			TextView textView = (TextView) view.findViewById(android.R.id.text1);
-            
-            Drawable left = getContext().getResources().getDrawable(item.icon != 0 ? item.icon : R.drawable.empty, null);
-            left.setBounds(0, 0, size, size);
-            left.setTint(0xffeeeeee);
-
-            Drawable right = null;
-            if (item.getState != null) {
-                int icon = item.getState.getAsBoolean() ? android.R.drawable.checkbox_on_background :
-                        android.R.drawable.checkbox_off_background;
-                right = getContext().getResources().getDrawable(icon, null);
-                right.setBounds(0, 0, size, size);
-            }
-
-            textView.setCompoundDrawables(left, null, right, null);
-            textView.setCompoundDrawablePadding(
-                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, m));
-
-            return convertView;
-        }
-    }
-
-    private static class SearchAutocompleteAdapter extends BaseAdapter implements Filterable {
-
-        interface OnSearchCommitListener {
-            void onSearchCommit(String text);
-        }
-
-        private final Context mContext;
-        private final OnSearchCommitListener commitListener;
-        private List<String> completions = new ArrayList<>();
-
-        SearchAutocompleteAdapter(Context context, OnSearchCommitListener commitListener) {
-            mContext = context;
-            this.commitListener = commitListener;
-        }
-
-        @Override
-        public int getCount() {
-            return completions.size();
-        }
-
-        @Override
-        public Object getItem(int position) {
-            return completions.get(position);
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return position;
-        }
-
-        @SuppressLint("ClickableViewAccessibility")
-        @Override
-        @SuppressWarnings("ConstantConditions")
-        public View getView(final int position, View convertView, ViewGroup parent) {
-            if (convertView == null) {
-                LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                convertView = inflater.inflate(android.R.layout.simple_dropdown_item_1line, parent, false);
-            }
-            TextView v = (TextView) convertView.findViewById(android.R.id.text1);
-            v.setText(completions.get(position));
-            Drawable right = mContext.getResources().getDrawable(R.drawable.commit_search, null);
-            final int size = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32, mContext.getResources().getDisplayMetrics());
-            right.setBounds(0, 0, size, size);
-            v.setCompoundDrawables(null, null, right, null);
-            //noinspection AndroidLintClickableViewAccessibility
-            v.setOnTouchListener(new OnTouchListener() {
-					public boolean onTouch(View v1, MotionEvent event) {
-                if (event.getAction() != MotionEvent.ACTION_DOWN) {
-                    return false;
-                }
-                TextView t = (TextView) v1;
-                if (event.getX() > t.getWidth() - t.getCompoundPaddingRight()) {
-                    commitListener.onSearchCommit(getItem(position).toString());
-                    return true;
-                }
-                return false;
-            }});
-            //noinspection AndroidLintClickableViewAccessibility
-            parent.setOnTouchListener(new OnTouchListener() {
-					public boolean onTouch(View dropdown, MotionEvent event) {
-                if (event.getX() > dropdown.getWidth() - size * 2) {
-                    return true;
-                }
-                return false;
-            }});
-            return convertView;
-        }
-
-        @Override
-        public Filter getFilter() {
-            return new Filter() {
-                @Override
-                protected FilterResults performFiltering(CharSequence constraint) {
-                    // Invoked on a worker thread
-                    FilterResults filterResults = new FilterResults();
-                    if (constraint != null) {
-                        List<String> results = getCompletions(constraint.toString());
-                        filterResults.values = results;
-                        filterResults.count = results.size();
-                    }
-                    return filterResults;
-                }
-
-                @Override
-                @SuppressWarnings("unchecked")
-                protected void publishResults(CharSequence constraint, FilterResults results) {
-                    if (results != null && results.count > 0) {
-                        completions = (List<String>) results.values;
-                        notifyDataSetChanged();
-                    } else {
-                        notifyDataSetInvalidated();
-                    }
-                }
-            };
-        }
-
-        // Runs on a worker thread
-        private List<String> getCompletions(String text) {
-            int total = 0;
-            byte[] data = new byte[16384];
-            try {
-                URL url = new URL(URLUtil.composeSearchUrl(text, searchCompleteUrl, "%s"));
-                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-                try {
-                    InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-                    while (total <= data.length) {
-                        int count = in.read(data, total, data.length - total);
-                        if (count == -1) {
-                            break;
-                        }
-                        total += count;
-                    }
-                    if (total >= data.length) {
-                        // overflow
-                        return new ArrayList<String>();
-                    }
-                } finally {
-                    urlConnection.disconnect();
-                }
-            } catch (IOException e) {
-                // Swallow exception and return empty list
-                return new ArrayList<String>();
-            }
-
-            // Result looks like:
-            // [ "original query", ["completion1", "completion2", ...], ...]
-
-            JSONArray jsonArray;
-            try {
-				jsonArray = new JSONArray(new String(data, StandardCharsets.ISO_8859_1));
-            } catch (JSONException e) {
-                return new ArrayList<String>();
-            }
-            jsonArray = jsonArray.optJSONArray(1);
-            if (jsonArray == null) {
-                return new ArrayList<String>();
-            }
-            final int MAX_RESULTS = 10;
-            List<String> result = new ArrayList<>(Math.min(jsonArray.length(), MAX_RESULTS));
-            for (int i = 0; i < jsonArray.length() && result.size() < MAX_RESULTS; i++) {
-                String s = jsonArray.optString(i);
-                if (s != null && !s.isEmpty()) {
-                    result.add(s);
-                }
-            }
-            return result;
-        }
-    }
-
-    class CustomDialogBookmark extends Dialog implements View.OnClickListener {
-
-        Activity mainActivity;
-        Button add;
-        Button close;
-        ListView listView;
-        ArrayAdapter adapter;
-		final Tab tab;
-        public CustomDialogBookmark(Activity activity, final Tab tab) {
-            super(activity);
-            this.mainActivity = activity;
-			this.tab = tab;
-        }
-
-        @Override
-        protected void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            setTitle("List bookmarks");
-            setContentView(R.layout.dialog_bookmark);
-            setCanceledOnTouchOutside(true);
-            setCancelable(true);
-            add = (Button) findViewById(R.id.btn_addbookmark);
-            add.setOnClickListener(this);
-            close = (Button) findViewById(R.id.btn_close);
-            close.setOnClickListener(this);
-            listView = (ListView) findViewById(R.id.listView);
-            adapter = new ArrayAdapter<String>(mainActivity, android.R.layout.simple_list_item_1, tab.listBookmark);
-            listView.setAdapter(adapter);
-            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-					@Override
-					public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-						tab.webview.loadUrl("file://" + tab.extractPath + "/" + tab.listBookmark.get(i));
-						dismiss();
-					}
-				});
-			listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-					@Override
-					public boolean onItemLongClick(AdapterView<?> p1, View p2, int p3, long p4) {
-						tab.listBookmark.remove(tab.listBookmark.get(p3));
-                        adapter.notifyDataSetChanged();
-						return false;
-					}
-				});
-        }
-
-        @Override
-        public void onClick(View v) {
-            switch (v.getId()) {
-                case R.id.btn_addbookmark:
-                    String url = URLDecoder.decode(tab.webview.getUrl()).substring(("file://" + tab.extractPath).length() + 1);
-                    if (tab.listBookmark.indexOf(url) == -1) {
-                        tab.listBookmark.add(url);
-                        adapter.notifyDataSetChanged();
-                    } else {
-                        Toast.makeText(mainActivity, "Bookmark already exist", Toast.LENGTH_SHORT).show();
-                    }
-                    break;
-				case R.id.btn_close:
-                    tab.bookmarkDialog.dismiss();
-                    break;
-			}
-        }
-    }
-
-    class CustomDialogSearchAll extends Dialog implements View.OnClickListener {
-
-        Activity mainActivity;
-        Button search;
-        ListView listView;
-        EditText editText;
-        ArrayAdapter adapter;
-        ProgressBar searchProgress;
-        ArrayList<String> searchResult;
-		final Tab tab;
-        
-        public CustomDialogSearchAll(Activity activity, final Tab tab) {
-            super(activity);
-            // TODO Auto-generated constructor stub
-            this.mainActivity = activity;
-			this.tab = tab;
-		}
-
-        @Override
-        protected void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            setTitle("Search all");
-            setContentView(R.layout.dialog_search_all);
-            setCanceledOnTouchOutside(true);
-            setCancelable(true);
-            search = (Button) findViewById(R.id.btn_search);
-            search.setOnClickListener(this);
-            listView = (ListView) findViewById(R.id.list_result);
-            editText = (EditText) findViewById(R.id.edit_search);
-            searchProgress = (ProgressBar) findViewById(R.id.progressBar);
-            searchProgress.setMax(tab.listSite.size() - 1);
-            searchResult = new ArrayList<>();
-            adapter = new ArrayAdapter<String>(mainActivity, android.R.layout.simple_list_item_1, searchResult);
-            listView.setAdapter(adapter);
-            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-					@Override
-					public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-						tab.webview.loadUrl("file://" + tab.extractPath + "/" + searchResult.get(i));
-						dismiss();
-					}
-				});
-        }
-
-        @Override
-        public void onClick(View v) {
-            switch (v.getId()) {
-                case R.id.btn_search:
-                    if (editText.getText().toString().length() > 0)
-                        new AsyncTask<Void, Integer, Void>() {
-                            String textSearch;
-
-                            @Override
-                            protected void onPreExecute() {
-                                super.onPreExecute();
-                                searchProgress.setProgress(0);
-                                textSearch = editText.getText().toString();
-                            }
-
-                            @Override
-                            protected Void doInBackground(Void... voids) {
-                                for (int i = 1; i < tab.listSite.size(); i++) {
-                                    if (searchDoc(tab, tab.listSite.get(i), textSearch)) {
-                                        publishProgress(i, 1);
-                                    } else {
-                                        publishProgress(i, 0);
-                                    }
-                                }
-                                return null;
-                            }
-
-                            @Override
-                            protected void onProgressUpdate(Integer... values) {
-                                super.onProgressUpdate(values);
-                                searchProgress.setProgress(values[0].intValue());
-                                if (values[1] == 1) {
-                                    searchResult.add(tab.listSite.get(values[0]));
-                                    adapter.notifyDataSetChanged();
-                                    CustomDialogSearchAll.this.setTitle(searchResult.size() + " Results");
-                                }
-                            }
-
-                            @Override
-                            protected void onPostExecute(Void aVoid) {
-                                super.onPostExecute(aVoid);
-                                CustomDialogSearchAll.this.setTitle(searchResult.size() + " Results");
-                            }
-                        }.execute();
-            }
-        }
-
-        private boolean searchDoc(final Tab tab, final String siteName, final String textSearch) {
-            final StringBuilder reval = new StringBuilder();
-            InputStream in = null;
-			try {
-                final InputStream resourceAsStream = tab.utils.chm.getResourceAsStream("/" + siteName);
-				if (resourceAsStream == null) {
-					return false;
-				}
-				in = new BufferedInputStream(resourceAsStream);
-                final byte[] buf = new byte[1024 * 1024];
-                int c;
-                while ((c = in.read(buf)) >= 0) {
-                    reval.append(new String(buf, 0, c));
-                }
-            } catch (Throwable e) {
-                ExceptionLogger.e(TAG, e.getMessage(), e);
-            } finally {
-				FileUtil.close(in);
-			}
-
-            //Document doc = Jsoup.parse(reval.toString());
-//            if (doc.text().indexOf(textSearch) > 0)
-//				return true;
-//            else
-//				return false;
-			return Html.escapeHtml(reval.toString()).indexOf(textSearch) > 0;
-        }
-    }
 
     private void initFile(final Tab tab) {
 		ExceptionLogger.d(TAG, "initFile chmFilePath " + tab.chmFilePath + ", password:");

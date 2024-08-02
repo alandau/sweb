@@ -35,6 +35,10 @@ public class ExceptionLogger {
 		}
 	}
 	
+	public static void close() {
+		printWriter.close();
+	}
+	
     public static void e(final String tag, final String st, final Throwable e) {
         Log.e(tag, st, e);
         printWriter.println(tag + ": " + st);//simpleDateFormat.format(new Date()) + ": " + 

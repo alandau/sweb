@@ -62,7 +62,7 @@ dependencies {
     //compile 'org.apache.james:apache-mime4j-dom:0.8.6'
 	//compile 'org.apache.james:apache-mime4j-core:0.8.6'
 	
-	//compile 'net.lingala.zip4j:zip4j:2.11.1+'
+	//compile 'net.lingala.zip4j:zip4j:2.11.5'
 	//compile "com.tonyodev.fetchmigrator:fetchmigrator:3.0.12"
 	//compile "com.tonyodev.fetch2fileserver:fetch2fileserver:3.0.12"
 	//compile "com.tonyodev.fetch2okhttp:fetch2okhttp:3.0.12"

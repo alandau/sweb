@@ -37,6 +37,94 @@ public class FileUtil {
 	private static final Pattern encodingCss = Pattern.compile("@charset\\s+\"([^\"]+)\";");
 	public static final Pattern ILLEGAL_FILE_CHARS = Pattern.compile("[^\n]*?[?\\:*|\"<>#+%][^\n]*?");
 	
+	public static void main(String[] args) throws Exception {
+
+//		List<File> files = getFiles(new File("/sdcard/.aide"), true,
+//				Pattern.compile(".*?\\.([dxs]?htm[l]?|txt|java|c|cpp|h|hpp|xml|md|lua|sh|bat|list|depend|js|jsp|mk|config|configure|machine|asm|css|desktop|inc|i|plist|pro|py|s)", Pattern.CASE_INSENSITIVE),
+//				Pattern.compile("", Pattern.CASE_INSENSITIVE));
+//		String collectionToString = Util.collectionToString(files, true, "\r\n");
+//		System.out.println(collectionToString);
+//		System.out.println(Util.collectionToString(System.getProperties().entrySet(), true, "\n"));
+//		String result = null;
+//		try {
+//			String[] args2 = { "/system/bin/cat", "/proc/meminfo" };
+//			result = exec(args2).toString();//, "/system/bin/");
+//		} catch (RuntimeException ex) {
+//			Log.i("fetch_process_info", "ex=" + ex.toString());
+//		}
+//		System.out.println(result);
+//		//System.out.println(System.getenv());
+//
+//		//System.out.println(System.getenv("SECONDARY_STORAGE").split(":")[0]);
+//		//System.out.println(System.getenv("SECONDARY_STORAGE").split(":")[1]);
+//		//deleteDrawable("/sdcard/AppProjects/0SearchExplore/PowerExplorer/PowerExplorer/src/main", "");
+//		//exec("/system/bin/chmod", "-R", "777", "/data/data/com.aide.ui/cache/");
+//		//exec("/system/bin/rm", "-r", "/data/data/com.aide.ui/cache/");
+//		//exec("/system/bin/rm", "/data/data/com.aide.ui/cache/1493867303508.tmp");
+//		exec("/system/bin/ls", "-l", "/data/data/com.aide.ui/files");
+//		//exec("/system/bin/cd /data/data/com.aide.ui/");
+//		//exec("ls", "-l");
+		//exec("/system/bin/rm", "/data/data/com.aide.ui/7z");
+		//exec("/system/bin/mv", "/data/data/com.aide.ui/7z-armeabi-v7a", "/data/data/com.aide.ui/7za");
+		exec("/system/bin/cp", "/sdcard/.aide/7za", "/data/data/com.aide.ui/");
+		exec("/system/bin/chmod", "777", "/data/data/com.aide.ui/7za");
+//		exec("/system/bin/chmod", "777", "/data/data/com.aide.ui/*");
+//		exec("/system/bin/chmod", "777", "/data/data/com.aide.ui/");
+//		exec("/system/bin/chmod", "777", "/data/data/com.aide.ui");
+		//exec("/data/data/com.aide.ui/7za", "i");
+		//exec("/data/data/com.aide.ui/7za");
+		exec("/system/bin/ls", "-l", "/data/data/com.aide.ui/");
+		exec("/system/bin/ls", "-lR", "/data/data/com.aide.ui/cache");
+		exec("/system/bin/ls", "-lR", "/data/data/com.aide.ui/code_cache");
+		exec("/system/bin/ls", "-lR", "/data/data/com.aide.ui/lib");
+		exec("/system/bin/ls", "-l", "/data/data/com.aide.ui/files");
+//		//exec("/system/bin/ls", "-l", "/data/data/com.aide.ui/shared_prefs");
+////		exec("/system/bin/cp", "-R", "/sdcard/tmp/files", "/data/data/com.aide.ui/files");//, "/sdcard/tmp");
+////		exec("/system/bin/ls", "-l", "/data/data/com.aide.ui/files");
+////		exec("/system/bin/ls", "-l", "/data/data/com.aide.ui/shared_prefs");
+//		//exec("/system/bin/mkdir", "/data/data/com.aide.ui/files/ndksupport-20150805/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/");
+//		//exec("/system/bin/ls", "-l", "/data/data/com.aide.ui/files/ndksupport-20150805/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a");
+////		exec("/system/bin/cp", "/data/data/com.aide.ui/files/ndksupport-20150805/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/libstlport_static.a", 
+////			 "/data/data/com.aide.ui/files/ndksupport-20150805/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/");
+////		exec("/system/bin/cp", "/data/data/com.aide.ui/files/ndksupport-20150805/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/libstlport_shared.so", 
+////			 "/data/data/com.aide.ui/files/ndksupport-20150805/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/");
+////		exec("/system/bin/chmod", "-R", "777", "/data/data/com.aide.ui/files/ndksupport-20150805/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/");
+////		
+//		exec("/system/bin/mkdir", "/data/data/com.aide.ui/files/ndksupport-1.707060002E9/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/");
+//		exec("/system/bin/cp", "/data/data/com.aide.ui/files/ndksupport-1.707060002E9/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/libstlport_static.a", 
+//			 "/data/data/com.aide.ui/files/ndksupport-1.707060002E9/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/");
+//		exec("/system/bin/cp", "/data/data/com.aide.ui/files/ndksupport-1.707060002E9/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/libstlport_shared.so", 
+//			 "/data/data/com.aide.ui/files/ndksupport-1.707060002E9/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/");
+//		exec("/system/bin/chmod", "-R", "777", "/data/data/com.aide.ui/files/ndksupport-1.707060002E9/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/");
+//		exec("/system/bin/ls", "-l", "/data/data/com.aide.ui/files/ndksupport-1.707060002E9/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a/thumb/");
+//		//exec("/data/data/com.aide.ui/7za", "x", "-aoa", "-o/data/data/com.aide.ui", "/storage/MicroSD/Apps/ndk-aide-new.7z");
+//		//exec("/data/data/com.aide.ui/7za", "x", "-aoa", "-o/data/data/com.aide.ui", "/storage/MicroSD/FrVN/aide.7z");
+//		//exec("/data/data/com.aide.ui/7za", "x", "-aoa", "-o/data/data/com.aide.ui", "/storage/MicroSD/Apps/aide-lic.zip");
+//		//exec("/system/bin/cp", "-f", "/sdcard/.aide/shared_prefs/com.aide.ui_preferences.xml", "/data/data/com.aide.ui/shared_prefs");//, "/sdcard/tmp");
+//		//exec("/system/bin/ls", "-lR", "/data/data/com.aide.ui/files/ndksupport-20150805/android-ndk-aide/sources/cxx-stl/stlport/libs/armeabi-v7a");
+//		//exec("/system/bin/ls", "-lR", "/data/data/com.aide.ui/");
+//		//Log.d("/data/data/com.aide.ui/", new File("/data/data/com.aide.ui/").list().length + "");
+//		//exec("/system/bin/rm", "/sdcard/rar/ndkaide.7z");
+		//exec("/data/data/com.aide.ui/7za", "a", "-mqs", "/sdcard/.aide/all-aide-ndk.7z", "/data/data/com.aide.ui/");//"-r", "-mqs", "-ssw",  , "/data/data/com.aide.ui/shared_prefs" "/data/data/com.aide.ui/"
+		exec("/data/data/com.aide.ui/7za", "t", "/sdcard/.aide/all-aide-ndk.7z");
+//		//exec("ls", "-l", "/sdcard/rar/");
+//		exec("", "/data/data/com.aide.ui/7za", "x", "-bsp1", "-bb", "-aou", "/sdcard/rar/ndkaide.7z", "-o/sdcard/rar/", ">", "/sdcard/progress.txt");
+////		Entry<BufferedReader, PrintStream> e = execInteract("/system/bin/cp", "-R", "-i", "/sdcard/rar", "/sdcard/.com.free.searcher");
+////		PrintStream p = e.getValue();
+////		BufferedReader b = e.getKey();
+////		Scanner input = new Scanner(System.in);
+////
+////		//System.out.print("Enter: ");
+////		String str = "";//input.nextLine();
+////		while (!"exit".equals(str)) {
+////			while (b.ready()) {
+////				System.out.println(b.readLine());
+////			}
+////			str = input.nextLine();
+////			p.println(str);
+////		}
+//		//exec();
+	}
 	
 	public static StringBuilder exec(final String... cmd) {
 		if (cmd == null || cmd.length == 0) {
@@ -267,6 +355,10 @@ public class FileUtil {
 //	}
 	
 	public static List<File> getFiles(final File f, boolean includeDir, final Pattern includePat, final Pattern excludePat) {
+		
+		ExceptionLogger.d(TAG, "getFiles.includePat " + includePat);
+		ExceptionLogger.d(TAG, "getFiles.excludePat " + excludePat);
+		
 		final List<File> fList = new LinkedList<File>();
 		String name;
 		long totalSize = 0;
