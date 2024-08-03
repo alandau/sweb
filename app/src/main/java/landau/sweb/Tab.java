@@ -111,7 +111,7 @@ public class Tab implements Serializable {
 	ArrayList<String> listSite;
 	ArrayList<String> listBookmark;
 	int historyIndex = -1;
-	transient CustomDialogBookmark bookmarkDialog;
+	transient OfflineDialogBookmark offlineBookmarkDialog;
 	boolean searchChanged;
 	volatile boolean onEnterPassword = false;
 	boolean passwordOK = false;

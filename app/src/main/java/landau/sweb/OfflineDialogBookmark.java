@@ -6,7 +6,7 @@ import android.os.*;
 import android.view.*;
 import java.net.*;
 
-public class CustomDialogBookmark extends Dialog implements View.OnClickListener {
+public class OfflineDialogBookmark extends Dialog implements View.OnClickListener {
 
 	Activity mainActivity;
 	Button add;
@@ -15,7 +15,7 @@ public class CustomDialogBookmark extends Dialog implements View.OnClickListener
 	ArrayAdapter adapter;
 	final Tab tab;
 	
-	public CustomDialogBookmark(Activity activity, final Tab tab) {
+	public OfflineDialogBookmark(Activity activity, final Tab tab) {
 		super(activity);
 		this.mainActivity = activity;
 		this.tab = tab;
@@ -65,7 +65,7 @@ public class CustomDialogBookmark extends Dialog implements View.OnClickListener
 				}
 				break;
 			case R.id.btn_close:
-				tab.bookmarkDialog.dismiss();
+				tab.offlineBookmarkDialog.dismiss();
 				break;
 		}
 	}

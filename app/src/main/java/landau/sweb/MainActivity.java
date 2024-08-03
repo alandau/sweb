@@ -4066,8 +4066,8 @@ public class MainActivity extends ParentActivity {
 						actions.add(new MenuAction("Bookmark", 0, new Runnable() {
 											@Override
 											public void run() {
-												currentTab.bookmarkDialog = new CustomDialogBookmark(MainActivity.this, currentTab);
-												currentTab.bookmarkDialog.show();
+												currentTab.offlineBookmarkDialog = new OfflineDialogBookmark(MainActivity.this, currentTab);
+												currentTab.offlineBookmarkDialog.show();
 												dialog.dismiss();
 											}
 										}));
