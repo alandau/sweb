@@ -2545,7 +2545,7 @@ public class MainActivity extends ParentActivity {
 					tabOfWebView.loading = false;
 
 					if (tabOfWebView.md5File != null) {
-						Utils.saveBookmark(tabOfWebView.extractPath, tabOfWebView.md5File, tabOfWebView.listBookmark);
+						//Utils.saveBookmark(tabOfWebView.extractPath, tabOfWebView.md5File, tabOfWebView.listBookmark);
 						saveHistory(tabOfWebView);//.extractPath, t.md5File, t.historyIndex);
 					}
 					if (!url.equals(tabOfWebView.lastUrl)) {
@@ -3187,6 +3187,7 @@ public class MainActivity extends ParentActivity {
 									final String url2 = URLDecoder.decode(url).substring(("file://" + currentTab.extractPath).length() + 1);
 									if (currentTab.listBookmark.indexOf(url2) == -1) {
 										currentTab.listBookmark.add(url2);
+										Utils.saveBookmark(currentTab.extractPath, currentTab.md5File, currentTab.listBookmark);
 									} else {
 										Toast.makeText(MainActivity.this, "Bookmark already exist", Toast.LENGTH_SHORT).show();
 									}

@@ -289,26 +289,28 @@ public class Utils {
 
     }
 
-
-
     public static void saveBookmark(String extractPath, String md5, ArrayList<String> listBookmark) {
         try {
             final FileOutputStream fos = new FileOutputStream(extractPath + "/bookmark_" + md5, false);
+            final BufferedOutputStream bos = new BufferedOutputStream(fos);
             for (String str : listBookmark) {
-                fos.write((str + ";").getBytes());
+                bos.write((str + ";").getBytes());
             }
-            fos.close();
-        } catch (IOException ignored) {
-        }
+            FileUtil.flushClose(bos, fos);
+        } catch (IOException e) {
+			ExceptionLogger.e(TAG, e.getMessage(), e);
+		}
     }
 
     public static void saveHistory(String extractPath, String md5, int index) {
         try {
             final FileOutputStream fos = new FileOutputStream(extractPath + "/history_" + md5, false);
-            fos.write((""+index).getBytes());
-            fos.close();
-        } catch (IOException ignored) {
-        }
+            final BufferedOutputStream bos = new BufferedOutputStream(fos);
+            bos.write((""+index).getBytes());
+            FileUtil.flushClose(bos, fos);
+        } catch (IOException e) {
+			ExceptionLogger.e(TAG, e.getMessage(), e);
+		}
     }
 
 

@@ -196,9 +196,9 @@ public class FileUtil {
 		}
 	}
 
-	public static void flushClose(final OutputStream... closable) {
-		if (closable != null && closable.length > 0) {
-			for (OutputStream c : closable) {
+	public static void flushClose(final OutputStream... os) {
+		if (os != null && os.length > 0) {
+			for (OutputStream c : os) {
 				if (c != null) {
 					try {
 						c.flush();

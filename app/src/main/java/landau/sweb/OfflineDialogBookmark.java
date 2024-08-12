@@ -5,6 +5,7 @@ import android.widget.*;
 import android.os.*;
 import android.view.*;
 import java.net.*;
+import chm.cblink.nb.chmreader.lib.*;
 
 public class OfflineDialogBookmark extends Dialog implements View.OnClickListener {
 
@@ -46,6 +47,7 @@ public class OfflineDialogBookmark extends Dialog implements View.OnClickListene
 				@Override
 				public boolean onItemLongClick(AdapterView<?> p1, View p2, int p3, long p4) {
 					tab.listBookmark.remove(tab.listBookmark.get(p3));
+					Utils.saveBookmark(tab.extractPath, tab.md5File, tab.listBookmark);
 					adapter.notifyDataSetChanged();
 					return false;
 				}
@@ -59,6 +61,7 @@ public class OfflineDialogBookmark extends Dialog implements View.OnClickListene
 				String url = URLDecoder.decode(tab.webview.getUrl()).substring(("file://" + tab.extractPath).length() + 1);
 				if (tab.listBookmark.indexOf(url) == -1) {
 					tab.listBookmark.add(url);
+					Utils.saveBookmark(tab.extractPath, tab.md5File, tab.listBookmark);
 					adapter.notifyDataSetChanged();
 				} else {
 					Toast.makeText(mainActivity, "Bookmark already exist", Toast.LENGTH_SHORT).show();
