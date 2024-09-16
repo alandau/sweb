@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/main_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+		android:orientation="vertical"
+		android:background="#ffc0c0c0">
+
+		<FrameLayout
+            android:id="@+id/top"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+		>
+		
+			<LinearLayout
+				android:id="@+id/address"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:background="#00000000"
+				android:gravity="center"
+				android:orientation="horizontal">
+
+				<ImageView
+					android:id="@+id/favicon"
+					android:layout_width="40dp"
+					android:layout_height="match_parent"
+					android:paddingStart="8dp"
+					android:paddingEnd="8dp"
+					android:scaleType="fitCenter"
+					android:clickable="true"
+					android:focusable="true"
+					android:src="@drawable/page_info" />
+
+				<AutoCompleteTextView
+					android:id="@+id/et"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:textSize="14sp"
+					android:completionThreshold="1"
+					android:imeActionLabel="Go"
+					android:imeOptions="actionGo"
+					android:inputType="textUri"
+					android:paddingBottom="10dp"
+					android:paddingTop="10dp"
+					android:paddingLeft="0dp"
+					android:paddingRight="0dp"
+					android:selectAllOnFocus="true"
+					android:singleLine="true" />
+				<ImageView
+					android:id="@+id/goStop"
+					android:layout_width="40dp"
+					android:layout_height="match_parent"
+					android:paddingStart="8dp"
+					android:paddingEnd="8dp"
+					android:scaleType="fitCenter"
+					android:clickable="true"
+					android:focusable="true"
+					android:src="@drawable/stop" />
+			</LinearLayout>
+
+			<ProgressBar
+				android:id="@+id/progressbar"
+				style="@android:style/Widget.ProgressBar.Horizontal"
+				android:layout_width="match_parent"
+				android:layout_height="2dp"
+				android:max="100"
+				android:visibility="gone"
+				android:layout_gravity="bottom"/>
+
+		</FrameLayout>
+
+		<FrameLayout
+            android:id="@+id/content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+		>
+			<FrameLayout
+				android:id="@+id/webviews"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:layout_weight="2"
+			/>
+			<LinearLayout
+				android:id="@+id/tabDialog"
+				android:layout_width="300dp"
+				android:layout_height="match_parent"
+				android:orientation="vertical"
+				android:background="#ff363636"
+				android:visibility="gone"
+				android:layout_gravity="left">
+				<ListView
+					android:id="@+id/tabList"
+					android:layout_width="match_parent"
+					android:layout_height="0dp"
+					android:layout_weight="1"
+					android:focusable="true"
+				/>
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="40dp"
+					android:orientation="horizontal"
+					android:background="#ffd6d6d6"
+					android:focusable="true"
+					android:focusableInTouchMode="true"
+					android:clickable="true"
+				>
+
+					<ImageView
+						android:id="@+id/action_back"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:contentDescription="@string/action_back"
+						android:scaleType="center"
+						android:src="@drawable/ic_action_back"
+						android:background="?android:attr/selectableItemBackground"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+
+					<ImageView
+						android:id="@+id/action_home"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:contentDescription="@string/action_homepage"
+						android:scaleType="center"
+						android:src="@drawable/ic_action_home"
+						android:background="?android:attr/selectableItemBackground"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+
+					<ImageView
+						android:id="@+id/action_forward"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:contentDescription="@string/action_forward"
+						android:scaleType="center"
+						android:src="@drawable/ic_action_forward"
+						android:background="?android:attr/selectableItemBackground"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+
+					<ImageView
+						android:id="@+id/new_tab_button"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:contentDescription="@string/action_new_tab"
+						android:scaleType="center"
+						android:src="@drawable/ic_action_plus"
+						android:background="?android:attr/selectableItemBackground"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+
+					<ImageView
+						android:id="@+id/undoCloseBtn"
+						android:layout_width="0dp"
+						android:layout_height="match_parent"
+						android:layout_weight="1"
+						android:src="@drawable/ic_frozen"
+						android:background="?android:attr/selectableItemBackground"
+						android:contentDescription="Undo Closed Tabs"
+						android:scaleType="center"
+						android:focusable="true"
+						android:focusableInTouchMode="false"
+						android:clickable="true"/>
+				</LinearLayout>
+			</LinearLayout>
+		</FrameLayout>
+
+		<ListView
+			android:id="@+id/requestList"
+			android:layout_width="match_parent"
+			android:layout_height="192dp"
+			android:paddingLeft="2dp"
+			android:paddingTop="0dp"
+			android:paddingRight="2dp"
+			android:paddingBottom="0dp"
+			android:visibility="gone"
+			android:focusable="true"
+		/>
+
+        <LinearLayout
+            android:id="@+id/searchPane"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/searchEdit"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="13sp"
+                android:paddingEnd="4dp"
+                android:paddingStart="4dp"
+				android:singleLine="true"
+				/>
+
+            <TextView
+                android:id="@+id/searchCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:paddingEnd="8dp"
+                android:paddingStart="8dp"
+				android:focusable="true"
+			/>
+
+            <ImageView
+                android:id="@+id/searchClear"
+                android:layout_width="44dp"
+                android:layout_height="24dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_delete_white_36dp"
+                android:tint="#61615f"
+				android:focusable="true"
+			/>
+
+            <ImageView
+                android:id="@+id/searchFindNext"
+                android:layout_width="44dp"
+                android:layout_height="24dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/bottom"
+                android:tint="#61615f"
+				android:focusable="true"
+			/>
+
+            <ImageView
+                android:id="@+id/searchFindPrev"
+                android:layout_width="44dp"
+                android:layout_height="24dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/top"
+                android:tint="#61615f"
+				android:focusable="true"
+			/>
+
+            <ImageView
+                android:id="@+id/searchClose"
+                android:layout_width="34dp"
+                android:layout_height="24dp"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/stop"
+                android:tint="#61615f"
+				android:focusable="true"
+			/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="#00000000"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingBottom="4dp"
+            android:paddingTop="4dp"/>
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/fullScreenVideo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"/>
+
+</FrameLayout>

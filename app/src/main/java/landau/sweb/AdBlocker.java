@@ -15,12 +15,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.regex.Pattern;
 
-import landau.sweb.utils.ExceptionLogger;
+import net.gnu.util.FileUtil;
+import net.gnu.common.ExceptionLogger;
 
 @SuppressWarnings({"StatementWithEmptyBody", "WeakerAccess"})
 public class AdBlocker {
 
-    static final String TAG = AdBlocker.class.getSimpleName();
+    static final String TAG = "AdBlocker";
 
     static class RuleWithDomain {
         boolean matchAllPaths;
@@ -146,7 +147,6 @@ public class AdBlocker {
                 }
             }
         }
-        br.close();
     }
 
     private void addSimpleDomain(String domain) {
@@ -186,8 +186,9 @@ public class AdBlocker {
 
     @SuppressWarnings("StatementWithEmptyBody")
     private void loadFromFile(File f) {
-        try {
-            BufferedReader br = new BufferedReader(new FileReader(f));
+        BufferedReader br = null;
+		try {
+            br = new BufferedReader(new FileReader(f));
             String line;
             while ((line = br.readLine()) != null && line.isEmpty()) {}
             if (line == null) return;
@@ -196,10 +197,12 @@ public class AdBlocker {
             } else {
                 loadFromHostsFile(line, br);
             }
-        } catch (IOException e) {
+        } catch (Throwable e) {
             //You'll need to add proper error handling here
             Log.e("AdBlocker", "exception on file " + f.getName(), e);
-        }
+        } finally {
+			FileUtil.close(br);
+		}
     }
 
     String getPath(Uri url) {
@@ -321,7 +324,7 @@ public class AdBlocker {
             result |= result2;
             return result;
         } catch (Exception e) {
-            ExceptionLogger.logException(e);
+            ExceptionLogger.e(TAG, e);
             return false;
         }
     }
