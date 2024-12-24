@@ -32,6 +32,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Parcel;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -90,6 +91,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -764,20 +766,69 @@ public class MainActivity extends Activity {
         useAdBlocker = prefs.getBoolean("adblocker", true);
         initAdblocker();
 
-        if (savedInstanceState != null) {
-            ArrayList<Bundle> bundles = savedInstanceState.getParcelableArrayList("open_webviews");
+        Bundle diskBundle = loadStateBundle();
+        if (diskBundle != null) {
+            ArrayList<Bundle> bundles = diskBundle.getParcelableArrayList("open_webviews");
             if (bundles != null && bundles.size() != 0) {
                 for (int i = 0; i < bundles.size(); i++) {
                     newTabFromBundle(bundles.get(i));
                 }
             } else {
-                newTab(et.getText().toString());            }
+                newTab(et.getText().toString());
+            }
+            ArrayList<Bundle> closedBundles = diskBundle.getParcelableArrayList("closed_tabs_webviews");
+            ArrayList<String> closedTitles = diskBundle.getStringArrayList("closed_tabs_titles");
+            if (closedBundles != null && closedTitles != null && closedBundles.size() == closedTitles.size()) {
+                for (int i = 0; i < closedBundles.size(); i++) {
+                    TitleAndBundle titleAndBundle = new TitleAndBundle();
+                    titleAndBundle.title = closedTitles.get(i);
+                    titleAndBundle.bundle = closedBundles.get(i);
+                    closedTabs.add(titleAndBundle);
+                }
+            }
         } else {
             newTab(et.getText().toString());
         }
         getCurrentWebView().setVisibility(View.VISIBLE);
         getCurrentWebView().requestFocus();
         onNightModeChange();
+    }
+
+    private Bundle loadStateBundle() {
+        File file = new File(getExternalFilesDir(null), "state.dat");
+        byte[] bytes = new byte[2 * 1024 * 1024];
+        int pos = 0;
+        try {
+            try (InputStream in = new FileInputStream(file)) {
+                while (pos < 10 * 1024 * 1024) {
+                    int count = in.read(bytes, pos, bytes.length - pos);
+                    if (count == -1) {
+                        break;
+                    }
+                    pos += count;
+                    if (pos == bytes.length) {
+                        byte[] newArray = new byte[bytes.length * 2];
+                        System.arraycopy(bytes, 0, newArray, 0, pos);
+                        bytes = newArray;
+                    }
+                }
+                if (pos >= 10 * 1024 * 1024) {
+                    Log.e(TAG, "Too large saved state: >" + pos + " bytes");
+                    return null;
+                }
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Can't read state from " + file.getAbsolutePath());
+            return null;
+        }
+
+        Parcel parcel = Parcel.obtain();
+        parcel.unmarshall(bytes, 0, pos);
+        parcel.setDataPosition(0);
+        Bundle bundle = parcel.readBundle(MainActivity.class.getClassLoader());
+        parcel.recycle();
+
+        return bundle;
     }
 
     @Override
@@ -793,9 +844,7 @@ public class MainActivity extends Activity {
         super.onSaveInstanceState(outState);
 
         int count = tabs.size();
-        if (count == 0) {
-            return;
-        }
+        Bundle diskBundle = new Bundle();
 
         ArrayList<Bundle> bundles = new ArrayList<>();
         for (int i = 0; i < count; i++) {
@@ -803,7 +852,34 @@ public class MainActivity extends Activity {
             tabs.get(i).webview.saveState(b);
             bundles.add(b);
         }
-        outState.putParcelableArrayList("open_webviews", bundles);
+        diskBundle.putParcelableArrayList("open_webviews", bundles);
+
+        count = Math.min(closedTabs.size(), 10);
+        ArrayList<Bundle> closedBundles = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            closedBundles.add(closedTabs.get(i).bundle);
+        }
+        diskBundle.putParcelableArrayList("closed_tabs_webviews", closedBundles);
+        ArrayList<String> titles = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            titles.add(closedTabs.get(i).title);
+        }
+        diskBundle.putStringArrayList("closed_tabs_titles", titles);
+
+
+        Parcel parcel = Parcel.obtain();
+        parcel.writeBundle(diskBundle);
+        byte[] bytes = parcel.marshall();
+        parcel.recycle();
+
+        File file = new File(getExternalFilesDir(null), "state.dat");
+        try {
+            try (OutputStream out = new FileOutputStream(file)) {
+                out.write(bytes);
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Can't write state to " + file.getAbsolutePath());
+        }
     }
 
     @Override
