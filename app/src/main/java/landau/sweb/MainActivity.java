@@ -197,6 +197,9 @@ public class MainActivity extends Activity {
             new MenuAction("Full screen", R.drawable.fullscreen, this::toggleFullscreen, () -> isFullscreen),
             new MenuAction("Tab history", R.drawable.left_right, this::showTabHistory),
             new MenuAction("Log requests", R.drawable.log_requests, this::toggleLogRequests, () -> isLogRequests),
+            new MenuAction("Allow Javascript", R.drawable.javascript,
+                    () -> getCurrentWebView().getSettings().setJavaScriptEnabled(!getCurrentWebView().getSettings().getJavaScriptEnabled()),
+                    () -> getCurrentWebView().getSettings().getJavaScriptEnabled()),
             new MenuAction("Find on page", R.drawable.find_on_page, this::findOnPage),
             new MenuAction("Page info", R.drawable.page_info, this::pageInfo),
             new MenuAction("Share URL", android.R.drawable.ic_menu_share, this::shareUrl),
@@ -243,7 +246,8 @@ public class MainActivity extends Activity {
     };
 
     final String[] shortMenu = {
-            "Desktop UA", "Log requests", "Find on page", "Page info", "Share URL",
+            "Desktop UA", "Log requests", "Allow Javascript",
+            "Find on page", "Page info", "Share URL",
             "Open URL in app",  "Full menu"
     };
 
